@@ -44,10 +44,12 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            Log In
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
+            <Link to="/app">Log In</Link>
           </Button>
-          <Button size="sm">Book a Demo</Button>
+          <Button size="sm" asChild>
+            <Link to="/app">Launch Demo</Link>
+          </Button>
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen(!open)}>

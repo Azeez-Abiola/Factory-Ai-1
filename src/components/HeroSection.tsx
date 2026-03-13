@@ -41,13 +41,17 @@ const HeroSection = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-base px-8 h-12 gap-2 group">
-                Book a Demo
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <Button size="lg" className="text-base px-8 h-12 gap-2 group" asChild>
+                <Link to="/app">
+                  Launch Demo
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
               </Button>
-              <Button variant="outline" size="lg" className="text-base px-8 h-12 gap-2">
-                <Play className="w-4 h-4" />
-                Watch Product Overview
+              <Button variant="outline" size="lg" className="text-base px-8 h-12 gap-2" asChild>
+                <a href="#how-it-works">
+                  <Play className="w-4 h-4" />
+                  Watch Product Overview
+                </a>
               </Button>
             </div>
           </motion.div>
