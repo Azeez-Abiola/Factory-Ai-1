@@ -32,6 +32,12 @@ const App = () => (
             <Route path="cameras" element={<Cameras />} />
             <Route path="reports" element={<Reports />} />
           </Route>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Tenants />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="system" element={<SystemMonitoring />} />
+            <Route path="billing" element={<Billing />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
