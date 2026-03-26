@@ -10,6 +10,11 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
 import Cameras from "./pages/Cameras.tsx";
 import Reports from "./pages/Reports.tsx";
+import AdminLayout from "./components/admin/AdminLayout.tsx";
+import Tenants from "./pages/admin/Tenants.tsx";
+import UserManagement from "./pages/admin/UserManagement.tsx";
+import SystemMonitoring from "./pages/admin/SystemMonitoring.tsx";
+import Billing from "./pages/admin/Billing.tsx";
 
 const queryClient = new QueryClient();
 
