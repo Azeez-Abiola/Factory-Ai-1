@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Bell, Camera, FileText, 
   Shield, Factory, Settings, ChevronLeft, ChevronRight 
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
