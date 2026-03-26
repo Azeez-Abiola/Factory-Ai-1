@@ -10,6 +10,11 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
 import Cameras from "./pages/Cameras.tsx";
 import Reports from "./pages/Reports.tsx";
+import AdminLayout from "./components/admin/AdminLayout.tsx";
+import Tenants from "./pages/admin/Tenants.tsx";
+import UserManagement from "./pages/admin/UserManagement.tsx";
+import SystemMonitoring from "./pages/admin/SystemMonitoring.tsx";
+import Billing from "./pages/admin/Billing.tsx";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +31,12 @@ const App = () => (
             <Route path="alerts" element={<Alerts />} />
             <Route path="cameras" element={<Cameras />} />
             <Route path="reports" element={<Reports />} />
+          </Route>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Tenants />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="system" element={<SystemMonitoring />} />
+            <Route path="billing" element={<Billing />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
