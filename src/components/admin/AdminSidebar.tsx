@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
-  Factory, ChevronLeft, ChevronRight, ArrowLeft
+  Factory, ChevronLeft, ChevronRight, ArrowLeft,
+  ScrollText, Rocket, Settings2
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,9 @@ const navItems = [
   { to: "/admin/users", icon: Users, label: "User Management" },
   { to: "/admin/system", icon: Activity, label: "System Monitoring" },
   { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
+  { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
+  { to: "/admin/onboarding", icon: Rocket, label: "Onboarding" },
+  { to: "/admin/settings", icon: Settings2, label: "Settings" },
 ];
 
 const AdminSidebar = () => {
@@ -38,7 +42,7 @@ const AdminSidebar = () => {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 px-2 space-y-1">
+      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = item.end
             ? location.pathname === item.to
