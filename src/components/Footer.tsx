@@ -43,7 +43,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">with love from techhub</p>
+          <p className="text-xs text-muted-foreground">© 2026 with love from techhub. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</a>
