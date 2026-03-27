@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, Bell, Camera, FileText, 
-  Shield, Factory, Settings, ChevronLeft, ChevronRight 
+  Shield, Factory, Settings, ChevronLeft, ChevronRight,
+  ClipboardList, Sparkles, Wrench
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -12,6 +13,9 @@ const navItems = [
   { to: "/app/alerts", icon: Bell, label: "Alerts & Incidents" },
   { to: "/app/cameras", icon: Camera, label: "Camera Feeds" },
   { to: "/app/reports", icon: FileText, label: "Reports" },
+  { to: "/app/shift-reports", icon: ClipboardList, label: "Shift Handover" },
+  { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
+  { to: "/app/maintenance", icon: Wrench, label: "Maintenance" },
 ];
 
 const AppSidebar = () => {
@@ -38,7 +42,7 @@ const AppSidebar = () => {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 px-2 space-y-1">
+      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = item.end
             ? location.pathname === item.to

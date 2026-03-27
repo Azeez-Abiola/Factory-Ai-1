@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import StatCard from "@/components/app/StatCard";
 import { dashboardStats, hourlyAlerts, weeklyDefects, downtimeByZone, productivityData, mockAlerts } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import LiveAlertSimulator from "@/components/app/LiveAlertSimulator";
 
 const Dashboard = () => {
   const recentAlerts = mockAlerts.slice(0, 4);
@@ -10,9 +11,12 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Real-time factory intelligence overview</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Real-time factory intelligence overview</p>
+        </div>
+        <LiveAlertSimulator />
       </div>
 
       {/* Stat Cards */}

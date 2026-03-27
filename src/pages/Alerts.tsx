@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockAlerts, mockTeam, Alert, AlertSeverity, AlertStatus, AlertCategory } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import IncidentTimeline from "@/components/app/IncidentTimeline";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const severityColors: Record<AlertSeverity, string> = {
   critical: "bg-destructive/10 text-destructive border-destructive/30",
@@ -137,7 +139,7 @@ const Alerts = () => {
 
       {/* Alert Detail Dialog */}
       <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
-        <DialogContent className="max-w-lg bg-card border-border">
+        <DialogContent className="max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
           {selectedAlert && (
             <>
               <DialogHeader>
@@ -146,80 +148,77 @@ const Alerts = () => {
                   {selectedAlert.title}
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Badge variant="outline" className={cn(severityColors[selectedAlert.severity])}>
-                    {selectedAlert.severity}
-                  </Badge>
-                  <Badge variant="outline">{selectedAlert.category}</Badge>
-                  <Badge variant="outline">{selectedAlert.status}</Badge>
-                </div>
 
-                <p className="text-sm text-muted-foreground">{selectedAlert.description}</p>
+              <Tabs defaultValue="details">
+                <TabsList className="bg-muted/50">
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="timeline" className="gap-1">
+                    <History className="w-3 h-3" /> Timeline
+                  </TabsTrigger>
+                </TabsList>
 
-                {/* Simulated camera snapshot */}
-                <div className="w-full h-48 rounded-lg bg-muted/50 border border-border flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 grid-bg opacity-30" />
-                  <div className="text-center z-10">
-                    <Camera className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">{selectedAlert.cameraName}</p>
-                    <p className="text-xs text-primary font-mono mt-1">AI Detection Snapshot</p>
+                <TabsContent value="details" className="space-y-4 mt-3">
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className={cn(severityColors[selectedAlert.severity])}>
+                      {selectedAlert.severity}
+                    </Badge>
+                    <Badge variant="outline">{selectedAlert.category}</Badge>
+                    <Badge variant="outline">{selectedAlert.status}</Badge>
                   </div>
-                  {/* AI detection overlay boxes */}
-                  <div className="absolute top-8 left-12 w-20 h-16 border-2 border-destructive/60 rounded" />
-                  <div className="absolute top-6 left-10 bg-destructive/80 text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
-                    VIOLATION
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs">Camera</p>
-                    <p className="text-foreground">{selectedAlert.cameraId} – {selectedAlert.cameraName}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Zone</p>
-                    <p className="text-foreground">{selectedAlert.zone}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Time</p>
-                    <p className="text-foreground">{new Date(selectedAlert.timestamp).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Assigned To</p>
-                    <p className="text-foreground">{selectedAlert.assignedTo || "Unassigned"}</p>
-                  </div>
-                </div>
+                  <p className="text-sm text-muted-foreground">{selectedAlert.description}</p>
 
-                {selectedAlert.resolution && (
-                  <div className="bg-success/5 border border-success/20 rounded-lg p-3">
-                    <p className="text-xs text-success font-medium mb-1">Resolution</p>
-                    <p className="text-sm text-foreground">{selectedAlert.resolution}</p>
+                  {/* Simulated camera snapshot */}
+                  <div className="w-full h-48 rounded-lg bg-muted/50 border border-border flex items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 grid-bg opacity-30" />
+                    <div className="text-center z-10">
+                      <Camera className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">{selectedAlert.cameraName}</p>
+                      <p className="text-xs text-primary font-mono mt-1">AI Detection Snapshot</p>
+                    </div>
+                    <div className="absolute top-8 left-12 w-20 h-16 border-2 border-destructive/60 rounded" />
+                    <div className="absolute top-6 left-10 bg-destructive/80 text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
+                      VIOLATION
+                    </div>
                   </div>
-                )}
 
-                <div className="flex gap-2">
-                  {selectedAlert.status === "open" && (
-                    <Select onValueChange={(val) => handleAssign(selectedAlert.id, val)}>
-                      <SelectTrigger className="flex-1 bg-background border-border">
-                        <SelectValue placeholder="Assign to…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mockTeam.map((m) => (
-                          <SelectItem key={m.id} value={m.name}>
-                            {m.name} – {m.role}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><p className="text-muted-foreground text-xs">Camera</p><p className="text-foreground">{selectedAlert.cameraId} – {selectedAlert.cameraName}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Zone</p><p className="text-foreground">{selectedAlert.zone}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Time</p><p className="text-foreground">{new Date(selectedAlert.timestamp).toLocaleString()}</p></div>
+                    <div><p className="text-muted-foreground text-xs">Assigned To</p><p className="text-foreground">{selectedAlert.assignedTo || "Unassigned"}</p></div>
+                  </div>
+
+                  {selectedAlert.resolution && (
+                    <div className="bg-success/5 border border-success/20 rounded-lg p-3">
+                      <p className="text-xs text-success font-medium mb-1">Resolution</p>
+                      <p className="text-sm text-foreground">{selectedAlert.resolution}</p>
+                    </div>
                   )}
-                  {selectedAlert.status !== "resolved" && (
-                    <Button onClick={() => handleResolve(selectedAlert.id)} className="bg-success hover:bg-success/90 text-primary-foreground">
-                      <CheckCircle className="w-4 h-4 mr-1" /> Resolve
-                    </Button>
-                  )}
-                </div>
-              </div>
+
+                  <div className="flex gap-2">
+                    {selectedAlert.status === "open" && (
+                      <Select onValueChange={(val) => handleAssign(selectedAlert.id, val)}>
+                        <SelectTrigger className="flex-1 bg-background border-border"><SelectValue placeholder="Assign to…" /></SelectTrigger>
+                        <SelectContent>
+                          {mockTeam.map((m) => (
+                            <SelectItem key={m.id} value={m.name}>{m.name} – {m.role}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {selectedAlert.status !== "resolved" && (
+                      <Button onClick={() => handleResolve(selectedAlert.id)} className="bg-success hover:bg-success/90 text-primary-foreground">
+                        <CheckCircle className="w-4 h-4 mr-1" /> Resolve
+                      </Button>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="timeline" className="mt-3">
+                  <IncidentTimeline alertId={selectedAlert.id} />
+                </TabsContent>
+              </Tabs>
             </>
           )}
         </DialogContent>

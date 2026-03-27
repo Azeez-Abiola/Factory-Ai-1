@@ -10,11 +10,17 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
 import Cameras from "./pages/Cameras.tsx";
 import Reports from "./pages/Reports.tsx";
+import ShiftReports from "./pages/ShiftReports.tsx";
+import Insights from "./pages/Insights.tsx";
+import Maintenance from "./pages/Maintenance.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import Tenants from "./pages/admin/Tenants.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
 import SystemMonitoring from "./pages/admin/SystemMonitoring.tsx";
 import Billing from "./pages/admin/Billing.tsx";
+import AuditLog from "./pages/admin/AuditLog.tsx";
+import Onboarding from "./pages/admin/Onboarding.tsx";
+import Settings from "./pages/admin/Settings.tsx";
 
 const queryClient = new QueryClient();
 
@@ -31,12 +37,18 @@ const App = () => (
             <Route path="alerts" element={<Alerts />} />
             <Route path="cameras" element={<Cameras />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="shift-reports" element={<ShiftReports />} />
+            <Route path="insights" element={<Insights />} />
+            <Route path="maintenance" element={<Maintenance />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Tenants />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="system" element={<SystemMonitoring />} />
             <Route path="billing" element={<Billing />} />
+            <Route path="audit-log" element={<AuditLog />} />
+            <Route path="onboarding" element={<Onboarding />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
