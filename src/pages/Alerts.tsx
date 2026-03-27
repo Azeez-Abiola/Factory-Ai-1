@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockAlerts, mockTeam, Alert, AlertSeverity, AlertStatus, AlertCategory } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import IncidentTimeline from "@/components/app/IncidentTimeline";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const severityColors: Record<AlertSeverity, string> = {
   critical: "bg-destructive/10 text-destructive border-destructive/30",
