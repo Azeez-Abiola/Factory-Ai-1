@@ -6,18 +6,12 @@ const Footer = () => {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-md bg-primary/20 border border-primary/30 flex items-center justify-center">
-                <div className="w-2.5 h-2.5 rounded-sm bg-primary" />
-              </div>
-              <span className="text-base font-bold text-foreground">
-                Factory<span className="text-primary">AI</span>
-              </span>
+              <img src="/techhub-logo.png" alt="TechHub" className="h-10 w-auto" />
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               AI-powered manufacturing intelligence platform. Making factories safer, smarter, and more efficient.
             </p>
           </div>
-
           {/* Links */}
           {[
             {
@@ -49,7 +43,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">© 2026 FactoryAI. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">with love from techhub</p>
           <div className="flex items-center gap-6">
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</a>
