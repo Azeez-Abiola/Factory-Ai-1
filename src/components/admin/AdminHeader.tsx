@@ -1,5 +1,6 @@
 import { Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AdminHeader = () => {
   return (
