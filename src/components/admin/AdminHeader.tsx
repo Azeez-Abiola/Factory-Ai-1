@@ -13,6 +13,7 @@ const AdminHeader = () => {
       </div>
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground">Platform Control Plane</span>
+        <ThemeToggle />
         <div className="w-8 h-8 rounded-full bg-destructive/20 border border-destructive/30 flex items-center justify-center text-sm font-bold text-destructive">
           OD
         </div>

@@ -18,6 +18,7 @@ const AppHeader = () => {
         />
       </div>
       <div className="flex items-center gap-4">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />
           {openAlerts > 0 && (
@@ -27,6 +28,8 @@ const AppHeader = () => {
           )}
         </Button>
         <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-sm font-bold text-primary">
+          OD
+        </div>
           OD
         </div>
       </div>
