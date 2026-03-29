@@ -2,6 +2,7 @@ import { Bell, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { mockAlerts } from "@/data/mockData";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AppHeader = () => {
   const openAlerts = mockAlerts.filter((a) => a.status === "open").length;
@@ -16,6 +17,7 @@ const AppHeader = () => {
         />
       </div>
       <div className="flex items-center gap-4">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="w-5 h-5" />
           {openAlerts > 0 && (
