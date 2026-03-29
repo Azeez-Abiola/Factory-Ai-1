@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { mockAlerts } from "@/data/mockData";
 import ThemeToggle from "@/components/ThemeToggle";
-import { mockAlerts } from "@/data/mockData";
 
 const AppHeader = () => {
   const openAlerts = mockAlerts.filter((a) => a.status === "open").length;
@@ -28,8 +27,6 @@ const AppHeader = () => {
           )}
         </Button>
         <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-sm font-bold text-primary">
-          OD
-        </div>
           OD
         </div>
       </div>
