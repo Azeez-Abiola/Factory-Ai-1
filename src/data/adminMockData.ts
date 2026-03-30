@@ -15,6 +15,8 @@ export interface Tenant {
   mrr: number;
   region: string;
   contactEmail: string;
+  parentId?: string | null;
+  parentName?: string | null;
 }
 
 export const mockTenants: Tenant[] = [
