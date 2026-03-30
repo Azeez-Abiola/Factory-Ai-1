@@ -27,11 +27,13 @@ interface TenantFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenant?: Tenant | null;
-  onSubmit: (data: TenantFormValues & { id?: string }) => void;
+  parentTenant?: Tenant | null;
+  onSubmit: (data: TenantFormValues & { id?: string; parentId?: string | null; parentName?: string | null }) => void;
 }
 
-const TenantForm = ({ open, onOpenChange, tenant, onSubmit }: TenantFormProps) => {
+const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: TenantFormProps) => {
   const isEdit = !!tenant;
+  const isSubTenant = !!parentTenant;
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantSchema),
@@ -50,9 +52,9 @@ const TenantForm = ({ open, onOpenChange, tenant, onSubmit }: TenantFormProps) =
         }
       : {
           name: "",
-          industry: "",
-          region: "",
-          plan: "starter" as TenantPlan,
+          industry: parentTenant?.industry ?? "",
+          region: parentTenant?.region ?? "",
+          plan: (parentTenant?.plan ?? "starter") as TenantPlan,
           status: "trial" as TenantStatus,
           cameras: 0,
           users: 1,
@@ -63,18 +65,27 @@ const TenantForm = ({ open, onOpenChange, tenant, onSubmit }: TenantFormProps) =
   });
 
   const handleSubmit = (values: TenantFormValues) => {
-    onSubmit({ ...values, id: tenant?.id });
+    onSubmit({
+      ...values,
+      id: tenant?.id,
+      parentId: parentTenant?.id ?? tenant?.parentId ?? null,
+      parentName: parentTenant?.name ?? tenant?.parentName ?? null,
+    });
     onOpenChange(false);
     form.reset();
   };
+
+  const title = isEdit
+    ? "Edit Tenant"
+    : isSubTenant
+    ? `Add Sub-Tenant under ${parentTenant.name}`
+    : "Add New Tenant";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-foreground">
-            {isEdit ? "Edit Tenant" : "Add New Tenant"}
-          </DialogTitle>
+          <DialogTitle className="text-foreground">{title}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -83,9 +94,9 @@ const TenantForm = ({ open, onOpenChange, tenant, onSubmit }: TenantFormProps) =
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Organization Name</FormLabel>
+                  <FormLabel>{isSubTenant ? "Sub-Tenant Name" : "Organization Name"}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Acme Manufacturing" {...field} />
+                    <Input placeholder={isSubTenant ? "e.g., Unit 2 – Welding" : "Acme Manufacturing"} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -244,7 +255,7 @@ const TenantForm = ({ open, onOpenChange, tenant, onSubmit }: TenantFormProps) =
                 Cancel
               </Button>
               <Button type="submit">
-                {isEdit ? "Save Changes" : "Create Tenant"}
+                {isEdit ? "Save Changes" : isSubTenant ? "Create Sub-Tenant" : "Create Tenant"}
               </Button>
             </div>
           </form>

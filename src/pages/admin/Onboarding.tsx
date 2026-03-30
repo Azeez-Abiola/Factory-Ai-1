@@ -1,22 +1,64 @@
 import { useState } from "react";
-import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight } from "lucide-react";
+import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { onboardingSteps } from "@/data/extendedMockData";
 import { toast } from "sonner";
 
 const stepIcons = [Building2, Camera, MapPin, Bell, Users];
 
+interface CameraEntry {
+  id: string;
+  name: string;
+  rtspUrl: string;
+  status: "connected" | "pending";
+}
+
+const defaultCameras: CameraEntry[] = [
+  { id: "cam-1", name: "Main Entrance", rtspUrl: "rtsp://192.168.1.10/stream", status: "connected" },
+  { id: "cam-2", name: "Assembly Line 1", rtspUrl: "rtsp://192.168.1.11/stream", status: "connected" },
+  { id: "cam-3", name: "Packaging Hall", rtspUrl: "rtsp://192.168.1.12/stream", status: "connected" },
+  { id: "cam-4", name: "QC Station", rtspUrl: "rtsp://192.168.1.13/stream", status: "connected" },
+];
+
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [cameras, setCameras] = useState<CameraEntry[]>(defaultCameras);
+  const [addCameraOpen, setAddCameraOpen] = useState(false);
+  const [newCameraName, setNewCameraName] = useState("");
+  const [newCameraUrl, setNewCameraUrl] = useState("");
 
   const handleComplete = () => {
     toast.success("Tenant onboarding complete! The new factory is now active.", { duration: 4000 });
     setCurrentStep(0);
+  };
+
+  const handleAddCamera = () => {
+    if (!newCameraName.trim() || !newCameraUrl.trim()) {
+      toast.error("Please fill in both camera name and RTSP URL.");
+      return;
+    }
+    const cam: CameraEntry = {
+      id: `cam-${Date.now()}`,
+      name: newCameraName.trim(),
+      rtspUrl: newCameraUrl.trim(),
+      status: "pending",
+    };
+    setCameras((prev) => [...prev, cam]);
+    setNewCameraName("");
+    setNewCameraUrl("");
+    setAddCameraOpen(false);
+    toast.success(`Camera "${cam.name}" added successfully`);
+  };
+
+  const handleRemoveCamera = (id: string) => {
+    setCameras((prev) => prev.filter((c) => c.id !== id));
+    toast.info("Camera removed");
   };
 
   return (
@@ -85,15 +127,65 @@ const Onboarding = () => {
             <h2 className="text-lg font-semibold text-foreground">Add Cameras</h2>
             <p className="text-sm text-muted-foreground">Connect IP cameras to the platform. You can add more later.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
-              {["Main Entrance", "Assembly Line 1", "Packaging Hall", "QC Station"].map((name, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
-                  <Camera className="w-5 h-5 text-primary" />
-                  <div className="flex-1"><p className="text-sm text-foreground">{name}</p><p className="text-xs text-muted-foreground">rtsp://192.168.1.{10 + i}/stream</p></div>
-                  <Badge variant="outline" className="text-xs bg-success/10 text-success">Connected</Badge>
+              {cameras.map((cam) => (
+                <div key={cam.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border group">
+                  <Camera className="w-5 h-5 text-primary shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground truncate">{cam.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{cam.rtspUrl}</p>
+                  </div>
+                  <Badge variant="outline" className={cn("text-xs shrink-0", cam.status === "connected" ? "bg-success/10 text-success" : "bg-warning/10 text-warning")}>
+                    {cam.status === "connected" ? "Connected" : "Pending"}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemoveCamera(cam.id)}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               ))}
             </div>
-            <Button variant="outline" size="sm" className="gap-2"><Camera className="w-4 h-4" /> Add Camera</Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setAddCameraOpen(true)}>
+              <Plus className="w-4 h-4" /> Add Camera
+            </Button>
+
+            {/* Add Camera Dialog */}
+            <Dialog open={addCameraOpen} onOpenChange={setAddCameraOpen}>
+              <DialogContent className="bg-card border-border max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground">Add New Camera</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Camera Name</Label>
+                    <Input
+                      placeholder="e.g., Warehouse Bay 2"
+                      value={newCameraName}
+                      onChange={(e) => setNewCameraName(e.target.value)}
+                      className="bg-background border-border mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">RTSP URL</Label>
+                    <Input
+                      placeholder="rtsp://192.168.1.xx/stream"
+                      value={newCameraUrl}
+                      onChange={(e) => setNewCameraUrl(e.target.value)}
+                      className="bg-background border-border mt-1"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => setAddCameraOpen(false)}>Cancel</Button>
+                    <Button onClick={handleAddCamera} className="gap-2">
+                      <Camera className="w-4 h-4" /> Add Camera
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 
