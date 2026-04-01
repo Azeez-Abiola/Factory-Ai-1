@@ -1,25 +1,122 @@
-import { useState } from "react";
-import { Clock, Shield, AlertTriangle, CheckCircle, TrendingUp, ChevronRight, FileText, ArrowRight } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Clock, Shield, AlertTriangle, CheckCircle, TrendingUp, ChevronRight, FileText, ArrowRight, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { mockShiftReports, ShiftReport } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 
 const ShiftReports = () => {
   const [selectedReport, setSelectedReport] = useState<ShiftReport | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterShift, setFilterShift] = useState("all");
+  const [sortBy, setSortBy] = useState<"date" | "safety" | "efficiency">("date");
+
+  const shiftNames = useMemo(() => {
+    const names = new Set(mockShiftReports.map((r) => r.shiftName));
+    return Array.from(names);
+  }, []);
+
+  const filtered = useMemo(() => {
+    let result = [...mockShiftReports];
+
+    if (filterShift !== "all") result = result.filter((r) => r.shiftName === filterShift);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (r) =>
+          r.shiftName.toLowerCase().includes(q) ||
+          r.supervisor.toLowerCase().includes(q) ||
+          r.date.includes(q)
+      );
+    }
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "safety":
+          return b.safetyScore - a.safetyScore;
+        case "efficiency":
+          return b.productionEfficiency - a.productionEfficiency;
+        default:
+          return b.date.localeCompare(a.date);
+      }
+    });
+
+    return result;
+  }, [filterShift, search, sortBy]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Shift Handover Reports</h1>
-        <p className="text-sm text-muted-foreground">Auto-generated end-of-shift summaries</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Shift Handover Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} of {mockShiftReports.length} reports shown
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="border-border w-fit"
+          onClick={() => toast.success("Exporting shift reports...")}
+        >
+          <FileText className="w-4 h-4 mr-2" /> Export All
+        </Button>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by shift, supervisor, date..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-card border-border"
+          />
+        </div>
+        <Select value={filterShift} onValueChange={setFilterShift}>
+          <SelectTrigger className="w-44 bg-card border-border">
+            <SelectValue placeholder="Shift" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Shifts</SelectItem>
+            {shiftNames.map((name) => (
+              <SelectItem key={name} value={name}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="w-44 bg-card border-border">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date">Newest First</SelectItem>
+            <SelectItem value="safety">Highest Safety</SelectItem>
+            <SelectItem value="efficiency">Highest Efficiency</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 && (
+        <div className="glass rounded-xl p-12 border border-border text-center text-muted-foreground text-sm">
+          No shift reports match your filters.
+        </div>
+      )}
+
       <div className="space-y-4">
-        {mockShiftReports.map((report) => (
+        {filtered.map((report) => (
           <div
             key={report.id}
             onClick={() => setSelectedReport(report)}
@@ -74,6 +171,7 @@ const ShiftReports = () => {
         ))}
       </div>
 
+      {/* Detail Dialog */}
       <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
         <DialogContent className="max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
           {selectedReport && (
@@ -138,7 +236,12 @@ const ShiftReports = () => {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => toast.success(`Exporting ${selectedReport.shiftName} report as PDF`)}
+                  >
                     <FileText className="w-4 h-4" /> Export PDF
                   </Button>
                 </div>
