@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
-import { Clock, Shield, AlertTriangle, CheckCircle, TrendingUp, ChevronRight, FileText, ArrowRight, Search } from "lucide-react";
+import { Clock, Shield, AlertTriangle, CheckCircle, TrendingUp, ChevronRight, FileText, ArrowRight, Search, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { mockShiftReports, ShiftReport } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import CreateShiftReportDialog from "@/components/reports/CreateShiftReportDialog";
 import {
   Select,
   SelectContent,
@@ -18,18 +19,20 @@ import {
 } from "@/components/ui/dialog";
 
 const ShiftReports = () => {
+  const [reports, setReports] = useState<ShiftReport[]>([...mockShiftReports]);
   const [selectedReport, setSelectedReport] = useState<ShiftReport | null>(null);
   const [search, setSearch] = useState("");
   const [filterShift, setFilterShift] = useState("all");
   const [sortBy, setSortBy] = useState<"date" | "safety" | "efficiency">("date");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const shiftNames = useMemo(() => {
-    const names = new Set(mockShiftReports.map((r) => r.shiftName));
+    const names = new Set(reports.map((r) => r.shiftName));
     return Array.from(names);
   }, []);
 
   const filtered = useMemo(() => {
-    let result = [...mockShiftReports];
+    let result = [...reports];
 
     if (filterShift !== "all") result = result.filter((r) => r.shiftName === filterShift);
     if (search.trim()) {
@@ -54,7 +57,11 @@ const ShiftReports = () => {
     });
 
     return result;
-  }, [filterShift, search, sortBy]);
+  }, [filterShift, search, sortBy, reports]);
+
+  const handleCreateReport = (report: ShiftReport) => {
+    setReports((prev) => [report, ...prev]);
+  };
 
   return (
     <div className="space-y-6">
@@ -62,16 +69,21 @@ const ShiftReports = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Shift Handover Reports</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} of {mockShiftReports.length} reports shown
+            {filtered.length} of {reports.length} reports shown
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="border-border w-fit"
-          onClick={() => toast.success("Exporting shift reports...")}
-        >
-          <FileText className="w-4 h-4 mr-2" /> Export All
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Report
+          </Button>
+          <Button
+            variant="outline"
+            className="border-border"
+            onClick={() => toast.success("Exporting shift reports...")}
+          >
+            <FileText className="w-4 h-4 mr-2" /> Export All
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -250,6 +262,13 @@ const ShiftReports = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <CreateShiftReportDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreateReport={handleCreateReport}
+        reportCount={reports.length}
+      />
     </div>
   );
 };

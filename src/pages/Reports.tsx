@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, CheckCircle, XCircle, Clock, TrendingUp, Search, ArrowUpDown } from "lucide-react";
+import { FileText, Download, CheckCircle, XCircle, Clock, TrendingUp, Search, ArrowUpDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { mockReports, ComplianceReport } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import CreateReportDialog from "@/components/reports/CreateReportDialog";
 import {
   Select,
   SelectContent,
@@ -38,12 +39,14 @@ type SortField = "date" | "score" | "findings" | "title";
 type SortDir = "asc" | "desc";
 
 const Reports = () => {
+  const [reports, setReports] = useState<ComplianceReport[]>([...mockReports]);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedReport, setSelectedReport] = useState<ComplianceReport | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -55,7 +58,7 @@ const Reports = () => {
   };
 
   const filtered = useMemo(() => {
-    let result = [...mockReports];
+    let result = [...reports];
 
     if (filterType !== "all") result = result.filter((r) => r.type === filterType);
     if (filterStatus !== "all") result = result.filter((r) => r.status === filterStatus);
@@ -89,15 +92,19 @@ const Reports = () => {
     });
 
     return result;
-  }, [filterType, filterStatus, search, sortField, sortDir]);
+  }, [filterType, filterStatus, search, sortField, sortDir, reports]);
 
-  const totalPassed = mockReports.filter((r) => r.status === "passed").length;
-  const totalFailed = mockReports.filter((r) => r.status === "failed").length;
-  const totalPending = mockReports.filter((r) => r.status === "pending").length;
+  const totalPassed = reports.filter((r) => r.status === "passed").length;
+  const totalFailed = reports.filter((r) => r.status === "failed").length;
+  const totalPending = reports.filter((r) => r.status === "pending").length;
   const avgScore = Math.round(
-    mockReports.filter((r) => r.score > 0).reduce((a, b) => a + b.score, 0) /
-      mockReports.filter((r) => r.score > 0).length
+    reports.filter((r) => r.score > 0).reduce((a, b) => a + b.score, 0) /
+      (reports.filter((r) => r.score > 0).length || 1)
   );
+
+  const handleCreateReport = (report: ComplianceReport) => {
+    setReports((prev) => [report, ...prev]);
+  };
 
   const handleExportAll = () => {
     toast.success(`Exporting ${filtered.length} report(s) as CSV...`);
@@ -127,12 +134,17 @@ const Reports = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Reports & Compliance</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} of {mockReports.length} reports shown
+            {filtered.length} of {reports.length} reports shown
           </p>
         </div>
-        <Button variant="outline" className="border-border w-fit" onClick={handleExportAll}>
-          <Download className="w-4 h-4 mr-2" /> Export All
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Report
+          </Button>
+          <Button variant="outline" className="border-border" onClick={handleExportAll}>
+            <Download className="w-4 h-4 mr-2" /> Export All
+          </Button>
+        </div>
       </div>
 
       {/* Filters Row */}
@@ -313,6 +325,14 @@ const Reports = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Create Report Dialog */}
+      <CreateReportDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreateReport={handleCreateReport}
+        reportCount={reports.length}
+      />
     </div>
   );
 };
