@@ -134,12 +134,17 @@ const Reports = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Reports & Compliance</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} of {mockReports.length} reports shown
+            {filtered.length} of {reports.length} reports shown
           </p>
         </div>
-        <Button variant="outline" className="border-border w-fit" onClick={handleExportAll}>
-          <Download className="w-4 h-4 mr-2" /> Export All
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Report
+          </Button>
+          <Button variant="outline" className="border-border" onClick={handleExportAll}>
+            <Download className="w-4 h-4 mr-2" /> Export All
+          </Button>
+        </div>
       </div>
 
       {/* Filters Row */}
