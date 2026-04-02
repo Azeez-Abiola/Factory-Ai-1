@@ -58,7 +58,7 @@ const Reports = () => {
   };
 
   const filtered = useMemo(() => {
-    let result = [...mockReports];
+    let result = [...reports];
 
     if (filterType !== "all") result = result.filter((r) => r.type === filterType);
     if (filterStatus !== "all") result = result.filter((r) => r.status === filterStatus);
