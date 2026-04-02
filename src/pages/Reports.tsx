@@ -92,15 +92,19 @@ const Reports = () => {
     });
 
     return result;
-  }, [filterType, filterStatus, search, sortField, sortDir]);
+  }, [filterType, filterStatus, search, sortField, sortDir, reports]);
 
-  const totalPassed = mockReports.filter((r) => r.status === "passed").length;
-  const totalFailed = mockReports.filter((r) => r.status === "failed").length;
-  const totalPending = mockReports.filter((r) => r.status === "pending").length;
+  const totalPassed = reports.filter((r) => r.status === "passed").length;
+  const totalFailed = reports.filter((r) => r.status === "failed").length;
+  const totalPending = reports.filter((r) => r.status === "pending").length;
   const avgScore = Math.round(
-    mockReports.filter((r) => r.score > 0).reduce((a, b) => a + b.score, 0) /
-      mockReports.filter((r) => r.score > 0).length
+    reports.filter((r) => r.score > 0).reduce((a, b) => a + b.score, 0) /
+      (reports.filter((r) => r.score > 0).length || 1)
   );
+
+  const handleCreateReport = (report: ComplianceReport) => {
+    setReports((prev) => [report, ...prev]);
+  };
 
   const handleExportAll = () => {
     toast.success(`Exporting ${filtered.length} report(s) as CSV...`);
