@@ -57,7 +57,11 @@ const ShiftReports = () => {
     });
 
     return result;
-  }, [filterShift, search, sortBy]);
+  }, [filterShift, search, sortBy, reports]);
+
+  const handleCreateReport = (report: ShiftReport) => {
+    setReports((prev) => [report, ...prev]);
+  };
 
   return (
     <div className="space-y-6">
