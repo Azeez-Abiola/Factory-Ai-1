@@ -69,16 +69,21 @@ const ShiftReports = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Shift Handover Reports</h1>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} of {mockShiftReports.length} reports shown
+            {filtered.length} of {reports.length} reports shown
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="border-border w-fit"
-          onClick={() => toast.success("Exporting shift reports...")}
-        >
-          <FileText className="w-4 h-4 mr-2" /> Export All
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Report
+          </Button>
+          <Button
+            variant="outline"
+            className="border-border"
+            onClick={() => toast.success("Exporting shift reports...")}
+          >
+            <FileText className="w-4 h-4 mr-2" /> Export All
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
