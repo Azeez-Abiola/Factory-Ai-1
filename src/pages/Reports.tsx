@@ -325,6 +325,14 @@ const Reports = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Create Report Dialog */}
+      <CreateReportDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreateReport={handleCreateReport}
+        reportCount={reports.length}
+      />
     </div>
   );
 };
