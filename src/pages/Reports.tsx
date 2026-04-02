@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { FileText, Download, CheckCircle, XCircle, Clock, TrendingUp, Search, ArrowUpDown } from "lucide-react";
+import { FileText, Download, CheckCircle, XCircle, Clock, TrendingUp, Search, ArrowUpDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { mockReports, ComplianceReport } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import CreateReportDialog from "@/components/reports/CreateReportDialog";
 import {
   Select,
   SelectContent,
