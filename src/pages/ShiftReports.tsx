@@ -262,6 +262,13 @@ const ShiftReports = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <CreateShiftReportDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreateReport={handleCreateReport}
+        reportCount={reports.length}
+      />
     </div>
   );
 };
