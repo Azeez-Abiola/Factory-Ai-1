@@ -39,12 +39,14 @@ type SortField = "date" | "score" | "findings" | "title";
 type SortDir = "asc" | "desc";
 
 const Reports = () => {
+  const [reports, setReports] = useState<ComplianceReport[]>([...mockReports]);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedReport, setSelectedReport] = useState<ComplianceReport | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
