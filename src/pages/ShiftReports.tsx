@@ -19,10 +19,12 @@ import {
 } from "@/components/ui/dialog";
 
 const ShiftReports = () => {
+  const [reports, setReports] = useState<ShiftReport[]>([...mockShiftReports]);
   const [selectedReport, setSelectedReport] = useState<ShiftReport | null>(null);
   const [search, setSearch] = useState("");
   const [filterShift, setFilterShift] = useState("all");
   const [sortBy, setSortBy] = useState<"date" | "safety" | "efficiency">("date");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const shiftNames = useMemo(() => {
     const names = new Set(mockShiftReports.map((r) => r.shiftName));
