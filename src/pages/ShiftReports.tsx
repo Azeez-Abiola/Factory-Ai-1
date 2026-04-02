@@ -27,7 +27,7 @@ const ShiftReports = () => {
   const [createOpen, setCreateOpen] = useState(false);
 
   const shiftNames = useMemo(() => {
-    const names = new Set(mockShiftReports.map((r) => r.shiftName));
+    const names = new Set(reports.map((r) => r.shiftName));
     return Array.from(names);
   }, []);
 
