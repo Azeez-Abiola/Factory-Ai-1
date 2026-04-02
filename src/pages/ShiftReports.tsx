@@ -32,7 +32,7 @@ const ShiftReports = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    let result = [...mockShiftReports];
+    let result = [...reports];
 
     if (filterShift !== "all") result = result.filter((r) => r.shiftName === filterShift);
     if (search.trim()) {
