@@ -13,6 +13,7 @@ import Reports from "./pages/Reports.tsx";
 import ShiftReports from "./pages/ShiftReports.tsx";
 import Insights from "./pages/Insights.tsx";
 import Maintenance from "./pages/Maintenance.tsx";
+import Help from "./pages/Help.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import Tenants from "./pages/admin/Tenants.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="shift-reports" element={<ShiftReports />} />
             <Route path="insights" element={<Insights />} />
             <Route path="maintenance" element={<Maintenance />} />
+            <Route path="help" element={<Help />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Tenants />} />

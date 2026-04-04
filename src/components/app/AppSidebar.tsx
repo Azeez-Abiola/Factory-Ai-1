@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, Bell, Camera, FileText, 
   Shield, Factory, Settings, ChevronLeft, ChevronRight,
-  ClipboardList, Sparkles, Wrench
+  ClipboardList, Sparkles, Wrench, HelpCircle
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -16,6 +16,7 @@ const navItems = [
   { to: "/app/shift-reports", icon: ClipboardList, label: "Shift Handover" },
   { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
   { to: "/app/maintenance", icon: Wrench, label: "Maintenance" },
+  { to: "/app/help", icon: HelpCircle, label: "Help & Docs" },
 ];
 
 const AppSidebar = () => {
