@@ -16,6 +16,7 @@ const navItems = [
   { to: "/app/shift-reports", icon: ClipboardList, label: "Shift Handover" },
   { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
   { to: "/app/maintenance", icon: Wrench, label: "Maintenance" },
+  { to: "/app/help", icon: HelpCircle, label: "Help & Docs" },
 ];
 
 const AppSidebar = () => {

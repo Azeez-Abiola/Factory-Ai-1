@@ -41,6 +41,7 @@ const App = () => (
             <Route path="shift-reports" element={<ShiftReports />} />
             <Route path="insights" element={<Insights />} />
             <Route path="maintenance" element={<Maintenance />} />
+            <Route path="help" element={<Help />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Tenants />} />
