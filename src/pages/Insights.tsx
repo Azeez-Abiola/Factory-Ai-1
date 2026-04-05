@@ -1,13 +1,16 @@
-import { Brain, TrendingUp, TrendingDown, Minus, Shield, Zap, Eye, DollarSign, Sparkles } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Brain, TrendingUp, TrendingDown, Minus, Shield, Zap, Eye, DollarSign, Sparkles, Search, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mockInsights, AIInsight } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
 
-const categoryConfig: Record<string, { icon: React.ReactNode; color: string }> = {
-  safety: { icon: <Shield className="w-5 h-5" />, color: "bg-destructive/10 text-destructive" },
-  efficiency: { icon: <Zap className="w-5 h-5" />, color: "bg-primary/10 text-primary" },
-  quality: { icon: <Eye className="w-5 h-5" />, color: "bg-warning/10 text-warning" },
-  cost: { icon: <DollarSign className="w-5 h-5" />, color: "bg-success/10 text-success" },
+const categoryConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+  safety: { icon: <Shield className="w-5 h-5" />, color: "bg-destructive/10 text-destructive", label: "Safety" },
+  efficiency: { icon: <Zap className="w-5 h-5" />, color: "bg-primary/10 text-primary", label: "Efficiency" },
+  quality: { icon: <Eye className="w-5 h-5" />, color: "bg-warning/10 text-warning", label: "Quality" },
+  cost: { icon: <DollarSign className="w-5 h-5" />, color: "bg-success/10 text-success", label: "Cost" },
 };
 
 const trendIcons = {
@@ -23,6 +26,27 @@ const impactColors = {
 };
 
 const Insights = () => {
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterImpact, setFilterImpact] = useState("all");
+  const [timeRange, setTimeRange] = useState("7d");
+
+  const filtered = useMemo(() => {
+    let result = [...mockInsights];
+    if (filterCategory !== "all") result = result.filter((i) => i.category === filterCategory);
+    if (filterImpact !== "all") result = result.filter((i) => i.impact === filterImpact);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.recommendation.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [search, filterCategory, filterImpact]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -30,15 +54,75 @@ const Insights = () => {
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-primary" /> AI Insights
           </h1>
-          <p className="text-sm text-muted-foreground">Weekly auto-generated intelligence from your factory data</p>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} insight{filtered.length !== 1 ? "s" : ""} · {timeRange === "7d" ? "Last 7 days" : timeRange === "30d" ? "Last 30 days" : "Last 90 days"}
+          </p>
         </div>
         <Badge variant="outline" className="text-xs gap-1">
           <Brain className="w-3 h-3" /> Generated Mar 27, 2026
         </Badge>
       </div>
 
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search insights..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-card border-border"
+          />
+        </div>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-40 bg-card border-border">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="safety">Safety</SelectItem>
+            <SelectItem value="efficiency">Efficiency</SelectItem>
+            <SelectItem value="quality">Quality</SelectItem>
+            <SelectItem value="cost">Cost</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterImpact} onValueChange={setFilterImpact}>
+          <SelectTrigger className="w-36 bg-card border-border">
+            <SelectValue placeholder="Impact" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Impact</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex gap-1 bg-card border border-border rounded-lg p-1">
+          {["7d", "30d", "90d"].map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                timeRange === range ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="font-medium">No insights match your filters</p>
+          <p className="text-sm">Try adjusting your search or filters.</p>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {mockInsights.map((insight) => {
+        {filtered.map((insight) => {
           const config = categoryConfig[insight.category];
           return (
             <div key={insight.id} className="glass rounded-xl p-5 border border-border hover:border-primary/20 transition-all">
@@ -49,6 +133,7 @@ const Insights = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-sm font-semibold text-foreground">{insight.title}</h3>
+                    <Badge variant="outline" className="text-xs">{config.label}</Badge>
                     <Badge variant="outline" className={cn("text-xs", impactColors[insight.impact])}>
                       {insight.impact} impact
                     </Badge>
