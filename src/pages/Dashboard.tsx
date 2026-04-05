@@ -22,7 +22,22 @@ const Dashboard = () => {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Safety Score"
+          title="Total Alerts"
+          value={dashboardStats.openAlerts + dashboardStats.resolvedToday}
+          subtitle={`${dashboardStats.openAlerts} open · ${dashboardStats.resolvedToday} resolved today`}
+          icon={AlertTriangle}
+          variant="warning"
+        />
+        <StatCard
+          title="Active Cameras"
+          value="12/12"
+          subtitle="All cameras online"
+          icon={Camera}
+          variant="default"
+          trend={{ value: 0, positive: true }}
+        />
+        <StatCard
+          title="Compliance Score"
           value={`${dashboardStats.safetyScore}%`}
           subtitle="Across all zones"
           icon={Shield}
@@ -30,27 +45,12 @@ const Dashboard = () => {
           trend={{ value: 3, positive: true }}
         />
         <StatCard
-          title="Open Alerts"
-          value={dashboardStats.openAlerts}
-          subtitle={`${dashboardStats.resolvedToday} resolved today`}
-          icon={AlertTriangle}
-          variant="warning"
-        />
-        <StatCard
-          title="Uptime"
+          title="System Uptime"
           value={`${dashboardStats.uptime}%`}
           subtitle="Production lines"
           icon={Activity}
-          variant="default"
-          trend={{ value: 1.2, positive: true }}
-        />
-        <StatCard
-          title="Defect Rate"
-          value={`${dashboardStats.defectRate}%`}
-          subtitle="Below 1% target"
-          icon={CheckCircle}
           variant="success"
-          trend={{ value: 0.3, positive: true }}
+          trend={{ value: 1.2, positive: true }}
         />
       </div>
 
