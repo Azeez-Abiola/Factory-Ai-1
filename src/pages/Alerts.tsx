@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera, History } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera, History, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { mockAlerts, mockTeam, Alert, AlertSeverity, AlertStatus, AlertCategory } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import IncidentTimeline from "@/components/app/IncidentTimeline";
@@ -38,10 +39,23 @@ const Alerts = () => {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterSeverity, setFilterSeverity] = useState<string>("all");
+  const [search, setSearch] = useState("");
 
   const filtered = alerts.filter((a) => {
     if (filterCategory !== "all" && a.category !== filterCategory) return false;
     if (filterStatus !== "all" && a.status !== filterStatus) return false;
+    if (filterSeverity !== "all" && a.severity !== filterSeverity) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (
+        !a.title.toLowerCase().includes(q) &&
+        !a.zone.toLowerCase().includes(q) &&
+        !a.cameraName.toLowerCase().includes(q) &&
+        !a.cameraId.toLowerCase().includes(q) &&
+        !a.id.toLowerCase().includes(q)
+      ) return false;
+    }
     return true;
   });
 
@@ -68,33 +82,56 @@ const Alerts = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Alerts & Incidents</h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} alerts found</p>
+          <p className="text-sm text-muted-foreground">{filtered.length} of {alerts.length} alerts shown</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-40 bg-card border-border">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="safety">Safety</SelectItem>
-              <SelectItem value="downtime">Downtime</SelectItem>
-              <SelectItem value="quality">Quality</SelectItem>
-              <SelectItem value="productivity">Productivity</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-36 bg-card border-border">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="assigned">Assigned</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-            </SelectContent>
-          </Select>
+      </div>
+
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by keyword, camera, zone..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-card border-border"
+          />
         </div>
+        <Select value={filterSeverity} onValueChange={setFilterSeverity}>
+          <SelectTrigger className="w-40 bg-card border-border">
+            <SelectValue placeholder="Severity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Severities</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-40 bg-card border-border">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="safety">Safety</SelectItem>
+            <SelectItem value="downtime">Downtime</SelectItem>
+            <SelectItem value="quality">Quality</SelectItem>
+            <SelectItem value="productivity">Productivity</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-36 bg-card border-border">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="assigned">Assigned</SelectItem>
+            <SelectItem value="resolved">Resolved</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Alert List */}
