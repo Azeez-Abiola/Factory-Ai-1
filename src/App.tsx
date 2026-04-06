@@ -22,6 +22,7 @@ import Billing from "./pages/admin/Billing.tsx";
 import AuditLog from "./pages/admin/AuditLog.tsx";
 import Onboarding from "./pages/admin/Onboarding.tsx";
 import Settings from "./pages/admin/Settings.tsx";
+import KpiConfig from "./pages/admin/KpiConfig.tsx";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="audit-log" element={<AuditLog />} />
             <Route path="onboarding" element={<Onboarding />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="kpi-config" element={<KpiConfig />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
