@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ScrollText, Search, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ const actionColors: Record<string, string> = {
 };
 
 const AuditLog = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterActor, setFilterActor] = useState("all");
 
@@ -73,7 +75,7 @@ const AuditLog = () => {
           </thead>
           <tbody>
             {filtered.map((entry) => (
-              <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+              <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => navigate(`/admin/audit-log/${entry.id}`)}>
                 <td className="p-3 text-xs font-mono text-muted-foreground whitespace-nowrap">
                   {new Date(entry.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </td>

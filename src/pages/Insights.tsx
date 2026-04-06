@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Brain, TrendingUp, TrendingDown, Minus, Shield, Zap, Eye, DollarSign, Sparkles, Search, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ const impactColors = {
 };
 
 const Insights = () => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterImpact, setFilterImpact] = useState("all");
@@ -125,7 +127,7 @@ const Insights = () => {
         {filtered.map((insight) => {
           const config = categoryConfig[insight.category];
           return (
-            <div key={insight.id} className="glass rounded-xl p-5 border border-border hover:border-primary/20 transition-all">
+            <div key={insight.id} onClick={() => navigate(`/app/insights/${insight.id}`)} className="glass rounded-xl p-5 border border-border hover:border-primary/20 cursor-pointer transition-all">
               <div className="flex items-start gap-4">
                 <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", config.color)}>
                   {config.icon}

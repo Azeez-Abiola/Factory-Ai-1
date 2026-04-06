@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Wrench, AlertTriangle, Clock, TrendingDown, Calendar, Activity, Shield,
   CheckCircle2, Filter, ChevronDown, ChevronUp, Settings2, FileText
@@ -45,7 +46,7 @@ const Maintenance = () => {
   const [riskFilter, setRiskFilter] = useState<string>("all");
   const [zoneFilter, setZoneFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"risk" | "probability">("risk");
-  const [selectedAlert, setSelectedAlert] = useState<MaintenanceAlert | null>(null);
+  const navigate = useNavigate();
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([
     { id: "WO-001", alertId: "PM-001", equipment: "Conveyor Belt – Line 1", scheduledDate: "2026-04-03", assignee: "Ravi Mehta", notes: "Belt tension and bearing replacement", status: "scheduled", createdAt: "2026-03-28" },
   ]);
@@ -223,7 +224,7 @@ const Maintenance = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={cn("w-2 h-2 rounded-full shrink-0", risk.dotColor)} />
-                        <h3 className="text-sm font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => setSelectedAlert(alert)}>
+                        <h3 className="text-sm font-semibold text-foreground cursor-pointer hover:text-primary transition-colors" onClick={() => navigate("/app/maintenance/" + alert.id)}>
                           {alert.equipment}
                         </h3>
                         <Badge variant="outline" className={cn("text-xs", risk.color)}>{risk.label}</Badge>
@@ -281,7 +282,7 @@ const Maintenance = () => {
                             <Settings2 className="w-3 h-3 mr-1" /> Schedule Maintenance
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedAlert(alert)}>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => navigate("/app/maintenance/" + alert.id)}>
                           <FileText className="w-3 h-3 mr-1" /> Details
                         </Button>
                       </div>
@@ -383,58 +384,7 @@ const Maintenance = () => {
         </TabsContent>
       </Tabs>
 
-      {/* ========== DETAIL DIALOG ========== */}
-      <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{selectedAlert?.equipment}</DialogTitle>
-          </DialogHeader>
-          {selectedAlert && (() => {
-            const risk = riskConfig[selectedAlert.riskLevel];
-            const relatedWOs = workOrders.filter(wo => wo.alertId === selectedAlert.id);
-            return (
-              <div className="space-y-4">
-                <div className="flex gap-2 flex-wrap">
-                  <Badge variant="outline" className={cn("text-xs", risk.color)}>{risk.label}</Badge>
-                  <Badge variant="outline" className="text-xs">{selectedAlert.zone}</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Failure Risk:</span> <span className="font-bold">{selectedAlert.failureProbability}%</span></div>
-                  <div><span className="text-muted-foreground">Est. Failure:</span> <span className="font-medium">{selectedAlert.estimatedTimeToFailure}</span></div>
-                  <div><span className="text-muted-foreground">Anomaly:</span> {selectedAlert.anomalyType}</div>
-                  <div><span className="text-muted-foreground">Last Service:</span> {selectedAlert.lastMaintenance}</div>
-                </div>
-                <div className="bg-primary/5 border border-primary/15 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-primary mb-1">🔧 Recommendation</p>
-                  <p className="text-sm text-foreground">{selectedAlert.recommendation}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2 font-medium">Health Trend (7-day)</p>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <LineChart data={selectedAlert.trendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--foreground))" }} />
-                      <Line type="monotone" dataKey="health" stroke={risk.barColor} strokeWidth={2} dot={{ fill: risk.barColor, r: 3 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                {relatedWOs.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">Work Orders</p>
-                    {relatedWOs.map(wo => (
-                      <div key={wo.id} className="text-xs text-foreground border border-border rounded-lg p-2 mb-1">
-                        {wo.id} — {wo.status} — {wo.scheduledDate} — {wo.assignee}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
+
 
       {/* ========== WORK ORDER FORM ========== */}
       <Dialog open={showWorkOrderForm} onOpenChange={setShowWorkOrderForm}>

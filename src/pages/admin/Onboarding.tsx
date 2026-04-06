@@ -77,7 +77,7 @@ const Onboarding = () => {
           return (
             <div key={step.id} className="flex items-center gap-2 flex-1">
               <button
-                onClick={() => i <= currentStep && setCurrentStep(i)}
+                onClick={() => setCurrentStep(i)}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all w-full",
                   isActive ? "bg-destructive/10 text-destructive border border-destructive/30" :

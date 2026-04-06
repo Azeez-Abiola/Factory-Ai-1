@@ -1,11 +1,11 @@
-import { Building2, Search, Plus, MoreHorizontal, Pencil, Ban, RotateCcw, GitBranch } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Building2, Search, Plus, MoreHorizontal, Pencil, Ban, RotateCcw, GitBranch } from "lucide-react";
 import { mockTenants as initialTenants, type Tenant, type TenantStatus, type TenantPlan } from "@/data/adminMockData";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -26,8 +26,8 @@ const planLabels: Record<TenantPlan, string> = {
 const Tenants = () => {
   const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
   const [search, setSearch] = useState("");
-  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const navigate = useNavigate();
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [parentForSubTenant, setParentForSubTenant] = useState<Tenant | null>(null);
 
@@ -79,7 +79,6 @@ const Tenants = () => {
           : t
       )
     );
-    setSelectedTenant(null);
     toast.success(`${tenant.name} ${newStatus === "suspended" ? "suspended" : "reactivated"}`);
   };
 
@@ -94,7 +93,6 @@ const Tenants = () => {
     setEditingTenant(tenant);
     setParentForSubTenant(null);
     setFormOpen(true);
-    setSelectedTenant(null);
   };
 
   const openAddSubTenant = (parent: Tenant, e?: React.MouseEvent) => {
@@ -102,7 +100,6 @@ const Tenants = () => {
     setEditingTenant(null);
     setParentForSubTenant(parent);
     setFormOpen(true);
-    setSelectedTenant(null);
   };
 
   const renderTenantRow = (tenant: Tenant, isChild = false) => {
@@ -111,8 +108,8 @@ const Tenants = () => {
       <>
         <TableRow
           key={tenant.id}
-          className="border-border cursor-pointer"
-          onClick={() => setSelectedTenant(tenant)}
+          className="border-border cursor-pointer hover:bg-muted/30 transition-colors"
+          onClick={() => navigate(`/admin/tenants/${tenant.id}`)}
         >
           <TableCell>
             <div className={cn("flex items-center gap-3", isChild && "pl-6")}>
@@ -239,82 +236,6 @@ const Tenants = () => {
         </Table>
       </div>
 
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedTenant} onOpenChange={() => setSelectedTenant(null)}>
-        <DialogContent className="bg-card border-border max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{selectedTenant?.name}</DialogTitle>
-          </DialogHeader>
-          {selectedTenant && (
-            <div className="space-y-4 text-sm">
-              {selectedTenant.parentName && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 border border-border">
-                  <GitBranch className="w-3.5 h-3.5" />
-                  Sub-tenant of <span className="font-medium text-foreground">{selectedTenant.parentName}</span>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  ["Industry", selectedTenant.industry],
-                  ["Region", selectedTenant.region],
-                  ["Plan", planLabels[selectedTenant.plan]],
-                  ["Status", selectedTenant.status],
-                  ["Cameras", selectedTenant.cameras],
-                  ["Users", selectedTenant.users],
-                  ["Zones", selectedTenant.zones],
-                  ["MRR", selectedTenant.mrr > 0 ? `$${selectedTenant.mrr}` : "Trial"],
-                  ["Contact", selectedTenant.contactEmail],
-                  ["Created", new Date(selectedTenant.createdAt).toLocaleDateString()],
-                ].map(([label, value]) => (
-                  <div key={label as string}>
-                    <p className="text-muted-foreground">{label}</p>
-                    <p className="font-medium text-foreground capitalize">{String(value)}</p>
-                  </div>
-                ))}
-              </div>
-              {/* Sub-tenants list */}
-              {(() => {
-                const subs = tenants.filter((t) => t.parentId === selectedTenant.id);
-                if (subs.length === 0) return null;
-                return (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-2">Sub-Tenants ({subs.length})</p>
-                    <div className="space-y-1.5">
-                      {subs.map((sub) => (
-                        <div key={sub.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border">
-                          <div className="flex items-center gap-2">
-                            <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-sm text-foreground">{sub.name}</span>
-                          </div>
-                          <Badge variant="outline" className={cn("text-xs capitalize", statusColors[sub.status])}>{sub.status}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-              <div className="flex gap-2 pt-2 flex-wrap">
-                <Button variant="outline" size="sm" className="border-border" onClick={() => openEdit(selectedTenant)}>
-                  <Pencil className="w-3 h-3 mr-1" /> Edit
-                </Button>
-                {!selectedTenant.parentId && (
-                  <Button variant="outline" size="sm" className="border-border" onClick={() => openAddSubTenant(selectedTenant)}>
-                    <GitBranch className="w-3 h-3 mr-1" /> Add Sub-Tenant
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn("border-border", selectedTenant.status !== "suspended" && "text-destructive hover:text-destructive")}
-                  onClick={() => handleToggleSuspend(selectedTenant)}
-                >
-                  {selectedTenant.status === "suspended" ? "Reactivate" : "Suspend"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Add / Edit / Sub-Tenant Form */}
       <TenantForm

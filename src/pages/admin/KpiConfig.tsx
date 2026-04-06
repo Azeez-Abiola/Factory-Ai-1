@@ -12,6 +12,16 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -138,6 +148,8 @@ const KpiConfig = () => {
   const [editingKpi, setEditingKpi] = useState<Kpi | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState<Omit<Kpi, "id">>(emptyKpi);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmType, setDeleteConfirmType] = useState<"kpi" | "okr">("kpi");
 
   const filteredKpis = filter === "all" ? kpis : kpis.filter((k) => k.category === filter);
 
@@ -156,9 +168,17 @@ const KpiConfig = () => {
     setFormData(emptyKpi);
   };
 
-  const handleDelete = (id: string) => {
-    setKpis((prev) => prev.filter((k) => k.id !== id));
-    toast.success("KPI deleted");
+  const handleDelete = () => {
+    if (!deleteConfirmId) return;
+    
+    if (deleteConfirmType === "kpi") {
+      setKpis((prev) => prev.filter((k) => k.id !== deleteConfirmId));
+      toast.success("KPI deleted successfully");
+    } else {
+      // Mock deletion for OKRs if needed
+      toast.success("Objective removed");
+    }
+    setDeleteConfirmId(null);
   };
 
   const openEdit = (kpi: Kpi) => {
@@ -342,7 +362,17 @@ const KpiConfig = () => {
                     <div className="flex items-center gap-2 ml-4">
                       <Switch checked={kpi.enabled} onCheckedChange={(checked) => setKpis((prev) => prev.map((k) => k.id === kpi.id ? { ...k, enabled: checked } : k))} />
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(kpi)}><Pencil className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(kpi.id)}><Trash2 className="w-4 h-4" /></Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                        onClick={() => {
+                          setDeleteConfirmId(kpi.id);
+                          setDeleteConfirmType("kpi");
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -378,9 +408,25 @@ const KpiConfig = () => {
                         <span>{okr.quarter}</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-foreground">{avgProgress}%</p>
-                      <p className="text-xs text-muted-foreground">Overall</p>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="w-4 h-4" /></Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setDeleteConfirmId(okr.id);
+                            setDeleteConfirmType("okr");
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-foreground">{avgProgress}%</p>
+                        <p className="text-xs text-muted-foreground">Overall</p>
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -403,6 +449,25 @@ const KpiConfig = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the {deleteConfirmType === "kpi" ? "KPI" : "Objective"} 
+              and remove its data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

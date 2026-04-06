@@ -12,8 +12,11 @@ import Cameras from "./pages/Cameras.tsx";
 import Reports from "./pages/Reports.tsx";
 import ShiftReports from "./pages/ShiftReports.tsx";
 import Insights from "./pages/Insights.tsx";
+import InsightDetail from "./pages/InsightDetail.tsx";
 import Maintenance from "./pages/Maintenance.tsx";
+import MaintenanceDetail from "./pages/MaintenanceDetail.tsx";
 import Help from "./pages/Help.tsx";
+import ReportDetail from "./pages/ReportDetail.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import Tenants from "./pages/admin/Tenants.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
@@ -23,6 +26,8 @@ import AuditLog from "./pages/admin/AuditLog.tsx";
 import Onboarding from "./pages/admin/Onboarding.tsx";
 import Settings from "./pages/admin/Settings.tsx";
 import KpiConfig from "./pages/admin/KpiConfig.tsx";
+import TenantDetail from "./pages/admin/TenantDetail.tsx";
+import AuditDetail from "./pages/admin/AuditDetail.tsx";
 
 const queryClient = new QueryClient();
 
@@ -39,9 +44,12 @@ const App = () => (
             <Route path="alerts" element={<Alerts />} />
             <Route path="cameras" element={<Cameras />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="reports/:reportId" element={<ReportDetail />} />
             <Route path="shift-reports" element={<ShiftReports />} />
             <Route path="insights" element={<Insights />} />
+            <Route path="insights/:insightId" element={<InsightDetail />} />
             <Route path="maintenance" element={<Maintenance />} />
+            <Route path="maintenance/:alertId" element={<MaintenanceDetail />} />
             <Route path="help" element={<Help />} />
           </Route>
           <Route path="/admin" element={<AdminLayout />}>
@@ -53,6 +61,8 @@ const App = () => (
             <Route path="onboarding" element={<Onboarding />} />
             <Route path="settings" element={<Settings />} />
             <Route path="kpi-config" element={<KpiConfig />} />
+            <Route path="tenants/:tenantId" element={<TenantDetail />} />
+            <Route path="audit-log/:auditId" element={<AuditDetail />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
