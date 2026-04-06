@@ -14,6 +14,7 @@ const navItems = [
   { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
   { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
   { to: "/admin/onboarding", icon: Rocket, label: "Onboarding" },
+  { to: "/admin/kpi-config", icon: Target, label: "KPI & OKRs" },
   { to: "/admin/settings", icon: Settings2, label: "Settings" },
 ];
 
