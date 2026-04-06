@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
   Factory, ChevronLeft, ChevronRight, ArrowLeft,
-  ScrollText, Rocket, Settings2
+  ScrollText, Rocket, Settings2, Target
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
