@@ -22,6 +22,7 @@ import Billing from "./pages/admin/Billing.tsx";
 import AuditLog from "./pages/admin/AuditLog.tsx";
 import Onboarding from "./pages/admin/Onboarding.tsx";
 import Settings from "./pages/admin/Settings.tsx";
+import KpiConfig from "./pages/admin/KpiConfig.tsx";
 
 const queryClient = new QueryClient();
 
