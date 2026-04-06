@@ -1,12 +1,15 @@
-import { Building2, Search, Plus, MoreHorizontal } from "lucide-react";
+import { Building2, Search, Plus, MoreHorizontal, Pencil, Ban, RotateCcw, GitBranch } from "lucide-react";
 import { useState } from "react";
-import { mockTenants, type Tenant, type TenantStatus, type TenantPlan } from "@/data/adminMockData";
+import { mockTenants as initialTenants, type Tenant, type TenantStatus, type TenantPlan } from "@/data/adminMockData";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import TenantForm from "@/components/admin/TenantForm";
 
 const statusColors: Record<TenantStatus, string> = {
   active: "bg-success/10 text-[hsl(var(--success))] border-success/20",
@@ -21,18 +24,160 @@ const planLabels: Record<TenantPlan, string> = {
 };
 
 const Tenants = () => {
+  const [tenants, setTenants] = useState<Tenant[]>(initialTenants);
   const [search, setSearch] = useState("");
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [parentForSubTenant, setParentForSubTenant] = useState<Tenant | null>(null);
 
-  const filtered = mockTenants.filter(
+  const filtered = tenants.filter(
     (t) =>
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       t.industry.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalMRR = mockTenants.reduce((sum, t) => sum + t.mrr, 0);
-  const totalCameras = mockTenants.reduce((sum, t) => sum + t.cameras, 0);
-  const totalUsers = mockTenants.reduce((sum, t) => sum + t.users, 0);
+  // Group: parent tenants first, then their children underneath
+  const parentTenants = filtered.filter((t) => !t.parentId);
+  const getChildren = (parentId: string) => filtered.filter((t) => t.parentId === parentId);
+
+  const totalMRR = tenants.reduce((sum, t) => sum + t.mrr, 0);
+  const totalCameras = tenants.reduce((sum, t) => sum + t.cameras, 0);
+  const totalUsers = tenants.reduce((sum, t) => sum + t.users, 0);
+
+  const handleFormSubmit = (data: any) => {
+    if (data.id) {
+      setTenants((prev) =>
+        prev.map((t) => (t.id === data.id ? { ...t, ...data } : t))
+      );
+      toast.success(`${data.name} updated successfully`);
+    } else {
+      const newTenant: Tenant = {
+        ...data,
+        id: `TEN-${String(tenants.length + 1).padStart(3, "0")}`,
+        createdAt: new Date().toISOString().split("T")[0],
+        parentId: data.parentId ?? null,
+        parentName: data.parentName ?? null,
+      };
+      setTenants((prev) => [...prev, newTenant]);
+      toast.success(
+        data.parentId
+          ? `Sub-tenant "${data.name}" created under ${data.parentName}`
+          : `${data.name} added successfully`
+      );
+    }
+    setEditingTenant(null);
+    setParentForSubTenant(null);
+  };
+
+  const handleToggleSuspend = (tenant: Tenant) => {
+    const newStatus: TenantStatus = tenant.status === "suspended" ? "active" : "suspended";
+    setTenants((prev) =>
+      prev.map((t) =>
+        t.id === tenant.id
+          ? { ...t, status: newStatus, mrr: newStatus === "suspended" ? 0 : t.mrr }
+          : t
+      )
+    );
+    setSelectedTenant(null);
+    toast.success(`${tenant.name} ${newStatus === "suspended" ? "suspended" : "reactivated"}`);
+  };
+
+  const openAdd = () => {
+    setEditingTenant(null);
+    setParentForSubTenant(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (tenant: Tenant, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingTenant(tenant);
+    setParentForSubTenant(null);
+    setFormOpen(true);
+    setSelectedTenant(null);
+  };
+
+  const openAddSubTenant = (parent: Tenant, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingTenant(null);
+    setParentForSubTenant(parent);
+    setFormOpen(true);
+    setSelectedTenant(null);
+  };
+
+  const renderTenantRow = (tenant: Tenant, isChild = false) => {
+    const children = getChildren(tenant.id);
+    return (
+      <>
+        <TableRow
+          key={tenant.id}
+          className="border-border cursor-pointer"
+          onClick={() => setSelectedTenant(tenant)}
+        >
+          <TableCell>
+            <div className={cn("flex items-center gap-3", isChild && "pl-6")}>
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", isChild ? "bg-accent" : "bg-secondary")}>
+                {isChild ? <GitBranch className="w-4 h-4 text-muted-foreground" /> : <Building2 className="w-4 h-4 text-muted-foreground" />}
+              </div>
+              <div>
+                <p className="font-medium text-foreground">{tenant.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {tenant.parentName ? `Sub-tenant of ${tenant.parentName} · ` : ""}{tenant.region}
+                </p>
+              </div>
+            </div>
+          </TableCell>
+          <TableCell className="text-muted-foreground text-sm">{tenant.industry}</TableCell>
+          <TableCell>
+            <Badge variant="outline" className="text-xs font-mono border-border">
+              {planLabels[tenant.plan]}
+            </Badge>
+          </TableCell>
+          <TableCell>
+            <Badge variant="outline" className={cn("text-xs capitalize", statusColors[tenant.status])}>
+              {tenant.status}
+            </Badge>
+          </TableCell>
+          <TableCell className="text-right text-sm text-foreground">{tenant.cameras}</TableCell>
+          <TableCell className="text-right text-sm text-foreground">{tenant.users}</TableCell>
+          <TableCell className="text-right text-sm font-medium text-foreground">
+            {tenant.mrr > 0 ? `$${tenant.mrr.toLocaleString()}` : "—"}
+          </TableCell>
+          <TableCell>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => openEdit(tenant, e as any)}>
+                  <Pencil className="w-4 h-4 mr-2" /> Edit
+                </DropdownMenuItem>
+                {!isChild && (
+                  <DropdownMenuItem onClick={(e) => openAddSubTenant(tenant, e as any)}>
+                    <GitBranch className="w-4 h-4 mr-2" /> Add Sub-Tenant
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => { e.stopPropagation(); handleToggleSuspend(tenant); }}
+                  className={tenant.status === "suspended" ? "text-primary" : "text-destructive"}
+                >
+                  {tenant.status === "suspended" ? (
+                    <><RotateCcw className="w-4 h-4 mr-2" /> Reactivate</>
+                  ) : (
+                    <><Ban className="w-4 h-4 mr-2" /> Suspend</>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+        {children.map((child) => renderTenantRow(child, true))}
+      </>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -41,7 +186,7 @@ const Tenants = () => {
           <h1 className="text-2xl font-bold text-foreground">Tenant Management</h1>
           <p className="text-sm text-muted-foreground">Manage organizations across the platform</p>
         </div>
-        <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+        <Button onClick={openAdd}>
           <Plus className="w-4 h-4 mr-2" /> Add Tenant
         </Button>
       </div>
@@ -49,7 +194,7 @@ const Tenants = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Tenants", value: mockTenants.length, sub: `${mockTenants.filter(t => t.status === "active").length} active` },
+          { label: "Total Tenants", value: tenants.length, sub: `${tenants.filter(t => t.status === "active").length} active` },
           { label: "Total MRR", value: `$${totalMRR.toLocaleString()}`, sub: "Monthly recurring" },
           { label: "Cameras Deployed", value: totalCameras, sub: "Across all tenants" },
           { label: "Platform Users", value: totalUsers, sub: "All roles" },
@@ -89,46 +234,7 @@ const Tenants = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((tenant) => (
-              <TableRow
-                key={tenant.id}
-                className="border-border cursor-pointer"
-                onClick={() => setSelectedTenant(tenant)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-                      <Building2 className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{tenant.name}</p>
-                      <p className="text-xs text-muted-foreground">{tenant.region}</p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">{tenant.industry}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-xs font-mono border-border">
-                    {planLabels[tenant.plan]}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={cn("text-xs capitalize", statusColors[tenant.status])}>
-                    {tenant.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right text-sm text-foreground">{tenant.cameras}</TableCell>
-                <TableCell className="text-right text-sm text-foreground">{tenant.users}</TableCell>
-                <TableCell className="text-right text-sm font-medium text-foreground">
-                  {tenant.mrr > 0 ? `$${tenant.mrr.toLocaleString()}` : "—"}
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {parentTenants.map((tenant) => renderTenantRow(tenant))}
           </TableBody>
         </Table>
       </div>
@@ -141,6 +247,12 @@ const Tenants = () => {
           </DialogHeader>
           {selectedTenant && (
             <div className="space-y-4 text-sm">
+              {selectedTenant.parentName && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2 border border-border">
+                  <GitBranch className="w-3.5 h-3.5" />
+                  Sub-tenant of <span className="font-medium text-foreground">{selectedTenant.parentName}</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 {[
                   ["Industry", selectedTenant.industry],
@@ -160,9 +272,42 @@ const Tenants = () => {
                   </div>
                 ))}
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="border-border">Edit Tenant</Button>
-                <Button variant="outline" size="sm" className="border-border text-destructive hover:text-destructive">
+              {/* Sub-tenants list */}
+              {(() => {
+                const subs = tenants.filter((t) => t.parentId === selectedTenant.id);
+                if (subs.length === 0) return null;
+                return (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Sub-Tenants ({subs.length})</p>
+                    <div className="space-y-1.5">
+                      {subs.map((sub) => (
+                        <div key={sub.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex items-center gap-2">
+                            <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-sm text-foreground">{sub.name}</span>
+                          </div>
+                          <Badge variant="outline" className={cn("text-xs capitalize", statusColors[sub.status])}>{sub.status}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              <div className="flex gap-2 pt-2 flex-wrap">
+                <Button variant="outline" size="sm" className="border-border" onClick={() => openEdit(selectedTenant)}>
+                  <Pencil className="w-3 h-3 mr-1" /> Edit
+                </Button>
+                {!selectedTenant.parentId && (
+                  <Button variant="outline" size="sm" className="border-border" onClick={() => openAddSubTenant(selectedTenant)}>
+                    <GitBranch className="w-3 h-3 mr-1" /> Add Sub-Tenant
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("border-border", selectedTenant.status !== "suspended" && "text-destructive hover:text-destructive")}
+                  onClick={() => handleToggleSuspend(selectedTenant)}
+                >
                   {selectedTenant.status === "suspended" ? "Reactivate" : "Suspend"}
                 </Button>
               </div>
@@ -170,6 +315,16 @@ const Tenants = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Add / Edit / Sub-Tenant Form */}
+      <TenantForm
+        key={editingTenant?.id ?? parentForSubTenant?.id ?? "new"}
+        open={formOpen}
+        onOpenChange={(open) => { setFormOpen(open); if (!open) { setEditingTenant(null); setParentForSubTenant(null); } }}
+        tenant={editingTenant}
+        parentTenant={parentForSubTenant}
+        onSubmit={handleFormSubmit}
+      />
     </div>
   );
 };

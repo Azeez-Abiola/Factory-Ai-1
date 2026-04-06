@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import StatCard from "@/components/app/StatCard";
 import { dashboardStats, hourlyAlerts, weeklyDefects, downtimeByZone, productivityData, mockAlerts } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import LiveAlertSimulator from "@/components/app/LiveAlertSimulator";
 
 const Dashboard = () => {
   const recentAlerts = mockAlerts.slice(0, 4);
@@ -10,15 +11,33 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Page Title */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Real-time factory intelligence overview</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Real-time factory intelligence overview</p>
+        </div>
+        <LiveAlertSimulator />
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Safety Score"
+          title="Total Alerts"
+          value={dashboardStats.openAlerts + dashboardStats.resolvedToday}
+          subtitle={`${dashboardStats.openAlerts} open · ${dashboardStats.resolvedToday} resolved today`}
+          icon={AlertTriangle}
+          variant="warning"
+        />
+        <StatCard
+          title="Active Cameras"
+          value="12/12"
+          subtitle="All cameras online"
+          icon={Camera}
+          variant="default"
+          trend={{ value: 0, positive: true }}
+        />
+        <StatCard
+          title="Compliance Score"
           value={`${dashboardStats.safetyScore}%`}
           subtitle="Across all zones"
           icon={Shield}
@@ -26,27 +45,12 @@ const Dashboard = () => {
           trend={{ value: 3, positive: true }}
         />
         <StatCard
-          title="Open Alerts"
-          value={dashboardStats.openAlerts}
-          subtitle={`${dashboardStats.resolvedToday} resolved today`}
-          icon={AlertTriangle}
-          variant="warning"
-        />
-        <StatCard
-          title="Uptime"
+          title="System Uptime"
           value={`${dashboardStats.uptime}%`}
           subtitle="Production lines"
           icon={Activity}
-          variant="default"
-          trend={{ value: 1.2, positive: true }}
-        />
-        <StatCard
-          title="Defect Rate"
-          value={`${dashboardStats.defectRate}%`}
-          subtitle="Below 1% target"
-          icon={CheckCircle}
           variant="success"
-          trend={{ value: 0.3, positive: true }}
+          trend={{ value: 1.2, positive: true }}
         />
       </div>
 
