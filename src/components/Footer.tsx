@@ -6,7 +6,7 @@ const Footer = () => {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <img src="/techhub-logo.png" alt="TechHub" className="h-10 w-auto" />
+              <img src="/1879-logo.png" alt="1879 Tech Hub" className="h-10 w-auto" />
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               AI-powered manufacturing intelligence platform. Making factories safer, smarter, and more efficient.
