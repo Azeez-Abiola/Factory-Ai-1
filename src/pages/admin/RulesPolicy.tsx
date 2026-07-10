@@ -808,7 +808,13 @@ const RulesPolicy = () => {
         </TabsContent>
       </Tabs>
 
-      <PolicyDialog open={policyDialog} onOpenChange={setPolicyDialog} editing={editingPolicy} onSaved={load} />
+      <PolicyDialog
+        open={policyDialog}
+        onOpenChange={(v) => { setPolicyDialog(v); if (!v) setSeedTemplate(null); }}
+        editing={editingPolicy}
+        seed={seedTemplate}
+        onSaved={load}
+      />
       <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} />
     </div>
   );
