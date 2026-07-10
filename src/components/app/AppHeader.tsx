@@ -33,7 +33,7 @@ const AppHeader = () => {
         <Button variant="ghost" size="icon" className="relative" aria-label={`Notifications, ${openAlerts} open alerts`}>
           <Bell className="w-5 h-5" />
           {openAlerts > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-bold ring-2 ring-background">
+            <span className="absolute -top-0.5 -right-0.5 h-[18px] w-[18px] min-w-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-bold ring-2 ring-background">
               {openAlerts}
             </span>
           )}
