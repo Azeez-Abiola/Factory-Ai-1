@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, User, Camera, History, Search, Brain, ArrowUpRight } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, User, Camera, History, Search, Brain, ArrowUpRight, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";

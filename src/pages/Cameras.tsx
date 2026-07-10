@@ -31,7 +31,7 @@ const Cameras = () => {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Vision"
-        icon={Camera}
+        icon={CameraIcon}
         title="Camera Feeds"
         description={`${online} of ${mockCameras.length} cameras streaming live across the factory.`}
         actions={
