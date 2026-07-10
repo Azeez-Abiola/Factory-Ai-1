@@ -606,11 +606,11 @@ const RulesPolicy = () => {
         </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="policies">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="policies"><ListTree className="w-4 h-4 mr-1.5" /> Policies</TabsTrigger>
           <TabsTrigger value="rules"><Bell className="w-4 h-4 mr-1.5" /> Alert Rules</TabsTrigger>
-          <TabsTrigger id="tpl-tab-trigger" value="templates"><BookOpen className="w-4 h-4 mr-1.5" /> Templates</TabsTrigger>
+          <TabsTrigger value="templates"><BookOpen className="w-4 h-4 mr-1.5" /> Templates</TabsTrigger>
           <TabsTrigger value="guardrails"><BrainCircuit className="w-4 h-4 mr-1.5" /> AI Guardrails</TabsTrigger>
         </TabsList>
 
