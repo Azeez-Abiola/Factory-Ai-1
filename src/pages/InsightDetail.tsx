@@ -357,17 +357,20 @@ const InsightDetail = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {relatedAlerts.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">No related alerts in the current window.</p>
+          )}
           {relatedAlerts.map((alert) => (
             <div key={alert.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={() => navigate("/app/alerts")}>
               <div className="flex items-center gap-3">
-                <div className={cn("w-2 h-2 rounded-full", alert.severity === "critical" ? "bg-destructive" : "bg-warning")} />
+                <div className={cn("w-2 h-2 rounded-full", alert.severity === "critical" ? "bg-destructive" : alert.severity === "high" ? "bg-warning" : "bg-primary")} />
                 <div>
                   <p className="text-sm font-medium text-foreground">{alert.title}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{alert.id}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{alert.id} · {alert.zone}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{alert.time}</span>
+                <span className="text-xs text-muted-foreground">{timeAgo(alert.timestamp)}</span>
                 <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
               </div>
             </div>
