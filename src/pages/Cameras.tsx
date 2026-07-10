@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Camera as CameraIcon, Wifi, WifiOff, Wrench, Eye, AlertTriangle } from "lucide-react";
+import { Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { mockCameras, Camera } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import {
@@ -9,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
 
 const statusConfig = {
   online: { color: "bg-success", icon: Wifi, label: "Online", text: "text-success" },
@@ -18,6 +20,7 @@ const statusConfig = {
 
 const Cameras = () => {
   const [selected, setSelected] = useState<Camera | null>(null);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [filter, setFilter] = useState<string>("all");
 
   const filtered = filter === "all" ? mockCameras : mockCameras.filter((c) => c.status === filter);
@@ -188,11 +191,26 @@ const Cameras = () => {
                     <p className="text-foreground">{selected.detections}</p>
                   </div>
                 </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={() => setAnalyzeOpen(true)} className="gap-2">
+                    <Sparkles className="w-4 h-4" /> Analyze Frame with AI
+                  </Button>
+                </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {selected && (
+        <AIAnalyzeDialog
+          open={analyzeOpen}
+          onOpenChange={setAnalyzeOpen}
+          cameraName={selected.name}
+          zone={selected.zone}
+        />
+      )}
     </div>
   );
 };

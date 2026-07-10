@@ -28,6 +28,7 @@ import Settings from "./pages/admin/Settings.tsx";
 import KpiConfig from "./pages/admin/KpiConfig.tsx";
 import TenantDetail from "./pages/admin/TenantDetail.tsx";
 import AuditDetail from "./pages/admin/AuditDetail.tsx";
+import CameraConfig from "./pages/admin/CameraConfig.tsx";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="kpi-config" element={<KpiConfig />} />
             <Route path="tenants/:tenantId" element={<TenantDetail />} />
             <Route path="audit-log/:auditId" element={<AuditDetail />} />
+            <Route path="cameras" element={<CameraConfig />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
