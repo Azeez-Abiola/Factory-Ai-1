@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck, Plus, Sparkles, Trash2, Pencil, Bell, Zap, Loader2,
   Target, CheckCircle2, AlertTriangle, Radio, Clock, ListTree, BrainCircuit,
+  BookOpen, Copy, Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { POLICY_TEMPLATES, type PolicyTemplate } from "@/data/policyTemplates";
 
 import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -65,11 +67,12 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, onSaved,
+  open, onOpenChange, editing, seed, onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing?: Policy | null;
+  seed?: PolicyTemplate | null;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState({
@@ -98,6 +101,18 @@ function PolicyDialog({
           ? { vision_prompt: editing.compiled_prompt ?? "", rule: editing.compiled_rule }
           : null
       );
+    } else if (seed) {
+      setForm({
+        name: seed.name,
+        description: seed.description,
+        natural_language: seed.natural_language,
+        category: seed.category,
+        severity: seed.severity,
+        enabled: true,
+        scope_zones: seed.scope_zones.join(", "),
+        scope_cameras: "",
+      });
+      setCompiled(null);
     } else {
       setForm({
         name: "", description: "", natural_language: "",
@@ -106,7 +121,7 @@ function PolicyDialog({
       });
       setCompiled(null);
     }
-  }, [editing, open]);
+  }, [editing, seed, open]);
 
   const compileWithAI = async () => {
     if (form.natural_language.trim().length < 5) {
@@ -482,6 +497,24 @@ const RulesPolicy = () => {
   const [ruleDialog, setRuleDialog] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
+  const [seedTemplate, setSeedTemplate] = useState<PolicyTemplate | null>(null);
+  const [tplSearch, setTplSearch] = useState("");
+  const [tplCategory, setTplCategory] = useState<string>("all");
+  const [tab, setTab] = useState<string>("policies");
+
+  const filteredTemplates = useMemo(() => {
+    const q = tplSearch.trim().toLowerCase();
+    return POLICY_TEMPLATES.filter(t =>
+      (tplCategory === "all" || t.category === tplCategory) &&
+      (!q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.tags.some(tg => tg.toLowerCase().includes(q)))
+    );
+  }, [tplSearch, tplCategory]);
+
+  const useTemplate = (t: PolicyTemplate) => {
+    setEditingPolicy(null);
+    setSeedTemplate(t);
+    setPolicyDialog(true);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -540,10 +573,13 @@ const RulesPolicy = () => {
         description="Configure business policies, alert rules, and AI guardrails in plain English. Powered by Lovable AI."
         actions={
           <>
+            <Button variant="outline" onClick={() => { setSeedTemplate(null); setEditingPolicy(null); setTab("templates"); }}>
+              <BookOpen className="w-4 h-4 mr-1.5" /> Browse Templates
+            </Button>
             <Button variant="secondary" onClick={() => { setEditingRule(null); setRuleDialog(true); }}>
               <Bell className="w-4 h-4 mr-1.5" /> New Alert Rule
             </Button>
-            <Button onClick={() => { setEditingPolicy(null); setPolicyDialog(true); }}>
+            <Button onClick={() => { setEditingPolicy(null); setSeedTemplate(null); setPolicyDialog(true); }}>
               <Plus className="w-4 h-4 mr-1.5" /> New Policy
             </Button>
           </>
@@ -570,12 +606,73 @@ const RulesPolicy = () => {
         </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="policies">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="policies"><ListTree className="w-4 h-4 mr-1.5" /> Policies</TabsTrigger>
           <TabsTrigger value="rules"><Bell className="w-4 h-4 mr-1.5" /> Alert Rules</TabsTrigger>
+          <TabsTrigger value="templates"><BookOpen className="w-4 h-4 mr-1.5" /> Templates</TabsTrigger>
           <TabsTrigger value="guardrails"><BrainCircuit className="w-4 h-4 mr-1.5" /> AI Guardrails</TabsTrigger>
         </TabsList>
+
+        {/* Templates */}
+        <TabsContent value="templates" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Best-Practice Policy Library</CardTitle>
+              <CardDescription>
+                Pre-built templates aligned to OSHA, ISO, NFPA, and NIOSH standards. Clone any template and customize it for your zones, cameras, and severity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={tplSearch} onChange={(e) => setTplSearch(e.target.value)} placeholder="Search templates, tags, standards…" className="pl-9" />
+                </div>
+                <Select value={tplCategory} onValueChange={setTplCategory}>
+                  <SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {filteredTemplates.map(t => (
+                  <div key={t.id} className="rounded-lg border border-border bg-card/50 hover:border-primary/40 transition p-4 flex flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-sm">{t.name}</h4>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <Badge variant="outline" className={severityColor(t.severity)}>{t.severity}</Badge>
+                          <Badge variant="outline" className="text-[10px] uppercase">{t.category}</Badge>
+                          {t.standard && <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">{t.standard}</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{t.description}</p>
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {t.tags.slice(0, 4).map(tg => (
+                        <span key={tg} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">#{tg}</span>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">{t.scope_zones.length} default zone{t.scope_zones.length !== 1 ? "s" : ""}</span>
+                      <Button size="sm" onClick={() => useTemplate(t)}>
+                        <Copy className="w-3.5 h-3.5 mr-1.5" /> Clone & Customize
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {filteredTemplates.length === 0 && (
+                  <div className="md:col-span-2 py-10 text-center text-sm text-muted-foreground">
+                    No templates match your filter.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Policies */}
         <TabsContent value="policies" className="mt-4 space-y-3">
@@ -712,7 +809,13 @@ const RulesPolicy = () => {
         </TabsContent>
       </Tabs>
 
-      <PolicyDialog open={policyDialog} onOpenChange={setPolicyDialog} editing={editingPolicy} onSaved={load} />
+      <PolicyDialog
+        open={policyDialog}
+        onOpenChange={(v) => { setPolicyDialog(v); if (!v) setSeedTemplate(null); }}
+        editing={editingPolicy}
+        seed={seedTemplate}
+        onSaved={load}
+      />
       <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} />
     </div>
   );
