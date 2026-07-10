@@ -499,6 +499,7 @@ const RulesPolicy = () => {
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
   const [seedTemplate, setSeedTemplate] = useState<PolicyTemplate | null>(null);
   const [tplSearch, setTplSearch] = useState("");
+  const [tplCategory, setTplCategory] = useState<string>("all");
   const [tab, setTab] = useState<string>("policies");
 
   const filteredTemplates = useMemo(() => {
