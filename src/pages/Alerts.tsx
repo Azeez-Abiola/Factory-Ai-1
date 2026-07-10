@@ -240,6 +240,24 @@ const Alerts = () => {
                     <Badge variant="outline">{selectedAlert.status}</Badge>
                   </div>
 
+                  {(() => {
+                    const linked = insightCategoryForAlert(selectedAlert);
+                    if (!linked) return null;
+                    return (
+                      <button
+                        onClick={() => navigate(`/app/insights/${linked.id}`)}
+                        className="flex items-center gap-2 w-full text-left p-2.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors group"
+                      >
+                        <Brain className="w-4 h-4 text-primary shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Contributing to AI insight</p>
+                          <p className="text-sm font-medium text-foreground truncate">{linked.title}</p>
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
+                      </button>
+                    );
+                  })()}
+
                   <p className="text-sm text-muted-foreground">{selectedAlert.description}</p>
 
                   {/* Simulated camera snapshot */}
