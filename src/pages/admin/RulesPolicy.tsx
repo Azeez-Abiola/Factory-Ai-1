@@ -67,11 +67,12 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, onSaved,
+  open, onOpenChange, editing, seed, onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing?: Policy | null;
+  seed?: PolicyTemplate | null;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState({
@@ -100,6 +101,18 @@ function PolicyDialog({
           ? { vision_prompt: editing.compiled_prompt ?? "", rule: editing.compiled_rule }
           : null
       );
+    } else if (seed) {
+      setForm({
+        name: seed.name,
+        description: seed.description,
+        natural_language: seed.natural_language,
+        category: seed.category,
+        severity: seed.severity,
+        enabled: true,
+        scope_zones: seed.scope_zones.join(", "),
+        scope_cameras: "",
+      });
+      setCompiled(null);
     } else {
       setForm({
         name: "", description: "", natural_language: "",
@@ -108,7 +121,7 @@ function PolicyDialog({
       });
       setCompiled(null);
     }
-  }, [editing, open]);
+  }, [editing, seed, open]);
 
   const compileWithAI = async () => {
     if (form.natural_language.trim().length < 5) {
