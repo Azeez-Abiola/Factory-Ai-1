@@ -312,8 +312,8 @@ const TenantDetail = () => {
         key={editingTenant?.id ?? parentForSubTenant?.id ?? "detail-form"}
         open={formOpen}
         onOpenChange={setFormOpen}
-        tenant={editingTenant}
-        parentTenant={parentForSubTenant}
+        tenant={editingTenant as never}
+        parentTenant={parentForSubTenant as never}
         onSubmit={handleFormSubmit}
       />
     </div>
