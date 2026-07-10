@@ -68,11 +68,6 @@ const generateZoneBreakdown = () => [
   { zone: "Zone F", incidents: 2 },
 ];
 
-const relatedAlerts = [
-  { id: "ALT-001", title: "Missing PPE – Hard Hat", severity: "critical", time: "2h ago" },
-  { id: "ALT-004", title: "Restricted Zone Entry", severity: "critical", time: "5h ago" },
-  { id: "ALT-005", title: "Production Bottleneck", severity: "medium", time: "8h ago" },
-];
 
 const actionSteps = [
   { step: 1, title: "Immediate Assessment", description: "Conduct a detailed review of current conditions in affected zones.", status: "completed", dueDate: "2026-03-28" },
