@@ -497,6 +497,23 @@ const RulesPolicy = () => {
   const [ruleDialog, setRuleDialog] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
+  const [seedTemplate, setSeedTemplate] = useState<PolicyTemplate | null>(null);
+  const [tplSearch, setTplSearch] = useState("");
+  const [tplCategory, setTplCategory] = useState<string>("all");
+
+  const filteredTemplates = useMemo(() => {
+    const q = tplSearch.trim().toLowerCase();
+    return POLICY_TEMPLATES.filter(t =>
+      (tplCategory === "all" || t.category === tplCategory) &&
+      (!q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.tags.some(tg => tg.toLowerCase().includes(q)))
+    );
+  }, [tplSearch, tplCategory]);
+
+  const useTemplate = (t: PolicyTemplate) => {
+    setEditingPolicy(null);
+    setSeedTemplate(t);
+    setPolicyDialog(true);
+  };
 
   const load = async () => {
     setLoading(true);
