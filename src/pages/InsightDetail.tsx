@@ -99,6 +99,7 @@ const InsightDetail = () => {
   const trendData = useMemo(() => (insight ? generateTrendData(insight) : []), [insight]);
   const impactProjection = useMemo(() => generateImpactProjection(), []);
   const zoneBreakdown = useMemo(() => generateZoneBreakdown(), []);
+  const relatedAlerts = useMemo(() => (insight ? alertsForInsight(insight) : []), [insight]);
 
   if (!insight) {
     return (
