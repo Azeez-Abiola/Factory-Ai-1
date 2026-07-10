@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 // ── Types ──
 type KpiCategory = "safety" | "quality" | "efficiency" | "cost";
@@ -201,15 +202,12 @@ const KpiConfig = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Target className="w-6 h-6 text-destructive" /> KPI & OKR Configuration
-          </h1>
-          <p className="text-sm text-muted-foreground">Define business metrics, set thresholds, and track objectives</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Performance"
+        icon={Target}
+        title="KPI & OKR Configuration"
+        description="Define business metrics, set thresholds, and track objectives across the org."
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

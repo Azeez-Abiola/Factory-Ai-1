@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 import { systemMetrics, apiTrafficData, tenantUsageData, systemLogs } from "@/data/adminMockData";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import PageHeader from "@/components/app/PageHeader";
 
 const logLevelColors = {
   error: "bg-destructive/10 text-destructive border-destructive/20",
@@ -13,10 +14,12 @@ const logLevelColors = {
 const SystemMonitoring = () => {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">System Monitoring</h1>
-        <p className="text-sm text-muted-foreground">Platform health, usage, and infrastructure metrics</p>
-      </div>
+      <PageHeader
+        eyebrow="Observability"
+        icon={Activity}
+        title="System Monitoring"
+        description="Platform health, usage, and infrastructure metrics — live from every region."
+      />
 
       {/* Top Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

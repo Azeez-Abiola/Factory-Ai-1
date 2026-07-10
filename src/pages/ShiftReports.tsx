@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Clock, Shield, AlertTriangle, CheckCircle, TrendingUp, ChevronRight, FileText, ArrowRight, Search, Plus } from "lucide-react";
+import { Clock, Shield, AlertTriangle, CheckCircle, TrendingUp, ChevronRight, FileText, ArrowRight, Search, Plus, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import PageHeader from "@/components/app/PageHeader";
 
 const ShiftReports = () => {
   const [reports, setReports] = useState<ShiftReport[]>([...mockShiftReports]);
@@ -65,26 +66,22 @@ const ShiftReports = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Shift Handover Reports</h1>
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} of {reports.length} reports shown
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Create Report
-          </Button>
-          <Button
-            variant="outline"
-            className="border-border"
-            onClick={() => toast.success("Exporting shift reports...")}
-          >
-            <FileText className="w-4 h-4 mr-2" /> Export All
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Handover"
+        icon={ClipboardList}
+        title="Shift Handover Reports"
+        description={`${filtered.length} of ${reports.length} reports · auto-generated end-of-shift summaries.`}
+        actions={
+          <>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create Report
+            </Button>
+            <Button variant="outline" className="border-border" onClick={() => toast.success("Exporting shift reports...")}>
+              <FileText className="w-4 h-4 mr-2" /> Export All
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

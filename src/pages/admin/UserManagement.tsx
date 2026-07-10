@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import PageHeader from "@/components/app/PageHeader";
 
 const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; color: string }> = {
   super_admin: { label: "Super Admin", icon: Shield, color: "bg-destructive/10 text-destructive border-destructive/20" },
@@ -35,15 +36,17 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">User Management</h1>
-          <p className="text-sm text-muted-foreground">Manage platform and tenant-level access</p>
-        </div>
-        <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-          <Plus className="w-4 h-4 mr-2" /> Invite User
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Access"
+        icon={Users}
+        title="User Management"
+        description="Manage platform and tenant-level access, roles, and invitations."
+        actions={
+          <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+            <Plus className="w-4 h-4 mr-2" /> Invite User
+          </Button>
+        }
+      />
 
       {/* Role Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

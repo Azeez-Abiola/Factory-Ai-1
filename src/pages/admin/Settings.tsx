@@ -12,6 +12,7 @@ import { mockWebhooks, mockWhiteLabel, type WebhookConfig } from "@/data/extende
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 const statusConfig = {
   active: { icon: <CheckCircle2 className="w-4 h-4" />, color: "bg-success/10 text-success border-success/30", label: "Healthy" },
@@ -71,14 +72,12 @@ const Settings = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Settings2 className="w-6 h-6 text-primary" /> Platform Administration
-          </h1>
-          <p className="text-sm text-muted-foreground">Configure system-wide integrations, branding, and connectivity</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Platform"
+        icon={Settings2}
+        title="Platform Administration"
+        description="Configure system-wide integrations, branding, and connectivity."
+      />
 
       <Tabs defaultValue="webhooks" className="w-full">
         <TabsList className="bg-muted/50 p-1 border border-border h-11">

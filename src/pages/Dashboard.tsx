@@ -1,23 +1,23 @@
-import { Shield, AlertTriangle, CheckCircle, Camera, Activity, TrendingDown, Clock, Users } from "lucide-react";
+import { Shield, AlertTriangle, Camera, Activity, LayoutDashboard } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, CartesianGrid } from "recharts";
 import StatCard from "@/components/app/StatCard";
 import { dashboardStats, hourlyAlerts, weeklyDefects, downtimeByZone, productivityData, mockAlerts } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import LiveAlertSimulator from "@/components/app/LiveAlertSimulator";
+import PageHeader from "@/components/app/PageHeader";
 
 const Dashboard = () => {
   const recentAlerts = mockAlerts.slice(0, 4);
 
   return (
     <div className="space-y-6">
-      {/* Page Title */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Real-time factory intelligence overview</p>
-        </div>
-        <LiveAlertSimulator />
-      </div>
+      <PageHeader
+        eyebrow="Live"
+        icon={LayoutDashboard}
+        title="Operations Dashboard"
+        description="Real-time factory intelligence — alerts, compliance, uptime and productivity across every zone."
+        actions={<LiveAlertSimulator />}
+      />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

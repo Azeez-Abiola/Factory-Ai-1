@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, Trash2, X } from "lucide-react";
+import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, Trash2, X, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { onboardingSteps } from "@/data/extendedMockData";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 const stepIcons = [Building2, Camera, MapPin, Bell, Users];
 
@@ -63,10 +64,12 @@ const Onboarding = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Tenant Onboarding</h1>
-        <p className="text-sm text-muted-foreground">Step-by-step wizard to set up a new factory</p>
-      </div>
+      <PageHeader
+        eyebrow="Provisioning"
+        icon={Rocket}
+        title="Tenant Onboarding"
+        description="Step-by-step wizard to set up a new factory — from org details to camera mapping."
+      />
 
       {/* Progress */}
       <div className="flex items-center gap-2">

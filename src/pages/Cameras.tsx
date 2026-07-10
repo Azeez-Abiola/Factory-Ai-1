@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
+import PageHeader from "@/components/app/PageHeader";
 
 const statusConfig = {
   online: { color: "bg-success", icon: Wifi, label: "Online", text: "text-success" },
@@ -28,26 +29,28 @@ const Cameras = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Camera Feeds</h1>
-          <p className="text-sm text-muted-foreground">{online}/{mockCameras.length} cameras online</p>
-        </div>
-        <div className="flex gap-2">
-          {["all", "online", "offline", "maintenance"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize",
-                filter === s ? "bg-primary/10 text-primary border border-primary/30" : "bg-card text-muted-foreground border border-border hover:bg-muted"
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Vision"
+        icon={CameraIcon}
+        title="Camera Feeds"
+        description={`${online} of ${mockCameras.length} cameras streaming live across the factory.`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {["all", "online", "offline", "maintenance"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize",
+                  filter === s ? "bg-primary/10 text-primary border border-primary/30" : "bg-card text-muted-foreground border border-border hover:bg-muted"
+                )}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/* Camera Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
