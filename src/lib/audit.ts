@@ -19,7 +19,7 @@ export async function auditLog(entry: AuditEntry) {
     action: entry.action,
     entity_type: entry.entityType,
     entity_id: entry.entityId ?? null,
-    metadata: entry.metadata ?? {},
+    metadata: (entry.metadata ?? {}) as never,
   });
   if (error) console.warn("audit_log insert failed", error.message);
 }
