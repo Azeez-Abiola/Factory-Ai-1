@@ -64,6 +64,8 @@ const Alerts = () => {
     return true;
   });
 
+  const navigate = useNavigate();
+
   const handleAssign = (alertId: string, assignee: string) => {
     setAlerts((prev) =>
       prev.map((a) => (a.id === alertId ? { ...a, status: "assigned" as AlertStatus, assignedTo: assignee } : a))
@@ -71,6 +73,21 @@ const Alerts = () => {
     if (selectedAlert?.id === alertId) {
       setSelectedAlert((prev) => prev ? { ...prev, status: "assigned", assignedTo: assignee } : null);
     }
+    appendTimelineEvent(alertId, {
+      type: "assignment",
+      title: `Assigned to ${assignee}`,
+      description: `Incident routed to ${assignee} for investigation.`,
+      actor: "Ravi Mehta",
+    });
+    logAudit({
+      actor: "Ravi Mehta",
+      actorRole: "Tenant Admin",
+      tenant: "Tata Steel Works",
+      action: "alert.assign",
+      resource: alertId,
+      details: `Assigned incident ${alertId} to ${assignee}`,
+    });
+    toast.success(`Assigned to ${assignee}`);
   };
 
   const handleResolve = (alertId: string) => {
@@ -80,6 +97,21 @@ const Alerts = () => {
     if (selectedAlert?.id === alertId) {
       setSelectedAlert((prev) => prev ? { ...prev, status: "resolved", resolution: "Resolved by operator." } : null);
     }
+    appendTimelineEvent(alertId, {
+      type: "resolution",
+      title: "Incident Resolved",
+      description: "Incident marked resolved by operator.",
+      actor: "Ravi Mehta",
+    });
+    logAudit({
+      actor: "Ravi Mehta",
+      actorRole: "Tenant Admin",
+      tenant: "Tata Steel Works",
+      action: "alert.resolve",
+      resource: alertId,
+      details: `Resolved incident ${alertId}`,
+    });
+    toast.success("Incident resolved");
   };
 
   return (
