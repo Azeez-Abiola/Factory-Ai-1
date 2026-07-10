@@ -18,10 +18,10 @@ import { mockMaintenanceAlerts, type MaintenanceAlert } from "@/data/extendedMoc
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
-import PageHeader from "@/components/app/PageHeader";
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell
 } from "recharts";
+import PageHeader from "@/components/app/PageHeader";
 
 const riskConfig = {
   critical: { label: "Critical", color: "bg-destructive/10 text-destructive border-destructive/30", barColor: "hsl(0 72% 51%)", dotColor: "bg-destructive" },

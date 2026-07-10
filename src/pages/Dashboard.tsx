@@ -1,10 +1,10 @@
 import { Shield, AlertTriangle, Camera, Activity, LayoutDashboard } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, CartesianGrid } from "recharts";
 import StatCard from "@/components/app/StatCard";
-import PageHeader from "@/components/app/PageHeader";
 import { dashboardStats, hourlyAlerts, weeklyDefects, downtimeByZone, productivityData, mockAlerts } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import LiveAlertSimulator from "@/components/app/LiveAlertSimulator";
+import PageHeader from "@/components/app/PageHeader";
 
 const Dashboard = () => {
   const recentAlerts = mockAlerts.slice(0, 4);
