@@ -47,10 +47,10 @@ const Navbar = () => {
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-            <Link to="/app">Log In</Link>
+            <Link to="/auth">Sign in</Link>
           </Button>
           <Button size="sm" asChild>
-            <Link to="/app">Launch Demo</Link>
+            <Link to="/auth">Get started</Link>
           </Button>
         </div>
 
