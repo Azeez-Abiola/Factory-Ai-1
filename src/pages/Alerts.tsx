@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, User, Filter, ChevronDown, X, Camera, History, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, User, Camera, History, Search, Brain, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { mockAlerts, mockTeam, Alert, AlertSeverity, AlertStatus, AlertCategory } from "@/data/mockData";
+import { mockAlerts, mockTeam, Alert, AlertSeverity, AlertStatus } from "@/data/mockData";
+import { mockInsights } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import IncidentTimeline from "@/components/app/IncidentTimeline";
+import { appendTimelineEvent, logAudit } from "@/lib/incidentStore";
+import { insightCategoryForAlert } from "@/lib/insightLinks";
 import {
   Dialog,
   DialogContent,
