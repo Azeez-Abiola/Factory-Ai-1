@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { mockInsights, AIInsight } from "@/data/extendedMockData";
+import { alertsForInsight, timeAgo } from "@/lib/insightLinks";
 import { cn } from "@/lib/utils";
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -67,11 +68,6 @@ const generateZoneBreakdown = () => [
   { zone: "Zone F", incidents: 2 },
 ];
 
-const relatedAlerts = [
-  { id: "ALT-001", title: "Missing PPE – Hard Hat", severity: "critical", time: "2h ago" },
-  { id: "ALT-004", title: "Restricted Zone Entry", severity: "critical", time: "5h ago" },
-  { id: "ALT-005", title: "Production Bottleneck", severity: "medium", time: "8h ago" },
-];
 
 const actionSteps = [
   { step: 1, title: "Immediate Assessment", description: "Conduct a detailed review of current conditions in affected zones.", status: "completed", dueDate: "2026-03-28" },
@@ -103,6 +99,7 @@ const InsightDetail = () => {
   const trendData = useMemo(() => (insight ? generateTrendData(insight) : []), [insight]);
   const impactProjection = useMemo(() => generateImpactProjection(), []);
   const zoneBreakdown = useMemo(() => generateZoneBreakdown(), []);
+  const relatedAlerts = useMemo(() => (insight ? alertsForInsight(insight) : []), [insight]);
 
   if (!insight) {
     return (
@@ -360,17 +357,20 @@ const InsightDetail = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {relatedAlerts.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">No related alerts in the current window.</p>
+          )}
           {relatedAlerts.map((alert) => (
             <div key={alert.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={() => navigate("/app/alerts")}>
               <div className="flex items-center gap-3">
-                <div className={cn("w-2 h-2 rounded-full", alert.severity === "critical" ? "bg-destructive" : "bg-warning")} />
+                <div className={cn("w-2 h-2 rounded-full", alert.severity === "critical" ? "bg-destructive" : alert.severity === "high" ? "bg-warning" : "bg-primary")} />
                 <div>
                   <p className="text-sm font-medium text-foreground">{alert.title}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{alert.id}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{alert.id} · {alert.zone}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{alert.time}</span>
+                <span className="text-xs text-muted-foreground">{timeAgo(alert.timestamp)}</span>
                 <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
               </div>
             </div>
