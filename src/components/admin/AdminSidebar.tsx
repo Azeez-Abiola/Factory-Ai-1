@@ -48,7 +48,7 @@ const AdminSidebar = () => {
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
         <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-destructive to-[hsl(20_90%_55%)] flex items-center justify-center shrink-0 shadow-[0_0_20px_-4px_hsl(var(--destructive)/0.6)]">
-          <Factory className="w-4.5 h-4.5 text-destructive-foreground" />
+          <Factory className="w-5 h-5 text-destructive-foreground" />
           <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" />
         </div>
         {!collapsed && (
@@ -90,7 +90,7 @@ const AdminSidebar = () => {
                     {isActive && (
                       <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-gradient-to-b from-destructive to-[hsl(20_90%_55%)]" />
                     )}
-                    <item.icon className={cn("w-4.5 h-4.5 shrink-0 transition-transform group-hover:scale-110", isActive && "text-destructive")} />
+                    <item.icon className={cn("w-5 h-5 shrink-0 transition-transform group-hover:scale-110", isActive && "text-destructive")} />
                     {!collapsed && <span className="truncate">{item.label}</span>}
                   </NavLink>
                 );
@@ -106,7 +106,7 @@ const AdminSidebar = () => {
           to="/app"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
-          <ArrowLeft className="w-4.5 h-4.5 shrink-0" />
+          <ArrowLeft className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Back to App</span>}
         </NavLink>
         <button
@@ -114,7 +114,7 @@ const AdminSidebar = () => {
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
-          {collapsed ? <ChevronRight className="w-4.5 h-4.5" /> : <ChevronLeft className="w-4.5 h-4.5" />}
+          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           {!collapsed && <span>Collapse</span>}
         </button>
       </div>
