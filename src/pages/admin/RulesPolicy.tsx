@@ -573,7 +573,7 @@ const RulesPolicy = () => {
         description="Configure business policies, alert rules, and AI guardrails in plain English. Powered by Lovable AI."
         actions={
           <>
-            <Button variant="outline" onClick={() => { setSeedTemplate(null); setEditingPolicy(null); document.getElementById("tpl-tab-trigger")?.click(); }}>
+            <Button variant="outline" onClick={() => { setSeedTemplate(null); setEditingPolicy(null); setTab("templates"); }}>
               <BookOpen className="w-4 h-4 mr-1.5" /> Browse Templates
             </Button>
             <Button variant="secondary" onClick={() => { setEditingRule(null); setRuleDialog(true); }}>
