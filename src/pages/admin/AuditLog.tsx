@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ScrollText, Search, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { mockAuditLog } from "@/data/extendedMockData";
+import { useAuditLog } from "@/lib/incidentStore";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
