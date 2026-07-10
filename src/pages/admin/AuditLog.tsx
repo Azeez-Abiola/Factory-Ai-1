@@ -27,8 +27,9 @@ const AuditLog = () => {
   const [search, setSearch] = useState("");
   const [filterActor, setFilterActor] = useState("all");
 
-  const actors = [...new Set(mockAuditLog.map((e) => e.actor))];
-  const filtered = mockAuditLog.filter((entry) => {
+  const auditEntries = useAuditLog();
+  const actors = [...new Set(auditEntries.map((e) => e.actor))];
+  const filtered = auditEntries.filter((entry) => {
     if (filterActor !== "all" && entry.actor !== filterActor) return false;
     if (search && !entry.details.toLowerCase().includes(search.toLowerCase()) && !entry.action.toLowerCase().includes(search.toLowerCase()) && !entry.resource.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
