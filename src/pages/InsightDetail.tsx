@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { mockInsights, AIInsight } from "@/data/extendedMockData";
+import { alertsForInsight, timeAgo } from "@/lib/insightLinks";
 import { cn } from "@/lib/utils";
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
