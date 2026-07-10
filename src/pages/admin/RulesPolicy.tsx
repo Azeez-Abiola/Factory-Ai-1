@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck, Plus, Sparkles, Trash2, Pencil, Bell, Zap, Loader2,
   Target, CheckCircle2, AlertTriangle, Radio, Clock, ListTree, BrainCircuit,
+  BookOpen, Copy, Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { POLICY_TEMPLATES, type PolicyTemplate } from "@/data/policyTemplates";
 
 import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
