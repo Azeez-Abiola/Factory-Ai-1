@@ -609,8 +609,69 @@ const RulesPolicy = () => {
         <TabsList>
           <TabsTrigger value="policies"><ListTree className="w-4 h-4 mr-1.5" /> Policies</TabsTrigger>
           <TabsTrigger value="rules"><Bell className="w-4 h-4 mr-1.5" /> Alert Rules</TabsTrigger>
+          <TabsTrigger id="tpl-tab-trigger" value="templates"><BookOpen className="w-4 h-4 mr-1.5" /> Templates</TabsTrigger>
           <TabsTrigger value="guardrails"><BrainCircuit className="w-4 h-4 mr-1.5" /> AI Guardrails</TabsTrigger>
         </TabsList>
+
+        {/* Templates */}
+        <TabsContent value="templates" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary" /> Best-Practice Policy Library</CardTitle>
+              <CardDescription>
+                Pre-built templates aligned to OSHA, ISO, NFPA, and NIOSH standards. Clone any template and customize it for your zones, cameras, and severity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={tplSearch} onChange={(e) => setTplSearch(e.target.value)} placeholder="Search templates, tags, standards…" className="pl-9" />
+                </div>
+                <Select value={tplCategory} onValueChange={setTplCategory}>
+                  <SelectTrigger className="w-full sm:w-52"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {filteredTemplates.map(t => (
+                  <div key={t.id} className="rounded-lg border border-border bg-card/50 hover:border-primary/40 transition p-4 flex flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-sm">{t.name}</h4>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <Badge variant="outline" className={severityColor(t.severity)}>{t.severity}</Badge>
+                          <Badge variant="outline" className="text-[10px] uppercase">{t.category}</Badge>
+                          {t.standard && <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">{t.standard}</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{t.description}</p>
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {t.tags.slice(0, 4).map(tg => (
+                        <span key={tg} className="text-[10px] px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">#{tg}</span>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">{t.scope_zones.length} default zone{t.scope_zones.length !== 1 ? "s" : ""}</span>
+                      <Button size="sm" onClick={() => useTemplate(t)}>
+                        <Copy className="w-3.5 h-3.5 mr-1.5" /> Clone & Customize
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {filteredTemplates.length === 0 && (
+                  <div className="md:col-span-2 py-10 text-center text-sm text-muted-foreground">
+                    No templates match your filter.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Policies */}
         <TabsContent value="policies" className="mt-4 space-y-3">
