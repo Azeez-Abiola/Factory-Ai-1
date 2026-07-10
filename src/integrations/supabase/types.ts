@@ -14,6 +14,185 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_rules: {
+        Row: {
+          auto_assign_role: string | null
+          conditions: Json
+          confidence_threshold: number
+          cooldown_seconds: number
+          created_at: string
+          created_by: string | null
+          debounce_seconds: number
+          description: string | null
+          enabled: boolean
+          escalation_minutes: number
+          id: string
+          name: string
+          notification_channels: string[]
+          policy_id: string | null
+          trigger_source: string
+          updated_at: string
+        }
+        Insert: {
+          auto_assign_role?: string | null
+          conditions?: Json
+          confidence_threshold?: number
+          cooldown_seconds?: number
+          created_at?: string
+          created_by?: string | null
+          debounce_seconds?: number
+          description?: string | null
+          enabled?: boolean
+          escalation_minutes?: number
+          id?: string
+          name: string
+          notification_channels?: string[]
+          policy_id?: string | null
+          trigger_source?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_assign_role?: string | null
+          conditions?: Json
+          confidence_threshold?: number
+          cooldown_seconds?: number
+          created_at?: string
+          created_by?: string | null
+          debounce_seconds?: number
+          description?: string | null
+          enabled?: boolean
+          escalation_minutes?: number
+          id?: string
+          name?: string
+          notification_channels?: string[]
+          policy_id?: string | null
+          trigger_source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policies: {
+        Row: {
+          active_hours: Json
+          category: string
+          compiled_prompt: string | null
+          compiled_rule: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          enabled: boolean
+          id: string
+          name: string
+          natural_language: string
+          scope_cameras: string[]
+          scope_zones: string[]
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          active_hours?: Json
+          category?: string
+          compiled_prompt?: string | null
+          compiled_rule?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          name: string
+          natural_language: string
+          scope_cameras?: string[]
+          scope_zones?: string[]
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          active_hours?: Json
+          category?: string
+          compiled_prompt?: string | null
+          compiled_rule?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          name?: string
+          natural_language?: string
+          scope_cameras?: string[]
+          scope_zones?: string[]
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      policy_violations: {
+        Row: {
+          alert_rule_id: string | null
+          camera_id: string | null
+          confidence: number | null
+          created_at: string
+          detected_at: string
+          evidence: Json
+          id: string
+          policy_id: string | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          zone: string | null
+        }
+        Insert: {
+          alert_rule_id?: string | null
+          camera_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          policy_id?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          zone?: string | null
+        }
+        Update: {
+          alert_rule_id?: string | null
+          camera_id?: string | null
+          confidence?: number | null
+          created_at?: string
+          detected_at?: string
+          evidence?: Json
+          id?: string
+          policy_id?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_violations_alert_rule_id_fkey"
+            columns: ["alert_rule_id"]
+            isOneToOne: false
+            referencedRelation: "alert_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_violations_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
