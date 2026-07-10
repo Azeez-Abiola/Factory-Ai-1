@@ -27,6 +27,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
   {
     label: "Governance",
     items: [
+      { to: "/admin/rules", icon: ShieldCheck, label: "Rules & Policy" },
       { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
       { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
       { to: "/admin/settings", icon: Settings2, label: "Settings" },
