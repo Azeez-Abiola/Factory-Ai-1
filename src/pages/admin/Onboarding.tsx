@@ -63,10 +63,12 @@ const Onboarding = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Tenant Onboarding</h1>
-        <p className="text-sm text-muted-foreground">Step-by-step wizard to set up a new factory</p>
-      </div>
+      <PageHeader
+        eyebrow="Provisioning"
+        icon={Rocket}
+        title="Tenant Onboarding"
+        description="Step-by-step wizard to set up a new factory — from org details to camera mapping."
+      />
 
       {/* Progress */}
       <div className="flex items-center gap-2">

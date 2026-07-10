@@ -35,15 +35,17 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">User Management</h1>
-          <p className="text-sm text-muted-foreground">Manage platform and tenant-level access</p>
-        </div>
-        <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-          <Plus className="w-4 h-4 mr-2" /> Invite User
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Access"
+        icon={Users}
+        title="User Management"
+        description="Manage platform and tenant-level access, roles, and invitations."
+        actions={
+          <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+            <Plus className="w-4 h-4 mr-2" /> Invite User
+          </Button>
+        }
+      />
 
       {/* Role Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

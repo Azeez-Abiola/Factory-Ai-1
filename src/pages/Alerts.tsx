@@ -116,12 +116,12 @@ const Alerts = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Alerts & Incidents</h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} of {alerts.length} alerts shown</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Live Feed"
+        icon={Bell}
+        title="Alerts & Incidents"
+        description={`${filtered.length} of ${alerts.length} incidents shown · triage, assign, and resolve in real time.`}
+      />
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

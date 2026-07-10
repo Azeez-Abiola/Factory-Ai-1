@@ -21,10 +21,12 @@ const Billing = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Billing & Plans</h1>
-        <p className="text-sm text-muted-foreground">Revenue, subscriptions, and invoicing</p>
-      </div>
+      <PageHeader
+        eyebrow="Revenue"
+        icon={DollarSign}
+        title="Billing & Plans"
+        description="Revenue, subscriptions, and invoicing across every tenant."
+      />
 
       {/* Top Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

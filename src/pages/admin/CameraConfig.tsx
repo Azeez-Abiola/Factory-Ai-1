@@ -109,17 +109,17 @@ const CameraConfig = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">IP Camera Configuration</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage RTSP feeds, ONVIF credentials, and per-camera AI models
-          </p>
-        </div>
-        <Button onClick={() => setEditing(emptyCam())} className="gap-2">
-          <Plus className="w-4 h-4" /> Add Camera
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Vision"
+        icon={Camera}
+        title="IP Camera Configuration"
+        description="Manage RTSP feeds, ONVIF credentials, and per-camera AI models."
+        actions={
+          <Button onClick={() => setEditing(emptyCam())} className="gap-2">
+            <Plus className="w-4 h-4" /> Add Camera
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {cameras.map((cam) => (

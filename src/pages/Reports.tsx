@@ -121,22 +121,22 @@ const Reports = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports & Compliance</h1>
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} of {reports.length} reports shown
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Create Report
-          </Button>
-          <Button variant="outline" className="border-border" onClick={handleExportAll}>
-            <Download className="w-4 h-4 mr-2" /> Export All
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Compliance"
+        icon={FileText}
+        title="Reports & Compliance"
+        description={`${filtered.length} of ${reports.length} reports · export, share, and audit at any time.`}
+        actions={
+          <>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Create Report
+            </Button>
+            <Button variant="outline" className="border-border" onClick={handleExportAll}>
+              <Download className="w-4 h-4 mr-2" /> Export All
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters Row */}
       <div className="flex flex-col sm:flex-row gap-3">

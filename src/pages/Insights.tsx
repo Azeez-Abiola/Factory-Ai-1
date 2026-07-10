@@ -51,19 +51,17 @@ const Insights = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" /> AI Insights
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} insight{filtered.length !== 1 ? "s" : ""} · {timeRange === "7d" ? "Last 7 days" : timeRange === "30d" ? "Last 30 days" : "Last 90 days"}
-          </p>
-        </div>
-        <Badge variant="outline" className="text-xs gap-1">
-          <Brain className="w-3 h-3" /> Generated Mar 27, 2026
-        </Badge>
-      </div>
+      <PageHeader
+        eyebrow="AI Insights"
+        icon={Sparkles}
+        title="AI Insights"
+        description={`${filtered.length} insight${filtered.length !== 1 ? "s" : ""} · ${timeRange === "7d" ? "Last 7 days" : timeRange === "30d" ? "Last 30 days" : "Last 90 days"} — patterns detected across the factory.`}
+        actions={
+          <Badge variant="outline" className="text-xs gap-1">
+            <Brain className="w-3 h-3" /> Generated Mar 27, 2026
+          </Badge>
+        }
+      />
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

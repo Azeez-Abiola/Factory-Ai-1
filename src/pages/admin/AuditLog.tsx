@@ -37,12 +37,12 @@ const AuditLog = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ScrollText className="w-6 h-6 text-destructive" /> Audit Log
-        </h1>
-        <p className="text-sm text-muted-foreground">Immutable activity trail across the platform</p>
-      </div>
+      <PageHeader
+        eyebrow="Compliance"
+        icon={ScrollText}
+        title="Audit Log"
+        description="Immutable activity trail across the platform — every state change captured."
+      />
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">

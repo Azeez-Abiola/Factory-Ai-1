@@ -119,14 +119,12 @@ const Maintenance = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Wrench className="w-6 h-6 text-primary" /> Predictive Maintenance
-          </h1>
-          <p className="text-sm text-muted-foreground">AI-detected equipment degradation patterns and failure predictions</p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Predictive"
+        icon={Wrench}
+        title="Predictive Maintenance"
+        description="AI-detected equipment degradation patterns and failure predictions across every zone."
+      />
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

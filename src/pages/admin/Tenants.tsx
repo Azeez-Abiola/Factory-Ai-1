@@ -178,15 +178,17 @@ const Tenants = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Tenant Management</h1>
-          <p className="text-sm text-muted-foreground">Manage organizations across the platform</p>
-        </div>
-        <Button onClick={openAdd}>
-          <Plus className="w-4 h-4 mr-2" /> Add Tenant
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Organizations"
+        icon={Building2}
+        title="Tenant Management"
+        description="Manage every organization on the platform — hierarchy, billing, and camera deployments."
+        actions={
+          <Button onClick={openAdd}>
+            <Plus className="w-4 h-4 mr-2" /> Add Tenant
+          </Button>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
