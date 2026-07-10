@@ -3,7 +3,11 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index.tsx";
+import Auth from "./pages/Auth.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AppLayout from "./components/app/AppLayout.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
@@ -38,37 +42,55 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/app" element={<AppLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="alerts" element={<Alerts />} />
-            <Route path="cameras" element={<Cameras />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="reports/:reportId" element={<ReportDetail />} />
-            <Route path="shift-reports" element={<ShiftReports />} />
-            <Route path="insights" element={<Insights />} />
-            <Route path="insights/:insightId" element={<InsightDetail />} />
-            <Route path="maintenance" element={<Maintenance />} />
-            <Route path="maintenance/:alertId" element={<MaintenanceDetail />} />
-            <Route path="help" element={<Help />} />
-          </Route>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Tenants />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="system" element={<SystemMonitoring />} />
-            <Route path="billing" element={<Billing />} />
-            <Route path="audit-log" element={<AuditLog />} />
-            <Route path="onboarding" element={<Onboarding />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="kpi-config" element={<KpiConfig />} />
-            <Route path="tenants/:tenantId" element={<TenantDetail />} />
-            <Route path="audit-log/:auditId" element={<AuditDetail />} />
-            <Route path="cameras" element={<CameraConfig />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/app"
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="alerts" element={<Alerts />} />
+              <Route path="cameras" element={<Cameras />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="reports/:reportId" element={<ReportDetail />} />
+              <Route path="shift-reports" element={<ShiftReports />} />
+              <Route path="insights" element={<Insights />} />
+              <Route path="insights/:insightId" element={<InsightDetail />} />
+              <Route path="maintenance" element={<Maintenance />} />
+              <Route path="maintenance/:alertId" element={<MaintenanceDetail />} />
+              <Route path="help" element={<Help />} />
+            </Route>
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireRoles={["super_admin", "tenant_admin"]}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Tenants />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="system" element={<SystemMonitoring />} />
+              <Route path="billing" element={<Billing />} />
+              <Route path="audit-log" element={<AuditLog />} />
+              <Route path="onboarding" element={<Onboarding />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="kpi-config" element={<KpiConfig />} />
+              <Route path="tenants/:tenantId" element={<TenantDetail />} />
+              <Route path="audit-log/:auditId" element={<AuditDetail />} />
+              <Route path="cameras" element={<CameraConfig />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

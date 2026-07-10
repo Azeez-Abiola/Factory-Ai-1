@@ -1,6 +1,7 @@
 import { Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ThemeToggle";
+import UserMenu from "@/components/app/UserMenu";
 
 const AdminHeader = () => {
   return (
@@ -8,15 +9,13 @@ const AdminHeader = () => {
       <div className="flex items-center gap-3">
         <Badge variant="destructive" className="text-xs font-mono">
           <Shield className="w-3 h-3 mr-1" />
-          SUPER ADMIN
+          PLATFORM ADMIN
         </Badge>
+        <span className="text-sm text-muted-foreground hidden md:inline">Platform Control Plane</span>
       </div>
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">Platform Control Plane</span>
+      <div className="flex items-center gap-3">
         <ThemeToggle />
-        <div className="w-8 h-8 rounded-full bg-destructive/20 border border-destructive/30 flex items-center justify-center text-sm font-bold text-destructive">
-          OD
-        </div>
+        <UserMenu />
       </div>
     </header>
   );
