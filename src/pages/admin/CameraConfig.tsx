@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 interface IPCamera {
   id: string;

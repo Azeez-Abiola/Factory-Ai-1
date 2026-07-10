@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import PageHeader from "@/components/app/PageHeader";
 
 const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; color: string }> = {
   super_admin: { label: "Super Admin", icon: Shield, color: "bg-destructive/10 text-destructive border-destructive/20" },

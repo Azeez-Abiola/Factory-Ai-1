@@ -18,6 +18,7 @@ import { mockMaintenanceAlerts, type MaintenanceAlert } from "@/data/extendedMoc
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import {
+import PageHeader from "@/components/app/PageHeader";
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell
 } from "recharts";

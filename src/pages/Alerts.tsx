@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PageHeader from "@/components/app/PageHeader";
 
 const severityColors: Record<AlertSeverity, string> = {
   critical: "bg-destructive/10 text-destructive border-destructive/30",

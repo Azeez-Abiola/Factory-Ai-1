@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mockInsights, AIInsight } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
+import PageHeader from "@/components/app/PageHeader";
 
 const categoryConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   safety: { icon: <Shield className="w-5 h-5" />, color: "bg-destructive/10 text-destructive", label: "Safety" },

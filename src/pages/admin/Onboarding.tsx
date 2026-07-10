@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils";
 import { onboardingSteps } from "@/data/extendedMockData";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 const stepIcons = [Building2, Camera, MapPin, Bell, Users];
 

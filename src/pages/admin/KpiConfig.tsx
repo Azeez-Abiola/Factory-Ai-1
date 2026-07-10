@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 // ── Types ──
 type KpiCategory = "safety" | "quality" | "efficiency" | "cost";

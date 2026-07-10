@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
+import PageHeader from "@/components/app/PageHeader";
 
 const statusConfig = {
   online: { color: "bg-success", icon: Wifi, label: "Online", text: "text-success" },

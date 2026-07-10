@@ -4,6 +4,7 @@ import { mockInvoices, revenueData, planDistribution, type InvoiceStatus } from 
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import PageHeader from "@/components/app/PageHeader";
 
 const statusColors: Record<InvoiceStatus, string> = {
   paid: "bg-success/10 text-[hsl(var(--success))] border-success/20",

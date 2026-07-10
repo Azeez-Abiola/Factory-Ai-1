@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 import { systemMetrics, apiTrafficData, tenantUsageData, systemLogs } from "@/data/adminMockData";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import PageHeader from "@/components/app/PageHeader";
 
 const logLevelColors = {
   error: "bg-destructive/10 text-destructive border-destructive/20",

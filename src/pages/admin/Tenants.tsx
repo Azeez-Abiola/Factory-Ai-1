@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TenantForm from "@/components/admin/TenantForm";
+import PageHeader from "@/components/app/PageHeader";
 
 const statusColors: Record<TenantStatus, string> = {
   active: "bg-success/10 text-[hsl(var(--success))] border-success/20",

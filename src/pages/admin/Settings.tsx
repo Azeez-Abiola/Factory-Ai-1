@@ -12,6 +12,7 @@ import { mockWebhooks, mockWhiteLabel, type WebhookConfig } from "@/data/extende
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import PageHeader from "@/components/app/PageHeader";
 
 const statusConfig = {
   active: { icon: <CheckCircle2 className="w-4 h-4" />, color: "bg-success/10 text-success border-success/30", label: "Healthy" },
