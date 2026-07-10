@@ -191,11 +191,26 @@ const Cameras = () => {
                     <p className="text-foreground">{selected.detections}</p>
                   </div>
                 </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={() => setAnalyzeOpen(true)} className="gap-2">
+                    <Sparkles className="w-4 h-4" /> Analyze Frame with AI
+                  </Button>
+                </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {selected && (
+        <AIAnalyzeDialog
+          open={analyzeOpen}
+          onOpenChange={setAnalyzeOpen}
+          cameraName={selected.name}
+          zone={selected.zone}
+        />
+      )}
     </div>
   );
 };
