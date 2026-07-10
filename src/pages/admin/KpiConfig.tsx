@@ -207,6 +207,11 @@ const KpiConfig = () => {
         icon={Target}
         title="KPI & OKR Configuration"
         description="Define business metrics, set thresholds, and track objectives across the org."
+        actions={
+          <a href="/admin/rules" className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 transition">
+            <Shield className="w-3.5 h-3.5" /> Rules & Policy
+          </a>
+        }
       />
 
       {/* Summary Cards */}
