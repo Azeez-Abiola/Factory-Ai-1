@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
   Factory, ChevronLeft, ChevronRight, ArrowLeft,
-  ScrollText, Rocket, Settings2, Target, Camera
+  ScrollText, Rocket, Settings2, Target, Camera, ShieldCheck
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
   {
     label: "Governance",
     items: [
+      { to: "/admin/rules", icon: ShieldCheck, label: "Rules & Policy" },
       { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
       { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
       { to: "/admin/settings", icon: Settings2, label: "Settings" },
