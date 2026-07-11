@@ -44,6 +44,7 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     streamType: (row.stream_type as any) ?? "hls",
     lastSeenAt: row.last_seen_at ?? null,
     heartbeatSeconds: row.heartbeat_interval_seconds ?? 60,
+    audioEnabled: !!row.audio_enabled,
     isLive: !!row.stream_url,
     isDbBacked: true,
   };
