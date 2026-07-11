@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, Trash2, X, Rocket } from "lucide-react";
+import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { onboardingSteps } from "@/data/extendedMockData";
 import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
+import FieldLabel from "@/components/forms/FieldLabel";
+import AddressFields from "@/components/forms/AddressFields";
 
 const stepIcons = [Building2, Camera, MapPin, Bell, Users];
 
@@ -27,6 +28,8 @@ const defaultCameras: CameraEntry[] = [
   { id: "cam-4", name: "QC Station", rtspUrl: "rtsp://192.168.1.13/stream", status: "connected" },
 ];
 
+const RTSP_RE = /^rtsp:\/\/[^\s]+$/i;
+
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [cameras, setCameras] = useState<CameraEntry[]>(defaultCameras);
@@ -34,14 +37,28 @@ const Onboarding = () => {
   const [newCameraName, setNewCameraName] = useState("");
   const [newCameraUrl, setNewCameraUrl] = useState("");
 
+  // Org details
+  const [companyName, setCompanyName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [plan, setPlan] = useState("");
+  const [address, setAddress] = useState("");
+
+  // Invite form
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("operator");
+
   const handleComplete = () => {
     toast.success("Tenant onboarding complete! The new factory is now active.", { duration: 4000 });
     setCurrentStep(0);
   };
 
   const handleAddCamera = () => {
-    if (!newCameraName.trim() || !newCameraUrl.trim()) {
-      toast.error("Please fill in both camera name and RTSP URL.");
+    if (!newCameraName.trim()) {
+      toast.error("Camera name is required");
+      return;
+    }
+    if (!RTSP_RE.test(newCameraUrl.trim())) {
+      toast.error("Enter a valid RTSP URL (e.g. rtsp://192.168.1.10/stream)");
       return;
     }
     const cam: CameraEntry = {
@@ -60,6 +77,15 @@ const Onboarding = () => {
   const handleRemoveCamera = (id: string) => {
     setCameras((prev) => prev.filter((c) => c.id !== id));
     toast.info("Camera removed");
+  };
+
+  const handleInvite = () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
+      toast.error("Enter a valid email address");
+      return;
+    }
+    toast.success(`Invitation drafted for ${inviteEmail} as ${inviteRole}`);
+    setInviteEmail("");
   };
 
   return (
@@ -83,8 +109,11 @@ const Onboarding = () => {
                 onClick={() => setCurrentStep(i)}
                 className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all w-full",
-                  isActive ? "bg-destructive/10 text-destructive border border-destructive/30" :
-                  isDone ? "bg-success/10 text-success" : "bg-muted/50 text-muted-foreground"
+                  isActive
+                    ? "bg-destructive/10 text-destructive border border-destructive/30"
+                    : isDone
+                    ? "bg-success/10 text-success"
+                    : "bg-muted/50 text-muted-foreground",
                 )}
               >
                 {isDone ? <CheckCircle className="w-4 h-4 shrink-0" /> : <Icon className="w-4 h-4 shrink-0" />}
@@ -99,36 +128,64 @@ const Onboarding = () => {
       {/* Step Content */}
       <div className="glass rounded-xl p-6 border border-border min-h-[350px]">
         {currentStep === 0 && (
-          <div className="space-y-4 max-w-md">
-            <h2 className="text-lg font-semibold text-foreground">Organization Details</h2>
-            <div className="space-y-3">
-              <div><Label className="text-xs text-muted-foreground">Company Name</Label><Input placeholder="e.g., Tata Steel Works" className="bg-background border-border mt-1" /></div>
-              <div><Label className="text-xs text-muted-foreground">Industry</Label>
-                <Select><SelectTrigger className="bg-background border-border mt-1"><SelectValue placeholder="Select industry" /></SelectTrigger>
+          <div className="space-y-6 max-w-2xl">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Organization Details</h2>
+              <p className="text-sm text-muted-foreground">Foundational information about the new tenant.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <FieldLabel required htmlFor="ob-company">Company Name</FieldLabel>
+                <Input
+                  id="ob-company"
+                  autoComplete="organization"
+                  placeholder="e.g. Tata Steel Works"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel required>Industry</FieldLabel>
+                <Select value={industry} onValueChange={setIndustry}>
+                  <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="manufacturing">Manufacturing</SelectItem><SelectItem value="fmcg">FMCG</SelectItem>
-                    <SelectItem value="pharma">Pharmaceuticals</SelectItem><SelectItem value="automotive">Automotive</SelectItem>
+                    <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                    <SelectItem value="fmcg">FMCG</SelectItem>
+                    <SelectItem value="pharma">Pharmaceuticals</SelectItem>
+                    <SelectItem value="automotive">Automotive</SelectItem>
                     <SelectItem value="electronics">Electronics</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs text-muted-foreground">Region</Label><Input placeholder="e.g., India – Jamshedpur" className="bg-background border-border mt-1" /></div>
-              <div><Label className="text-xs text-muted-foreground">Plan</Label>
-                <Select><SelectTrigger className="bg-background border-border mt-1"><SelectValue placeholder="Select plan" /></SelectTrigger>
+              <div className="space-y-2 sm:col-span-2">
+                <FieldLabel required hint="Determines quotas and default features.">Plan</FieldLabel>
+                <Select value={plan} onValueChange={setPlan}>
+                  <SelectTrigger><SelectValue placeholder="Select plan" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="starter">Starter</SelectItem><SelectItem value="professional">Professional</SelectItem>
-                    <SelectItem value="enterprise">Enterprise</SelectItem>
+                    <SelectItem value="starter">Starter · up to 5 cameras</SelectItem>
+                    <SelectItem value="professional">Professional · up to 50 cameras</SelectItem>
+                    <SelectItem value="enterprise">Enterprise · unlimited</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+
+            <AddressFields
+              value={address}
+              onChange={setAddress}
+              label="Facility Address"
+              description="Primary site for this tenant. Used for compliance records and site tagging."
+            />
           </div>
         )}
 
         {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Add Cameras</h2>
-            <p className="text-sm text-muted-foreground">Connect IP cameras to the platform. You can add more later.</p>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Add Cameras</h2>
+              <p className="text-sm text-muted-foreground">Connect IP cameras to the platform. You can add more later.</p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
               {cameras.map((cam) => (
                 <div key={cam.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border group">
@@ -137,7 +194,15 @@ const Onboarding = () => {
                     <p className="text-sm text-foreground truncate">{cam.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{cam.rtspUrl}</p>
                   </div>
-                  <Badge variant="outline" className={cn("text-xs shrink-0", cam.status === "connected" ? "bg-success/10 text-success" : "bg-warning/10 text-warning")}>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-xs shrink-0",
+                      cam.status === "connected"
+                        ? "bg-success/10 text-success"
+                        : "bg-warning/10 text-warning",
+                    )}
+                  >
                     {cam.status === "connected" ? "Connected" : "Pending"}
                   </Badge>
                   <Button
@@ -159,25 +224,32 @@ const Onboarding = () => {
             <Dialog open={addCameraOpen} onOpenChange={setAddCameraOpen}>
               <DialogContent className="bg-card border-border max-w-md">
                 <DialogHeader>
-                  <DialogTitle className="text-foreground">Add New Camera</DialogTitle>
+                  <DialogTitle>Add New Camera</DialogTitle>
+                  <DialogDescription>
+                    Provide a friendly name and the RTSP stream URL from your camera.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Camera Name</Label>
+                  <div className="space-y-2">
+                    <FieldLabel required htmlFor="cam-name">Camera Name</FieldLabel>
                     <Input
-                      placeholder="e.g., Warehouse Bay 2"
+                      id="cam-name"
+                      placeholder="e.g. Warehouse Bay 2"
                       value={newCameraName}
                       onChange={(e) => setNewCameraName(e.target.value)}
-                      className="bg-background border-border mt-1"
                     />
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">RTSP URL</Label>
+                  <div className="space-y-2">
+                    <FieldLabel required htmlFor="cam-url" hint="Format: rtsp://host[:port]/path">
+                      RTSP URL
+                    </FieldLabel>
                     <Input
-                      placeholder="rtsp://192.168.1.xx/stream"
+                      id="cam-url"
+                      placeholder="rtsp://192.168.1.10/stream"
                       value={newCameraUrl}
                       onChange={(e) => setNewCameraUrl(e.target.value)}
-                      className="bg-background border-border mt-1"
+                      inputMode="url"
+                      spellCheck={false}
                     />
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
@@ -194,8 +266,10 @@ const Onboarding = () => {
 
         {currentStep === 2 && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">Define Factory Zones</h2>
-            <p className="text-sm text-muted-foreground">Map your factory into logical zones for monitoring.</p>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Define Factory Zones</h2>
+              <p className="text-sm text-muted-foreground">Map your factory into logical zones for monitoring.</p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl">
               {["Zone A – Main Hall", "Zone B – Assembly", "Zone C – Packaging", "Zone D – Storage", "Zone E – QC Lab", "Zone F – Loading Dock"].map((zone, i) => (
                 <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border text-center">
@@ -209,9 +283,11 @@ const Onboarding = () => {
         )}
 
         {currentStep === 3 && (
-          <div className="space-y-4 max-w-md">
-            <h2 className="text-lg font-semibold text-foreground">Alert Thresholds</h2>
-            <p className="text-sm text-muted-foreground">Configure detection sensitivity and alert rules.</p>
+          <div className="space-y-4 max-w-xl">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Alert Thresholds</h2>
+              <p className="text-sm text-muted-foreground">Configure detection sensitivity and alert rules.</p>
+            </div>
             {[
               { label: "PPE Violation Detection", desc: "Trigger alert when PPE missing for" },
               { label: "Machine Idle Timeout", desc: "Alert if machine idle for" },
@@ -219,12 +295,17 @@ const Onboarding = () => {
               { label: "Restricted Zone Alert", desc: "Immediate alert on unauthorized entry" },
             ].map((rule, i) => (
               <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                <div><p className="text-sm text-foreground">{rule.label}</p><p className="text-xs text-muted-foreground">{rule.desc}</p></div>
+                <div>
+                  <p className="text-sm text-foreground">{rule.label}</p>
+                  <p className="text-xs text-muted-foreground">{rule.desc}</p>
+                </div>
                 <Select defaultValue={i === 3 ? "instant" : "5min"}>
-                  <SelectTrigger className="w-28 bg-background border-border"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="instant">Instant</SelectItem><SelectItem value="2min">2 min</SelectItem>
-                    <SelectItem value="5min">5 min</SelectItem><SelectItem value="10min">10 min</SelectItem>
+                    <SelectItem value="instant">Instant</SelectItem>
+                    <SelectItem value="2min">2 min</SelectItem>
+                    <SelectItem value="5min">5 min</SelectItem>
+                    <SelectItem value="10min">10 min</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -233,19 +314,42 @@ const Onboarding = () => {
         )}
 
         {currentStep === 4 && (
-          <div className="space-y-4 max-w-lg">
-            <h2 className="text-lg font-semibold text-foreground">Invite Team Members</h2>
-            <p className="text-sm text-muted-foreground">Add users and assign roles for this factory.</p>
-            <div className="flex gap-2">
-              <Input placeholder="email@company.com" className="bg-background border-border" />
-              <Select defaultValue="operator">
-                <SelectTrigger className="w-40 bg-background border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tenant_admin">Tenant Admin</SelectItem><SelectItem value="operator">Operator</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline">Invite</Button>
+          <div className="space-y-4 max-w-xl">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Invite Team Members</h2>
+              <p className="text-sm text-muted-foreground">Add users and assign roles for this factory.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+              <div className="space-y-1">
+                <FieldLabel htmlFor="ob-invite-email">Email</FieldLabel>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="ob-invite-email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="teammate@company.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <FieldLabel>Role</FieldLabel>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tenant_admin">Tenant Admin</SelectItem>
+                    <SelectItem value="operator">Operator</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <FieldLabel className="opacity-0">&nbsp;</FieldLabel>
+                <Button variant="outline" onClick={handleInvite}>Invite</Button>
+              </div>
             </div>
             <div className="space-y-2">
               {[
@@ -253,7 +357,10 @@ const Onboarding = () => {
                 { name: "priya@company.com", role: "Operator", status: "Invited" },
               ].map((user, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                  <div className="flex items-center gap-2"><Users className="w-4 h-4 text-primary" /><span className="text-sm text-foreground">{user.name}</span></div>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-foreground">{user.name}</span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">{user.role}</Badge>
                     <Badge variant="outline" className="text-xs bg-warning/10 text-warning">{user.status}</Badge>
@@ -267,7 +374,12 @@ const Onboarding = () => {
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0} className="gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+          disabled={currentStep === 0}
+          className="gap-2"
+        >
           <ChevronLeft className="w-4 h-4" /> Back
         </Button>
         {currentStep < onboardingSteps.length - 1 ? (
