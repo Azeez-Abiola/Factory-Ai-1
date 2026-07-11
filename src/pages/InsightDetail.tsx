@@ -3,8 +3,11 @@ import { useMemo } from "react";
 import {
   ArrowLeft, Brain, TrendingUp, TrendingDown, Minus, Shield, Zap, Eye, DollarSign,
   Sparkles, Calendar, Target, BarChart3, Lightbulb, AlertTriangle, CheckCircle2,
-  Clock, ArrowUpRight, Activity
+  Clock, ArrowUpRight, Activity, Download
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
