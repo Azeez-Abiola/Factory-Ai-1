@@ -115,7 +115,7 @@ export default function Incidents() {
     if (patch.status === "closed" || patch.status === "false_positive" || patch.status === "resolved") {
       applyPatch.closed_at = new Date().toISOString();
     }
-    const { error } = await supabase.from("incidents").update(applyPatch).in("id", ids);
+    const { error } = await supabase.from("incidents").update(applyPatch as never).in("id", ids);
     if (error) return toast.error(error.message);
     await Promise.all(ids.map((id) =>
       auditLog({ tenantId: activeTenantId, action, entityType: "incident", entityId: id, metadata: applyPatch as Record<string, unknown> })
