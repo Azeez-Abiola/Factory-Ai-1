@@ -40,9 +40,9 @@ Deno.serve(async (req) => {
 
     // Reassign open tasks + assign incident
     await supabase.from("resolution_tasks")
-      .update({ assignee_id: nextSupervisor })
+      .update({ assigned_to: nextSupervisor })
       .eq("incident_id", inc.id)
-      .neq("status", "done");
+      .not("status", "in", "(completed,cancelled)");
 
     const nextAt = new Date(Date.now() + pol.timeout_minutes * 60_000).toISOString();
     await supabase.from("incidents")
