@@ -8,6 +8,7 @@ export interface LiveCamera extends MockCamera {
   streamType?: "hls" | "webrtc" | "mjpeg" | null;
   lastSeenAt?: string | null;
   heartbeatSeconds?: number;
+  audioEnabled?: boolean;
   isLive: boolean; // has a real playable stream_url
   isDbBacked: boolean; // came from cameras table (not fallback mock)
 }
