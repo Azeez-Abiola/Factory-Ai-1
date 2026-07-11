@@ -470,7 +470,18 @@ const CameraConfig = () => {
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground mb-2">Active AI Models</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground">Active AI Models</p>
+                    {cam.inference_enabled ? (
+                      <Badge variant="outline" className="text-[10px] text-success border-success/40">
+                        <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" />
+                        Inference running · every {cam.inference_interval_seconds ?? 30}s
+                        {cam.last_inference_at && ` · last ${Math.max(0, Math.floor((Date.now() - new Date(cam.last_inference_at).getTime()) / 1000))}s ago`}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">Inference off</Badge>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {activeModels.length === 0 && <span className="text-xs text-muted-foreground">None enabled</span>}
                     {activeModels.map((m) => (
