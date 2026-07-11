@@ -252,7 +252,7 @@ const Cameras = () => {
           <>
             <div className={cn("grid gap-3", layoutConfig[layout].cols)}>
               {visible.map((cam) => (
-                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} />
+                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} audioOn={audioOn} />
               ))}
               {/* Fill empty slots so grid keeps its shape */}
               {Array.from({ length: Math.max(0, perPage - visible.length) }).map((_, i) => (
