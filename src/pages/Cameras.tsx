@@ -372,7 +372,7 @@ const HealthTile = ({ icon: Icon, label, value, tone }: { icon: any; label: stri
   );
 };
 
-const CameraTile = ({ cam, onOpen, now, focus }: { cam: LiveCamera; onOpen: () => void; now: Date; focus: boolean }) => {
+const CameraTile = ({ cam, onOpen, now, focus, audioOn }: { cam: LiveCamera; onOpen: () => void; now: Date; focus: boolean; audioOn: boolean }) => {
   const config = statusConfig[cam.status];
   return (
     <div
@@ -386,7 +386,7 @@ const CameraTile = ({ cam, onOpen, now, focus }: { cam: LiveCamera; onOpen: () =
       )}
     >
       <div className={cn("relative bg-muted/30 overflow-hidden", focus ? "h-[420px]" : "h-40")}>
-        <FeedInner cam={cam} now={now} />
+        <FeedInner cam={cam} now={now} large={focus} audioOn={audioOn} tileFocus={focus} />
       </div>
       <div className="p-2.5">
         <div className="flex items-center justify-between mb-0.5">
