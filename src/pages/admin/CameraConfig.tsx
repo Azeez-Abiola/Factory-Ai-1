@@ -654,6 +654,13 @@ const CameraConfig = () => {
                   </div>
                   <Switch checked={editing.recording_enabled ?? true} onCheckedChange={(v) => setEditing({ ...editing, recording_enabled: v })} />
                 </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <p className="text-sm font-medium">Audio Capture</p>
+                    <p className="text-xs text-muted-foreground">Broadcast the camera's microphone in the live wall (operator must also enable audio)</p>
+                  </div>
+                  <Switch checked={!!editing.audio_enabled} onCheckedChange={(v) => setEditing({ ...editing, audio_enabled: v })} />
+                </div>
                 {editing.id && editing.ingest_token && (
                   <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2">
                     <div className="flex items-center justify-between">
