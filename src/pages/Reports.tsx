@@ -225,8 +225,11 @@ const Reports = () => {
           return (
             <div
               key={report.id}
+              role="button"
+              tabIndex={0}
               onClick={() => navigate(`/app/reports/${report.id}`)}
-              className="grid grid-cols-[1fr_100px_80px_80px_80px_100px] gap-4 px-5 py-4 border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors items-center"
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/app/reports/${report.id}`); } }}
+              className="grid grid-cols-[1fr_100px_80px_80px_80px_100px] gap-4 px-5 py-4 border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
