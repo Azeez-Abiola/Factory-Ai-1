@@ -145,12 +145,12 @@ const Cameras = () => {
         description={`${counts.online} of ${counts.total} cameras streaming • ${counts.detections} active AI detections`}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1.5 text-xs">
+            <Badge variant="outline" className={cn("gap-1.5 text-xs", hasLiveStreams ? "border-success/40 text-success" : "text-muted-foreground")}>
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping", hasLiveStreams ? "bg-success" : "bg-muted-foreground")} />
+                <span className={cn("relative inline-flex h-2 w-2 rounded-full", hasLiveStreams ? "bg-success" : "bg-muted-foreground")} />
               </span>
-              LIVE • {now.toLocaleTimeString()}
+              {hasLiveStreams ? "LIVE" : "SIMULATED"} • {now.toLocaleTimeString()}
             </Badge>
           </div>
         }
