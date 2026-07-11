@@ -458,7 +458,14 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
       <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-mono text-primary/90 bg-background/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
         {tel.resolution} • {tel.fps}fps
       </div>
-      <div className="absolute top-2 right-2 flex items-center gap-1">
+      <div className="absolute top-2 right-2 flex items-center gap-1.5">
+        {cam.audioEnabled && (
+          canPlayAudio ? (
+            <Volume2 className="w-3 h-3 text-primary" aria-label="Audio on" />
+          ) : (
+            <VolumeX className="w-3 h-3 text-muted-foreground/70" aria-label="Audio available, muted" />
+          )
+        )}
         <div className="w-2 h-2 rounded-full bg-destructive animate-pulse-glow" />
         <span className="text-[9px] text-destructive font-mono">{large ? "LIVE" : "REC"}</span>
       </div>
