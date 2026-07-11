@@ -192,6 +192,7 @@ const CameraConfig = () => {
       fps: e.fps ?? 25,
       ptz_enabled: !!e.ptz_enabled,
       recording_enabled: e.recording_enabled ?? true,
+      audio_enabled: !!e.audio_enabled,
     };
 
     if (e.id) {
