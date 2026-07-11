@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Bell, Camera, FileText,
   Shield, Factory, ChevronLeft, ChevronRight,
-  ClipboardList, Sparkles, Wrench, HelpCircle
+  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
