@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound.tsx";
 import AppLayout from "./components/app/AppLayout.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
+import Incidents from "./pages/Incidents.tsx";
 import Cameras from "./pages/Cameras.tsx";
 import Reports from "./pages/Reports.tsx";
 import ShiftReports from "./pages/ShiftReports.tsx";
