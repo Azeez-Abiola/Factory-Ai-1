@@ -1,0 +1,1 @@
+ALTER TABLE public.cameras ADD COLUMN IF NOT EXISTS audio_enabled boolean NOT NULL DEFAULT false;
