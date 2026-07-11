@@ -285,7 +285,7 @@ const ShiftReports = () => {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => toast.success(`Exporting ${selectedReport.shiftName} report as PDF`)}
+                    onClick={() => exportShiftPDF(selectedReport)}
                   >
                     <FileText className="w-4 h-4" /> Export PDF
                   </Button>
