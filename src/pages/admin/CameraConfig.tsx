@@ -44,6 +44,7 @@ interface CameraRow {
   fps: number;
   ptz_enabled: boolean;
   recording_enabled: boolean;
+  audio_enabled?: boolean;
   last_seen_at: string | null;
 }
 
@@ -73,6 +74,7 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   fps: 25,
   ptz_enabled: false,
   recording_enabled: true,
+  audio_enabled: false,
 });
 
 const isLikelyStreamUrl = (u: string, t: StreamType) => {
@@ -190,6 +192,7 @@ const CameraConfig = () => {
       fps: e.fps ?? 25,
       ptz_enabled: !!e.ptz_enabled,
       recording_enabled: e.recording_enabled ?? true,
+      audio_enabled: !!e.audio_enabled,
     };
 
     if (e.id) {
@@ -650,6 +653,13 @@ const CameraConfig = () => {
                     <p className="text-xs text-muted-foreground">Retain frames per retention policy</p>
                   </div>
                   <Switch checked={editing.recording_enabled ?? true} onCheckedChange={(v) => setEditing({ ...editing, recording_enabled: v })} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <p className="text-sm font-medium">Audio Capture</p>
+                    <p className="text-xs text-muted-foreground">Broadcast the camera's microphone in the live wall (operator must also enable audio)</p>
+                  </div>
+                  <Switch checked={!!editing.audio_enabled} onCheckedChange={(v) => setEditing({ ...editing, audio_enabled: v })} />
                 </div>
                 {editing.id && editing.ingest_token && (
                   <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2">

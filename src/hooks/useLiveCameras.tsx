@@ -8,6 +8,7 @@ export interface LiveCamera extends MockCamera {
   streamType?: "hls" | "webrtc" | "mjpeg" | null;
   lastSeenAt?: string | null;
   heartbeatSeconds?: number;
+  audioEnabled?: boolean;
   isLive: boolean; // has a real playable stream_url
   isDbBacked: boolean; // came from cameras table (not fallback mock)
 }
@@ -43,6 +44,7 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     streamType: (row.stream_type as any) ?? "hls",
     lastSeenAt: row.last_seen_at ?? null,
     heartbeatSeconds: row.heartbeat_interval_seconds ?? 60,
+    audioEnabled: !!row.audio_enabled,
     isLive: !!row.stream_url,
     isDbBacked: true,
   };
@@ -132,7 +134,7 @@ export function useLiveCameras() {
     void tick;
     if (rows.length === 0 && !loading) {
       // Fallback so the wall stays populated pre-provisioning
-      return mockCameras.map((c) => ({ ...c, isLive: false, isDbBacked: false, streamType: "hls" }));
+      return mockCameras.map((c) => ({ ...c, isLive: false, isDbBacked: false, streamType: "hls", audioEnabled: false }));
     }
     return rows.map((r) => normalize(r, detections));
   }, [rows, detections, tick, loading]);
