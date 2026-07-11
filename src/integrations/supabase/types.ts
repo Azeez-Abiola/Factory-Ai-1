@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_analysis_config: {
+        Row: {
+          categories: Json
+          created_at: string
+          id: string
+          model: string
+          system_prompt: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          categories?: Json
+          created_at?: string
+          id?: string
+          model?: string
+          system_prompt?: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          categories?: Json
+          created_at?: string
+          id?: string
+          model?: string
+          system_prompt?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_rules: {
         Row: {
           auto_assign_role: string | null
