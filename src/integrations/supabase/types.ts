@@ -30,6 +30,7 @@ export type Database = {
           name: string
           notification_channels: string[]
           policy_id: string | null
+          tenant_id: string | null
           trigger_source: string
           updated_at: string
         }
@@ -48,6 +49,7 @@ export type Database = {
           name: string
           notification_channels?: string[]
           policy_id?: string | null
+          tenant_id?: string | null
           trigger_source?: string
           updated_at?: string
         }
@@ -66,6 +68,7 @@ export type Database = {
           name?: string
           notification_channels?: string[]
           policy_id?: string | null
+          tenant_id?: string | null
           trigger_source?: string
           updated_at?: string
         }
@@ -75,6 +78,13 @@ export type Database = {
             columns: ["policy_id"]
             isOneToOne: false
             referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -422,6 +432,7 @@ export type Database = {
           scope_cameras: string[]
           scope_zones: string[]
           severity: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -439,6 +450,7 @@ export type Database = {
           scope_cameras?: string[]
           scope_zones?: string[]
           severity?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -456,9 +468,18 @@ export type Database = {
           scope_cameras?: string[]
           scope_zones?: string[]
           severity?: string
+          tenant_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       policy_violations: {
         Row: {
@@ -473,6 +494,7 @@ export type Database = {
           resolved_at: string | null
           severity: string
           status: string
+          tenant_id: string | null
           zone: string | null
         }
         Insert: {
@@ -487,6 +509,7 @@ export type Database = {
           resolved_at?: string | null
           severity?: string
           status?: string
+          tenant_id?: string | null
           zone?: string | null
         }
         Update: {
@@ -501,6 +524,7 @@ export type Database = {
           resolved_at?: string | null
           severity?: string
           status?: string
+          tenant_id?: string | null
           zone?: string | null
         }
         Relationships: [
@@ -516,6 +540,13 @@ export type Database = {
             columns: ["policy_id"]
             isOneToOne: false
             referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_violations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
