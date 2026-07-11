@@ -7,6 +7,7 @@ import { mockShiftReports, ShiftReport } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import CreateShiftReportDialog from "@/components/reports/CreateShiftReportDialog";
+import { downloadCSV, downloadTablePDF } from "@/lib/exporters";
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ const ShiftReports = () => {
   const shiftNames = useMemo(() => {
     const names = new Set(reports.map((r) => r.shiftName));
     return Array.from(names);
-  }, []);
+  }, [reports]);
 
   const filtered = useMemo(() => {
     let result = [...reports];
@@ -62,6 +63,38 @@ const ShiftReports = () => {
 
   const handleCreateReport = (report: ShiftReport) => {
     setReports((prev) => [report, ...prev]);
+  };
+
+  const handleExportAll = () => {
+    if (filtered.length === 0) return toast.info("No shift reports to export");
+    const rows: (string | number)[][] = [
+      ["ID", "Shift", "Date", "Start", "End", "Supervisor", "Safety %", "Efficiency %", "Incidents", "Resolved", "Unresolved", "Defects"],
+      ...filtered.map((r) => [r.id, r.shiftName, r.date, r.startTime, r.endTime, r.supervisor, r.safetyScore, r.productionEfficiency, r.incidentsCount, r.resolvedCount, r.unresolvedCount, r.defectsFound]),
+    ];
+    downloadCSV(`shift-reports-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success(`Exported ${filtered.length} shift report${filtered.length > 1 ? "s" : ""}`);
+  };
+
+  const exportShiftPDF = (r: ShiftReport) => {
+    downloadTablePDF({
+      filename: `${r.id}-${r.date}.pdf`,
+      title: `${r.shiftName} — ${r.date}`,
+      subtitle: `Supervisor: ${r.supervisor} · ${r.startTime}–${r.endTime}`,
+      head: ["Metric", "Value"],
+      body: [
+        ["Safety Score", `${r.safetyScore}%`],
+        ["Production Efficiency", `${r.productionEfficiency}%`],
+        ["Incidents", r.incidentsCount],
+        ["Resolved", `${r.resolvedCount}/${r.incidentsCount}`],
+        ["Unresolved", r.unresolvedCount],
+        ["Defects Found", r.defectsFound],
+        ["Key Events", r.keyEvents.join("; ") || "—"],
+        ["Unresolved Issues", r.unresolvedIssues.join("; ") || "—"],
+        ["Recommendations", r.recommendations.join("; ") || "—"],
+      ],
+      orientation: "portrait",
+    });
+    toast.success(`Downloaded ${r.id}.pdf`);
   };
 
   return (
