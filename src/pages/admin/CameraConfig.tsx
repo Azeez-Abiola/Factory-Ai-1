@@ -264,23 +264,24 @@ const CameraConfig = () => {
   };
 
   const testStream = async (row: CameraRow) => {
-    if (!row.stream_url) {
-      toast.error("No stream URL set. Add one or configure a gateway base URL.");
+    if (!row.stream_url && !row.rtsp_url) {
+      toast.error("No stream or RTSP URL set. Add one or configure a gateway base URL.");
       return;
     }
     setTesting(row.id);
     try {
-      // Best-effort reachability probe — HLS manifest / WHEP endpoint HEAD.
-      // Browsers won't leak CORS body, but network reachability + status is verifiable.
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(row.stream_url, { method: "GET", mode: "no-cors", signal: controller.signal });
-      clearTimeout(t);
-      // With no-cors we usually get an opaque response; treat "no throw" as reachable
-      void res;
-      toast.success(`Stream endpoint reachable · ${row.stream_type.toUpperCase()}`);
+      const result = await runStreamTest({
+        stream_url: row.stream_url,
+        stream_type: row.stream_type as StreamType,
+        rtsp_url: row.rtsp_url,
+      });
+      if (result.ok) {
+        toast.success(`Reachable · ${result.detail ?? row.stream_type.toUpperCase()}`);
+      } else {
+        toast.error(`Unreachable — ${result.reason ?? "no response"}`);
+      }
     } catch (err: any) {
-      toast.error(`Unreachable: ${err?.message ?? "network error"}`);
+      toast.error(`Test failed: ${err?.message ?? "network error"}`);
     } finally {
       setTesting(null);
     }
