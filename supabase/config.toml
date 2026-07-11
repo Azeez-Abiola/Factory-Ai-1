@@ -1,1 +1,4 @@
 project_id = "zipwhudzvvosedllampr"
+
+[functions.camera-heartbeat]
+verify_jwt = false
