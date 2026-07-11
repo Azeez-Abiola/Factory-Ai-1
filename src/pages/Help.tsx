@@ -944,8 +944,6 @@ const Help = () => {
         />
       </div>
 
-      </div>
-
       {/* Compliance Standards Matrix */}
       {showMatrix && (
         <div className="glass rounded-2xl border border-border p-5 md:p-6 space-y-4">
