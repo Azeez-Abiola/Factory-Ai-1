@@ -204,13 +204,17 @@ export type Database = {
       cameras: {
         Row: {
           created_at: string
+          heartbeat_interval_seconds: number
           id: string
           last_seen_at: string | null
           metadata: Json | null
           name: string
           resolution: string | null
+          retention_days: number
           rtsp_url: string | null
           status: string
+          stream_type: string
+          stream_url: string | null
           tenant_id: string
           type: string | null
           updated_at: string
@@ -218,13 +222,17 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          heartbeat_interval_seconds?: number
           id?: string
           last_seen_at?: string | null
           metadata?: Json | null
           name: string
           resolution?: string | null
+          retention_days?: number
           rtsp_url?: string | null
           status?: string
+          stream_type?: string
+          stream_url?: string | null
           tenant_id: string
           type?: string | null
           updated_at?: string
@@ -232,13 +240,17 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          heartbeat_interval_seconds?: number
           id?: string
           last_seen_at?: string | null
           metadata?: Json | null
           name?: string
           resolution?: string | null
+          retention_days?: number
           rtsp_url?: string | null
           status?: string
+          stream_type?: string
+          stream_url?: string | null
           tenant_id?: string
           type?: string | null
           updated_at?: string
