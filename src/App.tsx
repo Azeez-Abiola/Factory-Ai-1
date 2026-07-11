@@ -38,6 +38,7 @@ import CameraConfig from "./pages/admin/CameraConfig.tsx";
 import RulesPolicy from "./pages/admin/RulesPolicy.tsx";
 import EscalationPolicies from "./pages/admin/EscalationPolicies.tsx";
 import NotificationSettings from "./pages/admin/NotificationSettings.tsx";
+import AIConfig from "./pages/admin/AIConfig.tsx";
 
 const queryClient = new QueryClient();
 
