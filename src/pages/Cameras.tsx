@@ -127,14 +127,14 @@ const Cameras = () => {
   };
 
   const counts = useMemo(() => ({
-    total: mockCameras.length,
-    online: mockCameras.filter((c) => c.status === "online").length,
-    offline: mockCameras.filter((c) => c.status === "offline").length,
-    maintenance: mockCameras.filter((c) => c.status === "maintenance").length,
-    detections: mockCameras.reduce((a, c) => a + c.detections, 0),
-  }), []);
+    total: cameras.length,
+    online: cameras.filter((c) => c.status === "online").length,
+    offline: cameras.filter((c) => c.status === "offline").length,
+    maintenance: cameras.filter((c) => c.status === "maintenance").length,
+    detections: cameras.reduce((a, c) => a + c.detections, 0),
+  }), [cameras]);
 
-  const uptimePct = Math.round((counts.online / counts.total) * 100);
+  const uptimePct = counts.total ? Math.round((counts.online / counts.total) * 100) : 0;
 
   return (
     <div className="space-y-5">
