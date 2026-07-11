@@ -169,6 +169,23 @@ const CameraConfig = () => {
     return `${base}/${cameraId}`;
   };
 
+  const runStreamTest = async (opts: {
+    stream_url?: string | null;
+    stream_type?: StreamType;
+    rtsp_url?: string | null;
+  }): Promise<{ ok: boolean; reason?: string; detail?: string }> => {
+    const { data, error } = await supabase.functions.invoke("test-stream", {
+      body: {
+        stream_url: opts.stream_url ?? null,
+        stream_type: opts.stream_type ?? "hls",
+        rtsp_url: opts.rtsp_url ?? null,
+        gateway_base_url: gatewayBase || null,
+      },
+    });
+    if (error) return { ok: false, reason: error.message };
+    return data as { ok: boolean; reason?: string; detail?: string };
+  };
+
   const save = async () => {
     if (!editing || !activeTenantId) return;
     const e = editing;
@@ -178,6 +195,24 @@ const CameraConfig = () => {
     if (!stream && e.id) stream = autoStreamUrl(e.id, (e.stream_type as StreamType) ?? "hls");
     if (stream && !isLikelyStreamUrl(stream, (e.stream_type as StreamType) ?? "hls")) {
       return toast.error(`Stream URL doesn't look like a valid ${e.stream_type?.toUpperCase()} endpoint`);
+    }
+
+    // New cameras must pass a stream test before we persist them.
+    if (!e.id) {
+      if (!stream && !e.rtsp_url && !gatewayBase) {
+        return toast.error("Provide an RTSP URL, a playback URL, or configure a streaming gateway first.");
+      }
+      toast.loading("Validating stream…", { id: "stream-test" });
+      const result = await runStreamTest({
+        stream_url: stream || null,
+        stream_type: (e.stream_type as StreamType) ?? "hls",
+        rtsp_url: e.rtsp_url ?? null,
+      });
+      toast.dismiss("stream-test");
+      if (!result.ok) {
+        return toast.error(`Stream test failed — ${result.reason ?? "unreachable"}`);
+      }
+      toast.success(`Stream verified · ${result.detail ?? "reachable"}`);
     }
 
     const payload = {
@@ -199,6 +234,8 @@ const CameraConfig = () => {
       ptz_enabled: !!e.ptz_enabled,
       recording_enabled: e.recording_enabled ?? true,
       audio_enabled: !!e.audio_enabled,
+      inference_enabled: !!e.inference_enabled,
+      inference_interval_seconds: e.inference_interval_seconds ?? 30,
     };
 
     if (e.id) {
@@ -206,7 +243,6 @@ const CameraConfig = () => {
       if (error) return toast.error(error.message);
       toast.success(`${payload.name} updated`);
     } else {
-      // Insert; if no explicit stream URL and a gateway is configured, populate it on the returned id
       const { data, error } = await supabase.from("cameras").insert(payload).select("*").maybeSingle();
       if (error) return toast.error(error.message);
       if (data && !data.stream_url && gatewayBase) {
