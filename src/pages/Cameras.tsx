@@ -8,10 +8,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockCameras, Camera } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLiveCameras, LiveCamera } from "@/hooks/useLiveCameras";
+import LiveFeed from "@/components/app/LiveFeed";
 import { toast } from "sonner";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
 import PageHeader from "@/components/app/PageHeader";
@@ -34,7 +35,7 @@ const statusConfig = {
 
 // Simulated per-camera telemetry (deterministic from id so it doesn't jitter each render)
 const seed = (id: string) => id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-const telemetryFor = (cam: Camera) => {
+const telemetryFor = (cam: LiveCamera) => {
   const s = seed(cam.id);
   return {
     fps: cam.status === "online" ? 24 + (s % 8) : 0,
@@ -45,7 +46,8 @@ const telemetryFor = (cam: Camera) => {
 };
 
 const Cameras = () => {
-  const [selected, setSelected] = useState<Camera | null>(null);
+  const { cameras, hasLiveStreams } = useLiveCameras();
+  const [selected, setSelected] = useState<LiveCamera | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [status, setStatus] = useState<string>("all");
   const [zone, setZone] = useState<string>("all");
@@ -65,14 +67,14 @@ const Cameras = () => {
     return () => clearInterval(t);
   }, []);
 
-  const zones = useMemo(
-    () => Array.from(new Set(mockCameras.map((c) => c.zone))).sort(),
-    []
+  const zones = useMemo<string[]>(
+    () => Array.from(new Set(cameras.map((c) => c.zone))).sort(),
+    [cameras]
   );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return mockCameras.filter((c) => {
+    return cameras.filter((c) => {
       if (status !== "all" && c.status !== status) return false;
       if (zone !== "all" && c.zone !== zone) return false;
       if (q && !`${c.name} ${c.id} ${c.zone} ${c.type}`.toLowerCase().includes(q)) return false;
@@ -125,14 +127,14 @@ const Cameras = () => {
   };
 
   const counts = useMemo(() => ({
-    total: mockCameras.length,
-    online: mockCameras.filter((c) => c.status === "online").length,
-    offline: mockCameras.filter((c) => c.status === "offline").length,
-    maintenance: mockCameras.filter((c) => c.status === "maintenance").length,
-    detections: mockCameras.reduce((a, c) => a + c.detections, 0),
-  }), []);
+    total: cameras.length,
+    online: cameras.filter((c) => c.status === "online").length,
+    offline: cameras.filter((c) => c.status === "offline").length,
+    maintenance: cameras.filter((c) => c.status === "maintenance").length,
+    detections: cameras.reduce((a, c) => a + c.detections, 0),
+  }), [cameras]);
 
-  const uptimePct = Math.round((counts.online / counts.total) * 100);
+  const uptimePct = counts.total ? Math.round((counts.online / counts.total) * 100) : 0;
 
   return (
     <div className="space-y-5">
@@ -143,12 +145,12 @@ const Cameras = () => {
         description={`${counts.online} of ${counts.total} cameras streaming • ${counts.detections} active AI detections`}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1.5 text-xs">
+            <Badge variant="outline" className={cn("gap-1.5 text-xs", hasLiveStreams ? "border-success/40 text-success" : "text-muted-foreground")}>
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-ping" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+                <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping", hasLiveStreams ? "bg-success" : "bg-muted-foreground")} />
+                <span className={cn("relative inline-flex h-2 w-2 rounded-full", hasLiveStreams ? "bg-success" : "bg-muted-foreground")} />
               </span>
-              LIVE • {now.toLocaleTimeString()}
+              {hasLiveStreams ? "LIVE" : "SIMULATED"} • {now.toLocaleTimeString()}
             </Badge>
           </div>
         }
@@ -369,7 +371,7 @@ const HealthTile = ({ icon: Icon, label, value, tone }: { icon: any; label: stri
   );
 };
 
-const CameraTile = ({ cam, onOpen, now, focus }: { cam: Camera; onOpen: () => void; now: Date; focus: boolean }) => {
+const CameraTile = ({ cam, onOpen, now, focus }: { cam: LiveCamera; onOpen: () => void; now: Date; focus: boolean }) => {
   const config = statusConfig[cam.status];
   return (
     <div
@@ -403,7 +405,7 @@ const CameraTile = ({ cam, onOpen, now, focus }: { cam: Camera; onOpen: () => vo
   );
 };
 
-const FeedInner = ({ cam, now, large = false }: { cam: Camera; now: Date; large?: boolean }) => {
+const FeedInner = ({ cam, now, large = false }: { cam: LiveCamera; now: Date; large?: boolean }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
   if (cam.status !== "online") {
@@ -418,12 +420,21 @@ const FeedInner = ({ cam, now, large = false }: { cam: Camera; now: Date; large?
       </div>
     );
   }
+  const showLive = cam.isLive && cam.streamUrl;
   return (
     <>
-      <div className="absolute inset-0 grid-bg opacity-20" />
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="w-full h-px bg-primary/40 animate-scan-line" />
-      </div>
+      {showLive ? (
+        <div className="absolute inset-0">
+          <LiveFeed url={cam.streamUrl!} type={cam.streamType ?? "hls"} />
+        </div>
+      ) : (
+        <>
+          <div className="absolute inset-0 grid-bg opacity-20" />
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="w-full h-px bg-primary/40 animate-scan-line" />
+          </div>
+        </>
+      )}
 
       {cam.detections > 0 && (
         <>
