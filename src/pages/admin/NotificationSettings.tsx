@@ -3,7 +3,7 @@ import { Bell, Mail, MessageSquare, Save, Loader2, Plus, X, Info } from "lucide-
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
-import { PageHeader } from "@/components/admin/PageHeader";
+import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
