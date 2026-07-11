@@ -134,7 +134,7 @@ export function useLiveCameras() {
     void tick;
     if (rows.length === 0 && !loading) {
       // Fallback so the wall stays populated pre-provisioning
-      return mockCameras.map((c) => ({ ...c, isLive: false, isDbBacked: false, streamType: "hls" }));
+      return mockCameras.map((c) => ({ ...c, isLive: false, isDbBacked: false, streamType: "hls", audioEnabled: false }));
     }
     return rows.map((r) => normalize(r, detections));
   }, [rows, detections, tick, loading]);
