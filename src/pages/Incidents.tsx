@@ -1,29 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
-import { AlertOctagon, CheckCircle2, Clock, Search, ShieldCheck } from "lucide-react";
+import { auditLog } from "@/lib/audit";
+import { AlertOctagon, CheckCircle2, Clock, Search, ShieldCheck, Download, History, XCircle, UserCheck, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import ResolutionWorkflowDialog from "@/components/app/ResolutionWorkflowDialog";
+import IncidentAuditTimeline from "@/components/app/IncidentAuditTimeline";
+import ComplianceExportDialog from "@/components/app/ComplianceExportDialog";
 
 interface Incident {
-  id: string;
-  tenant_id: string;
-  alert_id: string | null;
-  title: string;
-  status: string;
-  severity: string | null;
-  assigned_to: string | null;
-  notes: string | null;
-  opened_at: string;
-  closed_at: string | null;
+  id: string; tenant_id: string; alert_id: string | null;
+  title: string; status: string; severity: string | null;
+  assigned_to: string | null; notes: string | null;
+  opened_at: string; closed_at: string | null;
 }
 
 const severityColors: Record<string, string> = {
@@ -32,36 +29,45 @@ const severityColors: Record<string, string> = {
   medium: "bg-primary/10 text-primary border-primary/30",
   low: "bg-muted text-muted-foreground border-border",
 };
-
 const statusColors: Record<string, string> = {
   open: "bg-warning/10 text-warning border-warning/30",
   investigating: "bg-primary/10 text-primary border-primary/30",
   resolved: "bg-success/10 text-success border-success/30",
   closed: "bg-muted text-muted-foreground",
+  false_positive: "bg-destructive/10 text-destructive border-destructive/30",
 };
 
 const statusIcon = (s: string) => {
   if (s === "resolved" || s === "closed") return <CheckCircle2 className="w-4 h-4 text-success" />;
   if (s === "investigating") return <Clock className="w-4 h-4 text-primary" />;
+  if (s === "false_positive") return <XCircle className="w-4 h-4 text-destructive" />;
   return <AlertOctagon className="w-4 h-4 text-warning" />;
 };
 
 export default function Incidents() {
   const { activeTenantId, activeTenant } = useTenants();
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [members, setMembers] = useState<{ user_id: string; display_name: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Incident | null>(null);
+  const [timelineFor, setTimelineFor] = useState<Incident | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignTo, setAssignTo] = useState<string>("");
 
   const load = async () => {
     if (!activeTenantId) { setIncidents([]); setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase
-      .from("incidents").select("*").eq("tenant_id", activeTenantId)
-      .order("opened_at", { ascending: false }).limit(200);
+    const [{ data, error }, mem] = await Promise.all([
+      supabase.from("incidents").select("*").eq("tenant_id", activeTenantId).order("opened_at", { ascending: false }).limit(200),
+      supabase.from("tenant_members").select("user_id, profiles(display_name)").eq("tenant_id", activeTenantId),
+    ]);
     if (error) toast.error(error.message);
     setIncidents((data ?? []) as Incident[]);
+    setMembers(((mem.data ?? []) as any[]).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name ?? null })));
     setLoading(false);
   };
 
@@ -70,8 +76,7 @@ export default function Incidents() {
     if (!activeTenantId) return;
     const channel = supabase
       .channel(`incidents:${activeTenantId}`)
-      .on(
-        "postgres_changes",
+      .on("postgres_changes",
         { event: "*", schema: "public", table: "incidents", filter: `tenant_id=eq.${activeTenantId}` },
         (payload) => {
           setIncidents((prev) => {
@@ -98,6 +103,29 @@ export default function Incidents() {
     resolved: incidents.filter((i) => i.status === "resolved" || i.status === "closed").length,
   }), [incidents]);
 
+  const toggle = (id: string) => setSelectedIds((s) => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const toggleAll = () => setSelectedIds((s) => s.size === filtered.length ? new Set() : new Set(filtered.map((i) => i.id)));
+
+  const bulkUpdate = async (patch: Partial<Incident>, action: string) => {
+    if (!activeTenantId || selectedIds.size === 0) return;
+    const ids = [...selectedIds];
+    const applyPatch: Record<string, unknown> = { ...patch };
+    if (patch.status === "closed" || patch.status === "false_positive" || patch.status === "resolved") {
+      applyPatch.closed_at = new Date().toISOString();
+    }
+    const { error } = await supabase.from("incidents").update(applyPatch).in("id", ids);
+    if (error) return toast.error(error.message);
+    await Promise.all(ids.map((id) =>
+      auditLog({ tenantId: activeTenantId, action, entityType: "incident", entityId: id, metadata: applyPatch as Record<string, unknown> })
+    ));
+    toast.success(`${ids.length} incident${ids.length > 1 ? "s" : ""} updated`);
+    setSelectedIds(new Set());
+    setAssignOpen(false); setAssignTo("");
+    load();
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -105,9 +133,14 @@ export default function Incidents() {
         icon={ShieldCheck}
         title="Incidents"
         description={activeTenant ? `${stats.open} active · ${stats.resolved} resolved · ${activeTenant.name}` : "Select a tenant"}
+        actions={
+          <Button variant="outline" onClick={() => setExportOpen(true)}>
+            <Download className="w-4 h-4 mr-1" /> Compliance Export
+          </Button>
+        }
       />
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search incidents…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
@@ -120,14 +153,36 @@ export default function Incidents() {
             <SelectItem value="investigating">Investigating</SelectItem>
             <SelectItem value="resolved">Resolved</SelectItem>
             <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="false_positive">False Positive</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="glass border border-primary/30 rounded-xl px-4 py-2.5 flex items-center gap-2 flex-wrap sticky top-16 z-20">
+          <Badge className="bg-primary text-primary-foreground">{selectedIds.size} selected</Badge>
+          <div className="flex-1" />
+          <Button size="sm" variant="outline" onClick={() => bulkUpdate({ status: "investigating" }, "incident.bulk.acknowledge")}>
+            <Eye className="w-3.5 h-3.5 mr-1" /> Acknowledge
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
+            <UserCheck className="w-3.5 h-3.5 mr-1" /> Assign
+          </Button>
+          <Button size="sm" variant="outline" className="text-destructive hover:text-destructive"
+            onClick={() => bulkUpdate({ status: "false_positive" }, "incident.bulk.false_positive")}>
+            <XCircle className="w-3.5 h-3.5 mr-1" /> False Positive
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Cancel</Button>
+        </div>
+      )}
 
       <div className="glass rounded-xl border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
+              <th className="px-4 py-3 w-10">
+                <Checkbox checked={filtered.length > 0 && selectedIds.size === filtered.length} onCheckedChange={toggleAll} />
+              </th>
               <th className="text-left px-4 py-3">Incident</th>
               <th className="text-left px-4 py-3">Severity</th>
               <th className="text-left px-4 py-3">Status</th>
@@ -137,12 +192,15 @@ export default function Incidents() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>}
+            {loading && <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No incidents.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">No incidents.</td></tr>
             )}
             {filtered.map((i) => (
-              <tr key={i.id} className="border-t border-border hover:bg-muted/20">
+              <tr key={i.id} className={cn("border-t border-border hover:bg-muted/20", selectedIds.has(i.id) && "bg-primary/5")}>
+                <td className="px-4 py-3">
+                  <Checkbox checked={selectedIds.has(i.id)} onCheckedChange={() => toggle(i.id)} />
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {statusIcon(i.status)}
@@ -153,11 +211,12 @@ export default function Incidents() {
                   {i.severity && <Badge variant="outline" className={cn("text-xs", severityColors[i.severity] || "")}>{i.severity}</Badge>}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge variant="outline" className={cn("text-xs capitalize", statusColors[i.status] || "")}>{i.status}</Badge>
+                  <Badge variant="outline" className={cn("text-xs capitalize", statusColors[i.status] || "")}>{i.status.replace("_", " ")}</Badge>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{new Date(i.opened_at).toLocaleString()}</td>
                 <td className="px-4 py-3 text-muted-foreground">{i.closed_at ? new Date(i.closed_at).toLocaleString() : "—"}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <Button variant="ghost" size="sm" onClick={() => setTimelineFor(i)}><History className="w-3.5 h-3.5 mr-1" />Timeline</Button>
                   <Button variant="ghost" size="sm" onClick={() => setSelected(i)}>Manage</Button>
                 </td>
               </tr>
@@ -168,15 +227,40 @@ export default function Incidents() {
 
       {selected && activeTenantId && (
         <ResolutionWorkflowDialog
-          open={!!selected}
-          onOpenChange={(v) => !v && setSelected(null)}
-          tenantId={activeTenantId}
-          incidentId={selected.id}
-          alertId={selected.alert_id}
-          title={selected.title}
-          onResolved={load}
+          open={!!selected} onOpenChange={(v) => !v && setSelected(null)}
+          tenantId={activeTenantId} incidentId={selected.id} alertId={selected.alert_id}
+          title={selected.title} onResolved={load}
         />
       )}
+
+      {timelineFor && activeTenantId && (
+        <IncidentAuditTimeline
+          open={!!timelineFor} onOpenChange={(v) => !v && setTimelineFor(null)}
+          incidentId={timelineFor.id} alertId={timelineFor.alert_id} tenantId={activeTenantId} title={timelineFor.title}
+        />
+      )}
+
+      <ComplianceExportDialog open={exportOpen} onOpenChange={setExportOpen} />
+
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader><DialogTitle>Assign {selectedIds.size} incident{selectedIds.size > 1 ? "s" : ""}</DialogTitle></DialogHeader>
+          <Select value={assignTo} onValueChange={setAssignTo}>
+            <SelectTrigger className="bg-background border-border"><SelectValue placeholder="Select supervisor" /></SelectTrigger>
+            <SelectContent>
+              {members.map((m) => (
+                <SelectItem key={m.user_id} value={m.user_id}>{m.display_name || m.user_id.slice(0, 8)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAssignOpen(false)}>Cancel</Button>
+            <Button disabled={!assignTo} onClick={() => bulkUpdate({ assigned_to: assignTo, status: "investigating" }, "incident.bulk.assign")}>
+              Assign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
