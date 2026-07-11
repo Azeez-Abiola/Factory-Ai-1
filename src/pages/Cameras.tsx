@@ -35,7 +35,7 @@ const statusConfig = {
 
 // Simulated per-camera telemetry (deterministic from id so it doesn't jitter each render)
 const seed = (id: string) => id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-const telemetryFor = (cam: Camera) => {
+const telemetryFor = (cam: LiveCamera) => {
   const s = seed(cam.id);
   return {
     fps: cam.status === "online" ? 24 + (s % 8) : 0,
@@ -46,7 +46,8 @@ const telemetryFor = (cam: Camera) => {
 };
 
 const Cameras = () => {
-  const [selected, setSelected] = useState<Camera | null>(null);
+  const { cameras, hasLiveStreams } = useLiveCameras();
+  const [selected, setSelected] = useState<LiveCamera | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [status, setStatus] = useState<string>("all");
   const [zone, setZone] = useState<string>("all");
