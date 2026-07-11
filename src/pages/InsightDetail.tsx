@@ -239,9 +239,14 @@ const InsightDetail = () => {
             </div>
           </div>
 
-          <Badge variant="outline" className="text-xs gap-1 shrink-0">
-            <Calendar className="w-3 h-3" /> Generated {new Date(insight.generatedAt).toLocaleDateString()}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="outline" className="text-xs gap-1">
+              <Calendar className="w-3 h-3" /> Generated {new Date(insight.generatedAt).toLocaleDateString()}
+            </Badge>
+            <Button size="sm" variant="outline" onClick={handleDownloadPDF} className="gap-1">
+              <Download className="w-4 h-4" /> Download PDF
+            </Button>
+          </div>
         </div>
       </div>
 
