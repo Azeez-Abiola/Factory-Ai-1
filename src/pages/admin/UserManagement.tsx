@@ -421,11 +421,29 @@ const UserManagement = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="invite-email">Email address</Label>
-              <Input id="invite-email" type="email" placeholder="teammate@company.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+              <Label htmlFor="invite-email" className="flex items-center gap-1.5 text-sm font-medium">
+                Email address <span aria-hidden className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="invite-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder="teammate@company.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="pl-9"
+                  aria-invalid={inviteEmail.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                We'll generate a secure invite link — no email is sent from this form.
+              </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite-role">Role</Label>
+              <Label htmlFor="invite-role" className="text-sm font-medium">Role</Label>
               <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
                 <SelectTrigger id="invite-role"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -434,11 +452,20 @@ const UserManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {inviteRole === "owner" && "Full control including billing and destructive actions."}
+                {inviteRole === "admin" && "Manage cameras, policies, and members."}
+                {inviteRole === "operator" && "Monitor feeds, triage alerts, and resolve incidents."}
+                {inviteRole === "viewer" && "Read-only access to dashboards and reports."}
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite} disabled={submitting || !inviteEmail.trim()}>
+            <Button
+              onClick={handleInvite}
+              disabled={submitting || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())}
+            >
               {submitting ? "Sending…" : "Send Invite"}
             </Button>
           </DialogFooter>
