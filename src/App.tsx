@@ -97,6 +97,7 @@ const App = () => (
               <Route path="rules" element={<RulesPolicy />} />
               <Route path="escalation" element={<EscalationPolicies />} />
               <Route path="notifications" element={<NotificationSettings />} />
+              <Route path="ai-config" element={<AIConfig />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
