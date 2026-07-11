@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mockMaintenanceAlerts, type MaintenanceAlert } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, PieChart, Pie, Cell
@@ -88,12 +88,12 @@ const Maintenance = () => {
 
   const handleAcknowledge = (id: string) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a));
-    toast({ title: "Alert Acknowledged", description: `Maintenance alert ${id} has been acknowledged.` });
+    toast.success(`Alert ${id} acknowledged`);
   };
 
   const handleCreateWorkOrder = () => {
     if (!workOrderAlert || !woForm.scheduledDate || !woForm.assignee) {
-      toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+      toast.error("Please fill in scheduled date and assignee");
       return;
     }
     const newWO: WorkOrder = {
@@ -110,13 +110,16 @@ const Maintenance = () => {
     setShowWorkOrderForm(false);
     setWoForm({ scheduledDate: "", assignee: "", notes: "" });
     setWorkOrderAlert(null);
-    toast({ title: "Work Order Created", description: `${newWO.id} scheduled for ${newWO.scheduledDate}` });
+    toast.success(`Work order ${newWO.id} scheduled for ${newWO.scheduledDate}`);
   };
 
   const handleCompleteWorkOrder = (id: string) => {
     setWorkOrders(prev => prev.map(wo => wo.id === id ? { ...wo, status: "completed" as WorkOrderStatus } : wo));
-    toast({ title: "Work Order Completed", description: `${id} marked as completed.` });
+    toast.success(`Work order ${id} marked complete`);
   };
+
+  const clearFilters = () => { setRiskFilter("all"); setZoneFilter("all"); };
+  const todayISO = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -210,6 +213,7 @@ const Maintenance = () => {
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-primary" />
               <p className="text-lg font-medium">No alerts match your filters</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={clearFilters}>Clear filters</Button>
             </div>
           )}
 
@@ -396,7 +400,7 @@ const Maintenance = () => {
               <p className="text-sm text-muted-foreground">Equipment: <span className="text-foreground font-medium">{workOrderAlert.equipment}</span></p>
               <div className="space-y-2">
                 <Label className="text-xs">Scheduled Date *</Label>
-                <Input type="date" value={woForm.scheduledDate} onChange={e => setWoForm(f => ({ ...f, scheduledDate: e.target.value }))} />
+                <Input type="date" min={todayISO} value={woForm.scheduledDate} onChange={e => setWoForm(f => ({ ...f, scheduledDate: e.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Assignee *</Label>

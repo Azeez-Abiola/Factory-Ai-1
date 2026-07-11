@@ -7,6 +7,7 @@ import { mockShiftReports, ShiftReport } from "@/data/extendedMockData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import CreateShiftReportDialog from "@/components/reports/CreateShiftReportDialog";
+import { downloadCSV, downloadTablePDF } from "@/lib/exporters";
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ const ShiftReports = () => {
   const shiftNames = useMemo(() => {
     const names = new Set(reports.map((r) => r.shiftName));
     return Array.from(names);
-  }, []);
+  }, [reports]);
 
   const filtered = useMemo(() => {
     let result = [...reports];
@@ -64,6 +65,38 @@ const ShiftReports = () => {
     setReports((prev) => [report, ...prev]);
   };
 
+  const handleExportAll = () => {
+    if (filtered.length === 0) return toast.info("No shift reports to export");
+    const rows: (string | number)[][] = [
+      ["ID", "Shift", "Date", "Start", "End", "Supervisor", "Safety %", "Efficiency %", "Incidents", "Resolved", "Unresolved", "Defects"],
+      ...filtered.map((r) => [r.id, r.shiftName, r.date, r.startTime, r.endTime, r.supervisor, r.safetyScore, r.productionEfficiency, r.incidentsCount, r.resolvedCount, r.unresolvedCount, r.defectsFound]),
+    ];
+    downloadCSV(`shift-reports-${new Date().toISOString().slice(0, 10)}.csv`, rows);
+    toast.success(`Exported ${filtered.length} shift report${filtered.length > 1 ? "s" : ""}`);
+  };
+
+  const exportShiftPDF = (r: ShiftReport) => {
+    downloadTablePDF({
+      filename: `${r.id}-${r.date}.pdf`,
+      title: `${r.shiftName} — ${r.date}`,
+      subtitle: `Supervisor: ${r.supervisor} · ${r.startTime}–${r.endTime}`,
+      head: ["Metric", "Value"],
+      body: [
+        ["Safety Score", `${r.safetyScore}%`],
+        ["Production Efficiency", `${r.productionEfficiency}%`],
+        ["Incidents", r.incidentsCount],
+        ["Resolved", `${r.resolvedCount}/${r.incidentsCount}`],
+        ["Unresolved", r.unresolvedCount],
+        ["Defects Found", r.defectsFound],
+        ["Key Events", r.keyEvents.join("; ") || "—"],
+        ["Unresolved Issues", r.unresolvedIssues.join("; ") || "—"],
+        ["Recommendations", r.recommendations.join("; ") || "—"],
+      ],
+      orientation: "portrait",
+    });
+    toast.success(`Downloaded ${r.id}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -76,7 +109,7 @@ const ShiftReports = () => {
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="w-4 h-4 mr-2" /> Create Report
             </Button>
-            <Button variant="outline" className="border-border" onClick={() => toast.success("Exporting shift reports...")}>
+            <Button variant="outline" className="border-border" onClick={handleExportAll}>
               <FileText className="w-4 h-4 mr-2" /> Export All
             </Button>
           </>
@@ -128,8 +161,11 @@ const ShiftReports = () => {
         {filtered.map((report) => (
           <div
             key={report.id}
+            role="button"
+            tabIndex={0}
             onClick={() => setSelectedReport(report)}
-            className="glass rounded-xl p-5 border border-border hover:border-primary/30 cursor-pointer transition-all"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReport(report); } }}
+            className="glass rounded-xl p-5 border border-border hover:border-primary/30 cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -249,7 +285,7 @@ const ShiftReports = () => {
                     variant="outline"
                     size="sm"
                     className="gap-2"
-                    onClick={() => toast.success(`Exporting ${selectedReport.shiftName} report as PDF`)}
+                    onClick={() => exportShiftPDF(selectedReport)}
                   >
                     <FileText className="w-4 h-4" /> Export PDF
                   </Button>
