@@ -68,7 +68,7 @@ const Cameras = () => {
   }, []);
 
   const zones = useMemo<string[]>(
-    () => Array.from(new Set(cameras.map((c) => c.zone))).sort(),
+    () => Array.from(new Set(cameras.map((c) => c.zone).filter((z): z is string => !!z && z.trim() !== ""))).sort(),
     [cameras]
   );
 
