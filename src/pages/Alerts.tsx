@@ -1,118 +1,146 @@
-import { useState } from "react";
-import { AlertTriangle, CheckCircle, Clock, User, Camera, History, Search, Brain, ArrowUpRight, Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useTenants } from "@/hooks/useTenants";
+import { auditLog } from "@/lib/audit";
+import { AlertTriangle, Bell, Camera, CheckCircle, Clock, Search, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockAlerts, mockTeam, Alert, AlertSeverity, AlertStatus } from "@/data/mockData";
-import { mockInsights } from "@/data/extendedMockData";
-import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import IncidentTimeline from "@/components/app/IncidentTimeline";
-import { appendTimelineEvent, logAudit } from "@/lib/incidentStore";
-import { insightCategoryForAlert } from "@/lib/insightLinks";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
+import ResolutionWorkflowDialog from "@/components/app/ResolutionWorkflowDialog";
 
-const severityColors: Record<AlertSeverity, string> = {
+interface AlertRow {
+  id: string;
+  tenant_id: string;
+  camera_id: string | null;
+  type: string;
+  severity: string;
+  title: string;
+  description: string | null;
+  status: string;
+  zone: string | null;
+  risk_score: number | null;
+  detected_at: string;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+const severityColors: Record<string, string> = {
   critical: "bg-destructive/10 text-destructive border-destructive/30",
   high: "bg-warning/10 text-warning border-warning/30",
   medium: "bg-primary/10 text-primary border-primary/30",
   low: "bg-muted text-muted-foreground border-border",
 };
 
-const statusIcons: Record<AlertStatus, React.ReactNode> = {
-  open: <AlertTriangle className="w-4 h-4 text-warning" />,
-  assigned: <Clock className="w-4 h-4 text-primary" />,
-  resolved: <CheckCircle className="w-4 h-4 text-success" />,
+const statusIcon = (status: string) => {
+  if (status === "resolved") return <CheckCircle className="w-4 h-4 text-success" />;
+  if (status === "acknowledged" || status === "assigned") return <Clock className="w-4 h-4 text-primary" />;
+  return <AlertTriangle className="w-4 h-4 text-warning" />;
 };
 
-const Alerts = () => {
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
-  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterSeverity, setFilterSeverity] = useState<string>("all");
+export default function Alerts() {
+  const { user } = useAuth();
+  const { activeTenantId, activeTenant } = useTenants();
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<AlertRow | null>(null);
   const [search, setSearch] = useState("");
+  const [severity, setSeverity] = useState<string>("all");
+  const [status, setStatus] = useState<string>("all");
+  const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [workflowIncidentId, setWorkflowIncidentId] = useState<string | null>(null);
 
-  const filtered = alerts.filter((a) => {
-    if (filterCategory !== "all" && a.category !== filterCategory) return false;
-    if (filterStatus !== "all" && a.status !== filterStatus) return false;
-    if (filterSeverity !== "all" && a.severity !== filterSeverity) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      if (
-        !a.title.toLowerCase().includes(q) &&
-        !a.zone.toLowerCase().includes(q) &&
-        !a.cameraName.toLowerCase().includes(q) &&
-        !a.cameraId.toLowerCase().includes(q) &&
-        !a.id.toLowerCase().includes(q)
-      ) return false;
-    }
-    return true;
-  });
-
-  const navigate = useNavigate();
-
-  const handleAssign = (alertId: string, assignee: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, status: "assigned" as AlertStatus, assignedTo: assignee } : a))
-    );
-    if (selectedAlert?.id === alertId) {
-      setSelectedAlert((prev) => prev ? { ...prev, status: "assigned", assignedTo: assignee } : null);
-    }
-    appendTimelineEvent(alertId, {
-      type: "assignment",
-      title: `Assigned to ${assignee}`,
-      description: `Incident routed to ${assignee} for investigation.`,
-      actor: "Ravi Mehta",
-    });
-    logAudit({
-      actor: "Ravi Mehta",
-      actorRole: "Tenant Admin",
-      tenant: "Tata Steel Works",
-      action: "alert.assign",
-      resource: alertId,
-      details: `Assigned incident ${alertId} to ${assignee}`,
-    });
-    toast.success(`Assigned to ${assignee}`);
+  const load = async () => {
+    if (!activeTenantId) { setAlerts([]); setLoading(false); return; }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("alerts")
+      .select("*")
+      .eq("tenant_id", activeTenantId)
+      .order("detected_at", { ascending: false })
+      .limit(200);
+    if (error) toast.error(error.message);
+    setAlerts((data ?? []) as AlertRow[]);
+    setLoading(false);
   };
 
-  const handleResolve = (alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, status: "resolved" as AlertStatus, resolution: "Resolved by operator." } : a))
-    );
-    if (selectedAlert?.id === alertId) {
-      setSelectedAlert((prev) => prev ? { ...prev, status: "resolved", resolution: "Resolved by operator." } : null);
+  useEffect(() => {
+    load();
+    if (!activeTenantId) return;
+    const channel = supabase
+      .channel(`alerts:${activeTenantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "alerts", filter: `tenant_id=eq.${activeTenantId}` },
+        (payload) => {
+          setAlerts((prev) => {
+            if (payload.eventType === "INSERT") return [payload.new as AlertRow, ...prev];
+            if (payload.eventType === "UPDATE") return prev.map((a) => a.id === (payload.new as AlertRow).id ? payload.new as AlertRow : a);
+            if (payload.eventType === "DELETE") return prev.filter((a) => a.id !== (payload.old as AlertRow).id);
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTenantId]);
+
+  const filtered = useMemo(() => alerts.filter((a) => {
+    if (severity !== "all" && a.severity !== severity) return false;
+    if (status !== "all" && a.status !== status) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (![a.title, a.zone ?? "", a.type, a.id].some((v) => v.toLowerCase().includes(q))) return false;
     }
-    appendTimelineEvent(alertId, {
-      type: "resolution",
-      title: "Incident Resolved",
-      description: "Incident marked resolved by operator.",
-      actor: "Ravi Mehta",
-    });
-    logAudit({
-      actor: "Ravi Mehta",
-      actorRole: "Tenant Admin",
-      tenant: "Tata Steel Works",
-      action: "alert.resolve",
-      resource: alertId,
-      details: `Resolved incident ${alertId}`,
-    });
-    toast.success("Incident resolved");
+    return true;
+  }), [alerts, severity, status, search]);
+
+  const acknowledge = async (a: AlertRow) => {
+    if (!user || !activeTenantId) return;
+    const { error } = await supabase.from("alerts").update({
+      status: "acknowledged", acknowledged_by: user.id, acknowledged_at: new Date().toISOString(),
+    }).eq("id", a.id);
+    if (error) return toast.error(error.message);
+    await auditLog({ tenantId: activeTenantId, action: "alert.acknowledge", entityType: "alert", entityId: a.id, metadata: { title: a.title } });
+    toast.success("Alert acknowledged");
+  };
+
+  const openResolutionWorkflow = async (a: AlertRow) => {
+    if (!user || !activeTenantId) return;
+    // Find or create matching incident
+    const { data: existing } = await supabase
+      .from("incidents").select("id").eq("alert_id", a.id).limit(1).maybeSingle();
+    let incidentId = existing?.id ?? null;
+    if (!incidentId) {
+      const { data: created, error } = await supabase.from("incidents").insert({
+        tenant_id: activeTenantId,
+        alert_id: a.id,
+        title: a.title,
+        severity: a.severity,
+        status: "investigating",
+        created_by: user.id,
+        timeline: [{ ts: new Date().toISOString(), event: "opened", actor: user.id }],
+      }).select("id").single();
+      if (error) return toast.error(error.message);
+      incidentId = created.id;
+      await auditLog({ tenantId: activeTenantId, action: "incident.open", entityType: "incident", entityId: incidentId, metadata: { alert_id: a.id, title: a.title } });
+    }
+    setWorkflowIncidentId(incidentId);
+    setSelected(a);
+    setWorkflowOpen(true);
   };
 
   return (
@@ -121,24 +149,20 @@ const Alerts = () => {
         eyebrow="Live Feed"
         icon={Bell}
         title="Alerts & Incidents"
-        description={`${filtered.length} of ${alerts.length} incidents shown · triage, assign, and resolve in real time.`}
+        description={
+          activeTenant
+            ? `${filtered.length} of ${alerts.length} live incidents · ${activeTenant.name}`
+            : "Select a tenant to view alerts"
+        }
       />
 
-      {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by keyword, camera, zone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-card border-border"
-          />
+          <Input placeholder="Search title, zone, id…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
         </div>
-        <Select value={filterSeverity} onValueChange={setFilterSeverity}>
-          <SelectTrigger className="w-40 bg-card border-border">
-            <SelectValue placeholder="Severity" />
-          </SelectTrigger>
+        <Select value={severity} onValueChange={setSeverity}>
+          <SelectTrigger className="w-40 bg-card border-border"><SelectValue placeholder="Severity" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Severities</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
@@ -147,177 +171,95 @@ const Alerts = () => {
             <SelectItem value="low">Low</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-40 bg-card border-border">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="safety">Safety</SelectItem>
-            <SelectItem value="downtime">Downtime</SelectItem>
-            <SelectItem value="quality">Quality</SelectItem>
-            <SelectItem value="productivity">Productivity</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-36 bg-card border-border">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-40 bg-card border-border"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="assigned">Assigned</SelectItem>
+            <SelectItem value="acknowledged">Acknowledged</SelectItem>
             <SelectItem value="resolved">Resolved</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Alert List */}
       <div className="space-y-3">
-        {filtered.map((alert) => (
-          <div
-            key={alert.id}
-            onClick={() => setSelectedAlert(alert)}
-            className="glass rounded-xl p-4 border border-border hover:border-primary/30 cursor-pointer transition-all duration-200"
-          >
+        {loading && <p className="text-sm text-muted-foreground">Loading alerts…</p>}
+        {!loading && filtered.length === 0 && (
+          <div className="glass rounded-xl p-8 text-center border border-border">
+            <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">No alerts match the current filters.</p>
+          </div>
+        )}
+        {filtered.map((a) => (
+          <div key={a.id} onClick={() => setSelected(a)}
+            className="glass rounded-xl p-4 border border-border hover:border-primary/30 cursor-pointer transition-all">
             <div className="flex items-start gap-4">
-              <div className="mt-0.5">{statusIcons[alert.status]}</div>
+              <div className="mt-0.5">{statusIcon(a.status)}</div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-sm font-semibold text-foreground">{alert.title}</h3>
-                  <Badge variant="outline" className={cn("text-xs", severityColors[alert.severity])}>
-                    {alert.severity}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {alert.category}
-                  </Badge>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h3 className="text-sm font-semibold text-foreground">{a.title}</h3>
+                  <Badge variant="outline" className={cn("text-xs", severityColors[a.severity] || "")}>{a.severity}</Badge>
+                  <Badge variant="outline" className="text-xs">{a.type}</Badge>
+                  <Badge variant="outline" className="text-xs capitalize">{a.status}</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-1">{alert.description}</p>
+                {a.description && <p className="text-xs text-muted-foreground line-clamp-1">{a.description}</p>}
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Camera className="w-3 h-3" /> {alert.cameraName}
-                  </span>
-                  <span>{alert.zone}</span>
-                  <span>{new Date(alert.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                  {alert.assignedTo && (
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" /> {alert.assignedTo}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> {a.zone || "—"}</span>
+                  <span>{new Date(a.detected_at).toLocaleString()}</span>
+                  {a.risk_score != null && <span>Risk {a.risk_score}</span>}
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground font-mono">{alert.id}</span>
+              <span className="text-[10px] text-muted-foreground font-mono">{a.id.slice(0, 8)}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Alert Detail Dialog */}
-      <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
+      <Dialog open={!!selected && !workflowOpen} onOpenChange={(v) => !v && setSelected(null)}>
         <DialogContent className="max-w-2xl bg-card border-border max-h-[85vh] overflow-y-auto">
-          {selectedAlert && (
+          {selected && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  {statusIcons[selectedAlert.status]}
-                  {selectedAlert.title}
-                </DialogTitle>
+                <DialogTitle className="flex items-center gap-2">{statusIcon(selected.status)} {selected.title}</DialogTitle>
               </DialogHeader>
-
-              <Tabs defaultValue="details">
-                <TabsList className="bg-muted/50">
-                  <TabsTrigger value="details">Details</TabsTrigger>
-                  <TabsTrigger value="timeline" className="gap-1">
-                    <History className="w-3 h-3" /> Timeline
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="details" className="space-y-4 mt-3">
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className={cn(severityColors[selectedAlert.severity])}>
-                      {selectedAlert.severity}
-                    </Badge>
-                    <Badge variant="outline">{selectedAlert.category}</Badge>
-                    <Badge variant="outline">{selectedAlert.status}</Badge>
-                  </div>
-
-                  {(() => {
-                    const linked = insightCategoryForAlert(selectedAlert);
-                    if (!linked) return null;
-                    return (
-                      <button
-                        onClick={() => navigate(`/app/insights/${linked.id}`)}
-                        className="flex items-center gap-2 w-full text-left p-2.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors group"
-                      >
-                        <Brain className="w-4 h-4 text-primary shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Contributing to AI insight</p>
-                          <p className="text-sm font-medium text-foreground truncate">{linked.title}</p>
-                        </div>
-                        <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
-                      </button>
-                    );
-                  })()}
-
-                  <p className="text-sm text-muted-foreground">{selectedAlert.description}</p>
-
-                  {/* Simulated camera snapshot */}
-                  <div className="w-full h-48 rounded-lg bg-muted/50 border border-border flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 grid-bg opacity-30" />
-                    <div className="text-center z-10">
-                      <Camera className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-xs text-muted-foreground">{selectedAlert.cameraName}</p>
-                      <p className="text-xs text-primary font-mono mt-1">AI Detection Snapshot</p>
-                    </div>
-                    <div className="absolute top-8 left-12 w-20 h-16 border-2 border-destructive/60 rounded" />
-                    <div className="absolute top-6 left-10 bg-destructive/80 text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
-                      VIOLATION
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div><p className="text-muted-foreground text-xs">Camera</p><p className="text-foreground">{selectedAlert.cameraId} – {selectedAlert.cameraName}</p></div>
-                    <div><p className="text-muted-foreground text-xs">Zone</p><p className="text-foreground">{selectedAlert.zone}</p></div>
-                    <div><p className="text-muted-foreground text-xs">Time</p><p className="text-foreground">{new Date(selectedAlert.timestamp).toLocaleString()}</p></div>
-                    <div><p className="text-muted-foreground text-xs">Assigned To</p><p className="text-foreground">{selectedAlert.assignedTo || "Unassigned"}</p></div>
-                  </div>
-
-                  {selectedAlert.resolution && (
-                    <div className="bg-success/5 border border-success/20 rounded-lg p-3">
-                      <p className="text-xs text-success font-medium mb-1">Resolution</p>
-                      <p className="text-sm text-foreground">{selectedAlert.resolution}</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    {selectedAlert.status === "open" && (
-                      <Select onValueChange={(val) => handleAssign(selectedAlert.id, val)}>
-                        <SelectTrigger className="flex-1 bg-background border-border"><SelectValue placeholder="Assign to…" /></SelectTrigger>
-                        <SelectContent>
-                          {mockTeam.map((m) => (
-                            <SelectItem key={m.id} value={m.name}>{m.name} – {m.role}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {selectedAlert.status !== "resolved" && (
-                      <Button onClick={() => handleResolve(selectedAlert.id)} className="bg-success hover:bg-success/90 text-primary-foreground">
-                        <CheckCircle className="w-4 h-4 mr-1" /> Resolve
-                      </Button>
-                    )}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="timeline" className="mt-3">
-                  <IncidentTimeline alertId={selectedAlert.id} />
-                </TabsContent>
-              </Tabs>
+              <div className="flex gap-2 flex-wrap">
+                <Badge variant="outline" className={severityColors[selected.severity] || ""}>{selected.severity}</Badge>
+                <Badge variant="outline">{selected.type}</Badge>
+                <Badge variant="outline" className="capitalize">{selected.status}</Badge>
+              </div>
+              {selected.description && <p className="text-sm text-muted-foreground">{selected.description}</p>}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><p className="text-muted-foreground text-xs">Zone</p><p className="text-foreground">{selected.zone || "—"}</p></div>
+                <div><p className="text-muted-foreground text-xs">Detected</p><p className="text-foreground">{new Date(selected.detected_at).toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs">Risk score</p><p className="text-foreground">{selected.risk_score ?? "—"}</p></div>
+                <div><p className="text-muted-foreground text-xs">Acknowledged</p><p className="text-foreground">{selected.acknowledged_at ? new Date(selected.acknowledged_at).toLocaleString() : "No"}</p></div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                {selected.status === "open" && (
+                  <Button variant="outline" onClick={() => acknowledge(selected)}><Clock className="w-4 h-4 mr-1" /> Acknowledge</Button>
+                )}
+                {selected.status !== "resolved" && (
+                  <Button onClick={() => openResolutionWorkflow(selected)} className="ml-auto">
+                    <ShieldCheck className="w-4 h-4 mr-1" /> Open Resolution Workflow
+                  </Button>
+                )}
+              </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {selected && activeTenantId && (
+        <ResolutionWorkflowDialog
+          open={workflowOpen}
+          onOpenChange={(v) => { setWorkflowOpen(v); if (!v) setWorkflowIncidentId(null); }}
+          tenantId={activeTenantId}
+          alertId={selected.id}
+          incidentId={workflowIncidentId}
+          title={selected.title}
+          onResolved={() => { setSelected(null); load(); }}
+        />
+      )}
     </div>
   );
-};
-
-export default Alerts;
+}
