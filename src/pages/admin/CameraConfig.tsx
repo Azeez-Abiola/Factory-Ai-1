@@ -666,6 +666,31 @@ const CameraConfig = () => {
                     onValueChange={(v) => setEditing({ ...editing, confidence_threshold: v[0] })}
                   />
                 </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border mt-3">
+                  <div>
+                    <p className="text-sm font-medium">Continuous AI Inference</p>
+                    <p className="text-xs text-muted-foreground">
+                      Worker samples a frame on a schedule and runs the enabled models. Detections flow into Alerts automatically.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!editing.inference_enabled}
+                    onCheckedChange={(v) => setEditing({ ...editing, inference_enabled: v })}
+                  />
+                </div>
+                {editing.inference_enabled && (
+                  <div className="space-y-1.5 p-3 rounded-lg border border-border">
+                    <Label>Inference Cadence: every {editing.inference_interval_seconds ?? 30}s</Label>
+                    <Slider
+                      value={[editing.inference_interval_seconds ?? 30]}
+                      min={5} max={300} step={5}
+                      onValueChange={(v) => setEditing({ ...editing, inference_interval_seconds: v[0] })}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Lower cadence = faster detection, higher AI credit usage.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="ops" className="space-y-3 pt-4">
