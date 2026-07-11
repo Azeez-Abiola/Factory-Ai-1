@@ -46,6 +46,10 @@ interface CameraRow {
   recording_enabled: boolean;
   audio_enabled?: boolean;
   last_seen_at: string | null;
+  inference_enabled?: boolean;
+  inference_interval_seconds?: number;
+  last_inference_at?: string | null;
+  inference_status?: string;
 }
 
 const AI_MODEL_DEFS = [
