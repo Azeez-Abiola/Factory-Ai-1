@@ -70,9 +70,10 @@ const NotificationSettings = () => {
     if (error) return toast.error(error.message);
     toast.success("Notification preferences saved");
     auditLog({
+      tenantId: activeTenantId,
       action: "notification_prefs.updated",
-      entity_type: "tenant",
-      entity_id: activeTenantId,
+      entityType: "tenant",
+      entityId: activeTenantId,
       metadata: {
         email_enabled: prefs.email_enabled,
         sms_enabled: prefs.sms_enabled,
