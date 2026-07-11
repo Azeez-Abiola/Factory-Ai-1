@@ -12,7 +12,8 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
     label: "Operate",
     items: [
       { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
-      { to: "/app/alerts", icon: Bell, label: "Alerts & Incidents" },
+      { to: "/app/alerts", icon: Bell, label: "Alerts" },
+      { to: "/app/incidents", icon: ShieldCheck, label: "Incidents" },
       { to: "/app/cameras", icon: Camera, label: "Camera Feeds" },
     ],
   },
