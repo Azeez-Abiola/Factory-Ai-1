@@ -405,7 +405,7 @@ const CameraTile = ({ cam, onOpen, now, focus }: { cam: LiveCamera; onOpen: () =
   );
 };
 
-const FeedInner = ({ cam, now, large = false }: { cam: Camera; now: Date; large?: boolean }) => {
+const FeedInner = ({ cam, now, large = false }: { cam: LiveCamera; now: Date; large?: boolean }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
   if (cam.status !== "online") {
@@ -420,6 +420,7 @@ const FeedInner = ({ cam, now, large = false }: { cam: Camera; now: Date; large?
       </div>
     );
   }
+  const showLive = cam.isLive && cam.streamUrl;
   return (
     <>
       <div className="absolute inset-0 grid-bg opacity-20" />
