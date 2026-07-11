@@ -135,7 +135,8 @@ const Insights = () => {
         <div className="text-center py-12 text-muted-foreground">
           <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="font-medium">No insights match your filters</p>
-          <p className="text-sm">Try adjusting your search or filters.</p>
+          <p className="text-sm mb-4">Try widening the time range or clearing filters.</p>
+          <button onClick={clearFilters} className="text-sm text-primary hover:underline">Clear all filters</button>
         </div>
       )}
 
@@ -143,7 +144,14 @@ const Insights = () => {
         {filtered.map((insight) => {
           const config = categoryConfig[insight.category];
           return (
-            <div key={insight.id} onClick={() => navigate(`/app/insights/${insight.id}`)} className="glass rounded-xl p-5 border border-border hover:border-primary/20 cursor-pointer transition-all">
+            <div
+              key={insight.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/app/insights/${insight.id}`)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/app/insights/${insight.id}`); } }}
+              className="glass rounded-xl p-5 border border-border hover:border-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer transition-all"
+            >
               <div className="flex items-start gap-4">
                 <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0", config.color)}>
                   {config.icon}
