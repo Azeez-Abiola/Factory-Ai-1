@@ -99,7 +99,7 @@ export default function EscalationPolicies() {
         icon={Timer}
         title="Escalation Policies"
         description={activeTenant ? `Auto-reassign unresolved incidents · ${activeTenant.name}` : "Select a tenant"}
-        action={<Button onClick={create}><Plus className="w-4 h-4 mr-1" /> New Policy</Button>}
+        actions={<Button onClick={create}><Plus className="w-4 h-4 mr-1" /> New Policy</Button>}
       />
 
       {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
