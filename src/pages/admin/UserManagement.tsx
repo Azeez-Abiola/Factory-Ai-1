@@ -133,10 +133,10 @@ const UserManagement = () => {
       toast.error(error.message.includes("duplicate") ? "An invite for this email is already pending." : error.message);
       return;
     }
-    await logAudit({
-      tenant_id: activeTenantId,
+    await auditLog({
+      tenantId: activeTenantId,
       action: "member.invited",
-      entity_type: "tenant_invitation",
+      entityType: "tenant_invitation",
       metadata: { email: inviteEmail, role: inviteRole },
     });
     const link = `${window.location.origin}/invite/${data.token}`;
