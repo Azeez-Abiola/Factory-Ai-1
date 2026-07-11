@@ -37,6 +37,7 @@ import AuditDetail from "./pages/admin/AuditDetail.tsx";
 import CameraConfig from "./pages/admin/CameraConfig.tsx";
 import RulesPolicy from "./pages/admin/RulesPolicy.tsx";
 import EscalationPolicies from "./pages/admin/EscalationPolicies.tsx";
+import NotificationSettings from "./pages/admin/NotificationSettings.tsx";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,7 @@ const App = () => (
               <Route path="cameras" element={<CameraConfig />} />
               <Route path="rules" element={<RulesPolicy />} />
               <Route path="escalation" element={<EscalationPolicies />} />
+              <Route path="notifications" element={<NotificationSettings />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

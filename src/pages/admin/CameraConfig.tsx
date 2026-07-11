@@ -46,6 +46,10 @@ interface CameraRow {
   recording_enabled: boolean;
   audio_enabled?: boolean;
   last_seen_at: string | null;
+  inference_enabled?: boolean;
+  inference_interval_seconds?: number;
+  last_inference_at?: string | null;
+  inference_status?: string;
 }
 
 const AI_MODEL_DEFS = [
@@ -75,6 +79,8 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   ptz_enabled: false,
   recording_enabled: true,
   audio_enabled: false,
+  inference_enabled: false,
+  inference_interval_seconds: 30,
 });
 
 const isLikelyStreamUrl = (u: string, t: StreamType) => {
@@ -163,6 +169,23 @@ const CameraConfig = () => {
     return `${base}/${cameraId}`;
   };
 
+  const runStreamTest = async (opts: {
+    stream_url?: string | null;
+    stream_type?: StreamType;
+    rtsp_url?: string | null;
+  }): Promise<{ ok: boolean; reason?: string; detail?: string }> => {
+    const { data, error } = await supabase.functions.invoke("test-stream", {
+      body: {
+        stream_url: opts.stream_url ?? null,
+        stream_type: opts.stream_type ?? "hls",
+        rtsp_url: opts.rtsp_url ?? null,
+        gateway_base_url: gatewayBase || null,
+      },
+    });
+    if (error) return { ok: false, reason: error.message };
+    return data as { ok: boolean; reason?: string; detail?: string };
+  };
+
   const save = async () => {
     if (!editing || !activeTenantId) return;
     const e = editing;
@@ -172,6 +195,24 @@ const CameraConfig = () => {
     if (!stream && e.id) stream = autoStreamUrl(e.id, (e.stream_type as StreamType) ?? "hls");
     if (stream && !isLikelyStreamUrl(stream, (e.stream_type as StreamType) ?? "hls")) {
       return toast.error(`Stream URL doesn't look like a valid ${e.stream_type?.toUpperCase()} endpoint`);
+    }
+
+    // New cameras must pass a stream test before we persist them.
+    if (!e.id) {
+      if (!stream && !e.rtsp_url && !gatewayBase) {
+        return toast.error("Provide an RTSP URL, a playback URL, or configure a streaming gateway first.");
+      }
+      toast.loading("Validating stream…", { id: "stream-test" });
+      const result = await runStreamTest({
+        stream_url: stream || null,
+        stream_type: (e.stream_type as StreamType) ?? "hls",
+        rtsp_url: e.rtsp_url ?? null,
+      });
+      toast.dismiss("stream-test");
+      if (!result.ok) {
+        return toast.error(`Stream test failed — ${result.reason ?? "unreachable"}`);
+      }
+      toast.success(`Stream verified · ${result.detail ?? "reachable"}`);
     }
 
     const payload = {
@@ -193,6 +234,8 @@ const CameraConfig = () => {
       ptz_enabled: !!e.ptz_enabled,
       recording_enabled: e.recording_enabled ?? true,
       audio_enabled: !!e.audio_enabled,
+      inference_enabled: !!e.inference_enabled,
+      inference_interval_seconds: e.inference_interval_seconds ?? 30,
     };
 
     if (e.id) {
@@ -200,7 +243,6 @@ const CameraConfig = () => {
       if (error) return toast.error(error.message);
       toast.success(`${payload.name} updated`);
     } else {
-      // Insert; if no explicit stream URL and a gateway is configured, populate it on the returned id
       const { data, error } = await supabase.from("cameras").insert(payload).select("*").maybeSingle();
       if (error) return toast.error(error.message);
       if (data && !data.stream_url && gatewayBase) {
@@ -222,23 +264,24 @@ const CameraConfig = () => {
   };
 
   const testStream = async (row: CameraRow) => {
-    if (!row.stream_url) {
-      toast.error("No stream URL set. Add one or configure a gateway base URL.");
+    if (!row.stream_url && !row.rtsp_url) {
+      toast.error("No stream or RTSP URL set. Add one or configure a gateway base URL.");
       return;
     }
     setTesting(row.id);
     try {
-      // Best-effort reachability probe — HLS manifest / WHEP endpoint HEAD.
-      // Browsers won't leak CORS body, but network reachability + status is verifiable.
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(row.stream_url, { method: "GET", mode: "no-cors", signal: controller.signal });
-      clearTimeout(t);
-      // With no-cors we usually get an opaque response; treat "no throw" as reachable
-      void res;
-      toast.success(`Stream endpoint reachable · ${row.stream_type.toUpperCase()}`);
+      const result = await runStreamTest({
+        stream_url: row.stream_url,
+        stream_type: row.stream_type as StreamType,
+        rtsp_url: row.rtsp_url,
+      });
+      if (result.ok) {
+        toast.success(`Reachable · ${result.detail ?? row.stream_type.toUpperCase()}`);
+      } else {
+        toast.error(`Unreachable — ${result.reason ?? "no response"}`);
+      }
     } catch (err: any) {
-      toast.error(`Unreachable: ${err?.message ?? "network error"}`);
+      toast.error(`Test failed: ${err?.message ?? "network error"}`);
     } finally {
       setTesting(null);
     }
@@ -427,7 +470,18 @@ const CameraConfig = () => {
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground mb-2">Active AI Models</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground">Active AI Models</p>
+                    {cam.inference_enabled ? (
+                      <Badge variant="outline" className="text-[10px] text-success border-success/40">
+                        <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" />
+                        Inference running · every {cam.inference_interval_seconds ?? 30}s
+                        {cam.last_inference_at && ` · last ${Math.max(0, Math.floor((Date.now() - new Date(cam.last_inference_at).getTime()) / 1000))}s ago`}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">Inference off</Badge>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {activeModels.length === 0 && <span className="text-xs text-muted-foreground">None enabled</span>}
                     {activeModels.map((m) => (
@@ -612,6 +666,31 @@ const CameraConfig = () => {
                     onValueChange={(v) => setEditing({ ...editing, confidence_threshold: v[0] })}
                   />
                 </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border mt-3">
+                  <div>
+                    <p className="text-sm font-medium">Continuous AI Inference</p>
+                    <p className="text-xs text-muted-foreground">
+                      Worker samples a frame on a schedule and runs the enabled models. Detections flow into Alerts automatically.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!editing.inference_enabled}
+                    onCheckedChange={(v) => setEditing({ ...editing, inference_enabled: v })}
+                  />
+                </div>
+                {editing.inference_enabled && (
+                  <div className="space-y-1.5 p-3 rounded-lg border border-border">
+                    <Label>Inference Cadence: every {editing.inference_interval_seconds ?? 30}s</Label>
+                    <Slider
+                      value={[editing.inference_interval_seconds ?? 30]}
+                      min={5} max={300} step={5}
+                      onValueChange={(v) => setEditing({ ...editing, inference_interval_seconds: v[0] })}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Lower cadence = faster detection, higher AI credit usage.
+                    </p>
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="ops" className="space-y-3 pt-4">
