@@ -203,12 +203,19 @@ export type Database = {
       }
       cameras: {
         Row: {
+          ai_models: Json
+          confidence_threshold: number
           created_at: string
+          credentials: Json
+          fps: number
           heartbeat_interval_seconds: number
           id: string
+          ingest_token: string | null
           last_seen_at: string | null
           metadata: Json | null
           name: string
+          ptz_enabled: boolean
+          recording_enabled: boolean
           resolution: string | null
           retention_days: number
           rtsp_url: string | null
@@ -221,12 +228,19 @@ export type Database = {
           zone: string | null
         }
         Insert: {
+          ai_models?: Json
+          confidence_threshold?: number
           created_at?: string
+          credentials?: Json
+          fps?: number
           heartbeat_interval_seconds?: number
           id?: string
+          ingest_token?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           name: string
+          ptz_enabled?: boolean
+          recording_enabled?: boolean
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
@@ -239,12 +253,19 @@ export type Database = {
           zone?: string | null
         }
         Update: {
+          ai_models?: Json
+          confidence_threshold?: number
           created_at?: string
+          credentials?: Json
+          fps?: number
           heartbeat_interval_seconds?: number
           id?: string
+          ingest_token?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           name?: string
+          ptz_enabled?: boolean
+          recording_enabled?: boolean
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
@@ -650,6 +671,7 @@ export type Database = {
           name: string
           parent_id: string | null
           plan: string
+          settings: Json
           slug: string
           status: string
           timezone: string | null
@@ -667,6 +689,7 @@ export type Database = {
           name: string
           parent_id?: string | null
           plan?: string
+          settings?: Json
           slug: string
           status?: string
           timezone?: string | null
@@ -684,6 +707,7 @@ export type Database = {
           name?: string
           parent_id?: string | null
           plan?: string
+          settings?: Json
           slug?: string
           status?: string
           timezone?: string | null
@@ -725,6 +749,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      camera_heartbeat: {
+        Args: {
+          _camera_id: string
+          _fps?: number
+          _resolution?: string
+          _status?: string
+          _token: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
