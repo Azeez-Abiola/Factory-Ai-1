@@ -221,7 +221,11 @@ export type Database = {
           fps: number
           heartbeat_interval_seconds: number
           id: string
+          inference_enabled: boolean
+          inference_interval_seconds: number
+          inference_status: string
           ingest_token: string | null
+          last_inference_at: string | null
           last_seen_at: string | null
           metadata: Json | null
           name: string
@@ -247,7 +251,11 @@ export type Database = {
           fps?: number
           heartbeat_interval_seconds?: number
           id?: string
+          inference_enabled?: boolean
+          inference_interval_seconds?: number
+          inference_status?: string
           ingest_token?: string | null
+          last_inference_at?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           name: string
@@ -273,7 +281,11 @@ export type Database = {
           fps?: number
           heartbeat_interval_seconds?: number
           id?: string
+          inference_enabled?: boolean
+          inference_interval_seconds?: number
+          inference_status?: string
           ingest_token?: string | null
+          last_inference_at?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           name?: string
@@ -409,6 +421,67 @@ export type Database = {
           },
           {
             foreignKeyName: "incidents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_log: {
+        Row: {
+          alert_id: string | null
+          channel: string
+          created_at: string
+          id: string
+          incident_id: string | null
+          metadata: Json
+          reason: string | null
+          recipient: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          alert_id?: string | null
+          channel: string
+          created_at?: string
+          id?: string
+          incident_id?: string | null
+          metadata?: Json
+          reason?: string | null
+          recipient: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          alert_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          incident_id?: string | null
+          metadata?: Json
+          reason?: string | null
+          recipient?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_log_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_log_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_log_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -737,6 +810,53 @@ export type Database = {
             foreignKeyName: "tenant_members_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_notification_prefs: {
+        Row: {
+          email_enabled: boolean
+          email_recipients: string[]
+          min_severity: string
+          notify_on_escalation: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          sms_enabled: boolean
+          sms_recipients: string[]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          email_enabled?: boolean
+          email_recipients?: string[]
+          min_severity?: string
+          notify_on_escalation?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          sms_enabled?: boolean
+          sms_recipients?: string[]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          email_enabled?: boolean
+          email_recipients?: string[]
+          min_severity?: string
+          notify_on_escalation?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          sms_enabled?: boolean
+          sms_recipients?: string[]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_notification_prefs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
