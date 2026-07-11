@@ -79,6 +79,8 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   ptz_enabled: false,
   recording_enabled: true,
   audio_enabled: false,
+  inference_enabled: false,
+  inference_interval_seconds: 30,
 });
 
 const isLikelyStreamUrl = (u: string, t: StreamType) => {
