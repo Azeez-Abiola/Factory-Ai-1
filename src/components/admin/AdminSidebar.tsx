@@ -21,6 +21,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
     items: [
       { to: "/admin/system", icon: Activity, label: "System Monitoring" },
       { to: "/admin/cameras", icon: Camera, label: "IP Cameras & AI" },
+      { to: "/admin/ai-config", icon: Sparkles, label: "AI Model & Categories" },
       { to: "/admin/kpi-config", icon: Target, label: "KPI & OKRs" },
     ],
   },
