@@ -44,6 +44,7 @@ interface CameraRow {
   fps: number;
   ptz_enabled: boolean;
   recording_enabled: boolean;
+  audio_enabled?: boolean;
   last_seen_at: string | null;
 }
 
