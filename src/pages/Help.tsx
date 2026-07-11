@@ -1,10 +1,35 @@
-import { useState } from "react";
-import { Search, BookOpen, AlertTriangle, Camera, FileText, BarChart3, Wrench, Shield, ChevronRight, ArrowLeft, Lightbulb, Calculator, Eye } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Search, BookOpen, AlertTriangle, Camera, FileText, BarChart3, Wrench, Shield,
+  ChevronRight, ArrowLeft, Lightbulb, Calculator, Eye, ClipboardList, Users,
+  Settings, Bell, Activity, GitBranch, Layers, Sparkles, HelpCircle, Play,
+  Info, CheckCircle2, XCircle, Copy, ExternalLink, Zap, Gauge, Building2,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import PageHeader from "@/components/app/PageHeader";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+// ---------------------------------------------------------------------------
+// Knowledge base data model
+// ---------------------------------------------------------------------------
+
+type Block =
+  | { kind: "p"; text: string }
+  | { kind: "h"; text: string }
+  | { kind: "list"; items: string[]; ordered?: boolean }
+  | { kind: "tip"; text: string }
+  | { kind: "warn"; text: string }
+  | { kind: "info"; text: string }
+  | { kind: "code"; lang?: string; text: string }
+  | { kind: "formula"; label: string; formula: string; example?: string }
+  | { kind: "table"; head: string[]; rows: (string | number)[][] }
+  | { kind: "snapshot"; caption: string; body: string }
+  | { kind: "steps"; items: string[] };
 
 type Article = {
   id: string;
@@ -12,755 +37,958 @@ type Article = {
   category: string;
   tags: string[];
   summary: string;
-  content: Section[];
+  readMinutes: number;
+  blocks: Block[];
+  relatedRoute?: { label: string; to: string };
 };
 
-type Section = {
-  heading: string;
-  body: string;
-  snapshot?: string;
-  calculation?: { label: string; formula: string; example: string };
-  tip?: string;
+type Category = {
+  id: string;
+  label: string;
+  icon: typeof BookOpen;
+  color: string;
+  description: string;
 };
 
-const categories = [
-  { id: "getting-started", label: "Getting Started", icon: BookOpen, color: "text-primary" },
-  { id: "alerts", label: "Alerts & Incidents", icon: AlertTriangle, color: "text-destructive" },
-  { id: "cameras", label: "Camera Feeds", icon: Camera, color: "text-blue-500" },
-  { id: "reports", label: "Reports", icon: FileText, color: "text-emerald-500" },
-  { id: "insights", label: "AI Insights", icon: BarChart3, color: "text-violet-500" },
-  { id: "maintenance", label: "Maintenance", icon: Wrench, color: "text-amber-500" },
-  { id: "admin", label: "Admin Panel", icon: Shield, color: "text-rose-500" },
+const categories: Category[] = [
+  { id: "getting-started", label: "Getting Started", icon: BookOpen, color: "text-primary", description: "Set up your workspace, roles, tenants and first monitoring session." },
+  { id: "dashboard", label: "Dashboard & KPIs", icon: Gauge, color: "text-cyan-500", description: "Metric cards, trend charts, OEE, compliance score and how each number is computed." },
+  { id: "alerts", label: "Alerts", icon: Bell, color: "text-destructive", description: "Live event feed, severity, acknowledge / resolve flow, filters and audit trail." },
+  { id: "incidents", label: "Incidents", icon: Shield, color: "text-warning", description: "Case management, resolution workflow, bulk triage, timeline and compliance export." },
+  { id: "cameras", label: "Camera Feeds", icon: Camera, color: "text-blue-500", description: "Live monitoring, grid layouts, PTZ, audio, health telemetry and RTSP/WebRTC ingest." },
+  { id: "insights", label: "AI Insights", icon: Sparkles, color: "text-violet-500", description: "Trend detection, categories, confidence, recommendations and PDF export." },
+  { id: "reports", label: "Reports", icon: FileText, color: "text-emerald-500", description: "Custom reports, filters, sort, CSV/PDF export and audit-ready formatting." },
+  { id: "shift", label: "Shift Handover", icon: ClipboardList, color: "text-teal-500", description: "End-of-shift summaries, safety & efficiency scores, unresolved issues, recommendations." },
+  { id: "maintenance", label: "Maintenance", icon: Wrench, color: "text-amber-500", description: "Predictive maintenance, work orders, MTTR, failure risk and lifecycle." },
+  { id: "admin", label: "Admin & Governance", icon: Settings, color: "text-rose-500", description: "Tenants, users, roles, KPI configuration, escalation, notifications and audit log." },
+  { id: "rules", label: "Rules & Policies", icon: GitBranch, color: "text-indigo-500", description: "Best-practice templates, natural-language rules, AI guardrails and violations." },
+  { id: "security", label: "Security & Compliance", icon: Layers, color: "text-fuchsia-500", description: "RLS, tenant isolation, audit records, exports and standards mapping (OSHA, ISO)." },
 ];
+
+// ---------------------------------------------------------------------------
+// Articles — deep documentation for every module
+// ---------------------------------------------------------------------------
 
 const articles: Article[] = [
-  // ─── Getting Started ───
+  // ─────────────── Getting Started ───────────────
   {
-    id: "gs-1",
-    title: "Quick Start Guide",
+    id: "gs-quickstart",
+    title: "Quick Start — 10 minutes to your first live alert",
     category: "getting-started",
-    tags: ["onboarding", "setup", "basics"],
-    summary: "Learn how to navigate FactoryAI and set up your first monitoring session.",
-    content: [
-      {
-        heading: "Welcome to FactoryAI",
-        body: "FactoryAI is an intelligent industrial monitoring platform that uses AI-powered video analytics to detect safety hazards, quality defects, and operational anomalies in real time. This guide walks you through the core features.",
-        snapshot: "📊 Dashboard Overview — Your central command center shows live KPIs: total alerts, active cameras, compliance score, and system uptime, all updating in real time.",
-      },
-      {
-        heading: "Navigating the Sidebar",
-        body: "The left sidebar provides quick access to all modules: Dashboard, Alerts & Incidents, Camera Feeds, Reports, Shift Handover, AI Insights, and Maintenance. Click the collapse button at the bottom to toggle a compact view.",
-        tip: "Use keyboard shortcut Ctrl+B to quickly toggle the sidebar.",
-      },
-      {
-        heading: "Understanding Your Dashboard",
-        body: "The dashboard displays four key metric cards at the top. Below, you'll find the alert trend chart showing incident patterns over the past 7 days, and a live incident timeline on the right.",
-        snapshot: "📈 Metric Cards — Total Alerts (47), Active Cameras (12/12), Compliance Score (94.2%), System Uptime (99.7%). Each card shows a trend indicator compared to the previous period.",
-        calculation: {
-          label: "Compliance Score Calculation",
-          formula: "Compliance Score = (Passed Checks / Total Checks) × 100",
-          example: "If 471 out of 500 safety checks passed: (471 / 500) × 100 = 94.2%",
-        },
-      },
+    tags: ["onboarding", "setup", "first-run"],
+    summary: "Sign in, pick a tenant, connect a camera and see AI detections stream in.",
+    readMinutes: 10,
+    relatedRoute: { label: "Open Dashboard", to: "/app" },
+    blocks: [
+      { kind: "p", text: "FactoryAI is a multi-tenant industrial monitoring platform. This guide takes you from a fresh account to a live camera feed with AI detections in under ten minutes." },
+      { kind: "steps", items: [
+        "Sign in with email/password or Google at /auth. First-time sign-ups land as Viewer.",
+        "Ask your Tenant Admin to invite you into a tenant, or (if you are the Admin) create one at /admin.",
+        "Switch tenant from the top-right tenant switcher — every screen re-scopes instantly.",
+        "Go to /admin/cameras → New Camera. Provide an RTSP URL. Save is blocked until the stream test passes.",
+        "Enable Inference (5–300s cadence). AI begins analysing frames.",
+        "Watch /app for realtime cards, /app/alerts for the event feed, /app/cameras for the wall.",
+      ] },
+      { kind: "info", text: "Every action you take — acknowledge, assign, resolve, invite, edit policy — writes an entry to the tenant audit log with a stable AUD-… identifier." },
     ],
   },
   {
-    id: "gs-2",
-    title: "User Roles & Permissions Guide",
+    id: "gs-navigation",
+    title: "Navigating the app — Operator (/app) vs Admin (/admin)",
     category: "getting-started",
-    tags: ["roles", "permissions", "access"],
-    summary: "Understand the different user roles in FactoryAI and what each role can access.",
-    content: [
-      {
-        heading: "Role Hierarchy",
-        body: "FactoryAI implements role-based access control (RBAC) with five tiers:\n\n• Super Admin — Full platform access across all tenants\n• Tenant Admin — Complete control within their assigned tenant\n• Supervisor — Dashboard, alerts, reports, shift management\n• Operator — Camera feeds, alert acknowledgement\n• Viewer — Read-only access to dashboards and reports",
-        snapshot: "👤 Role Matrix\n| Feature          | Super Admin | Tenant Admin | Supervisor | Operator | Viewer |\n| Dashboard        |     ✅      |      ✅      |     ✅     |    ❌    |   ✅   |\n| Manage Alerts    |     ✅      |      ✅      |     ✅     |    ✅    |   ❌   |\n| Create Reports   |     ✅      |      ✅      |     ✅     |    ❌    |   ❌   |\n| Camera Config    |     ✅      |      ✅      |     ❌     |    ❌    |   ❌   |\n| User Management  |     ✅      |      ✅      |     ❌     |    ❌    |   ❌   |",
-      },
-      {
-        heading: "Requesting Access Changes",
-        body: "If you need elevated permissions, contact your Tenant Admin. Access change requests are logged in the audit trail for compliance tracking.",
-        tip: "Always follow the principle of least privilege — request only the permissions you need for your daily tasks.",
-      },
+    tags: ["navigation", "layout"],
+    summary: "How the operator workspace and admin panel are split, when to use each, and how to switch.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "h", text: "Two workspaces, one platform" },
+      { kind: "table",
+        head: ["Workspace", "Route", "Audience", "Focus"],
+        rows: [
+          ["Operator", "/app", "Supervisors, operators, viewers", "Live monitoring, response, reporting"],
+          ["Admin", "/admin", "Tenant Admin, Super Admin", "Tenants, users, policies, config, billing"],
+        ]},
+      { kind: "p", text: "The Shield icon in the header switches to /admin when your role permits. Non-admins never see it." },
+      { kind: "tip", text: "Bookmark /app/alerts (live feed) and /app/cameras (video wall) — these two views cover 80% of a shift supervisor's day." },
     ],
   },
   {
-    id: "gs-3",
-    title: "Notification & Alert Preferences",
+    id: "gs-roles",
+    title: "Roles, permissions and the principle of least privilege",
     category: "getting-started",
-    tags: ["notifications", "preferences", "settings"],
-    summary: "Configure how and when you receive notifications from FactoryAI.",
-    content: [
-      {
-        heading: "Notification Channels",
-        body: "FactoryAI supports multiple notification channels:\n\n• In-App — Real-time banner and badge notifications within the platform\n• Email — Digest or instant email alerts to your registered address\n• SMS — Critical alerts sent via text message\n• Webhook — Push notifications to external systems (Slack, Teams, PagerDuty)",
-        snapshot: "🔔 Notification Settings\n| Channel  | Critical | High | Medium | Low  |\n| In-App   |    ✅    |  ✅  |   ✅   |  ✅  |\n| Email    |    ✅    |  ✅  |   ❌   |  ❌  |\n| SMS      |    ✅    |  ❌  |   ❌   |  ❌  |\n| Webhook  |    ✅    |  ✅  |   ✅   |  ❌  |",
-      },
-      {
-        heading: "Quiet Hours & Escalation",
-        body: "Set quiet hours to suppress non-critical notifications during off-shift periods. Critical alerts always bypass quiet hours. Unacknowledged alerts auto-escalate to the next level after configurable SLA windows.",
-        tip: "Set up at least two notification channels for critical alerts to ensure you never miss an emergency.",
-      },
+    tags: ["rbac", "roles", "permissions"],
+    summary: "Full RBAC matrix for Super Admin, Tenant Admin, Supervisor, Operator and Viewer.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "p", text: "FactoryAI enforces role-based access control at both application and database (RLS) layers. Roles are stored in a dedicated table — never on the user or profile — and checked via a SECURITY DEFINER function." },
+      { kind: "table",
+        head: ["Capability", "Super Admin", "Tenant Admin", "Supervisor", "Operator", "Viewer"],
+        rows: [
+          ["View dashboards & reports", "✓", "✓", "✓", "✓", "✓"],
+          ["Acknowledge alerts", "✓", "✓", "✓", "✓", "—"],
+          ["Resolve incidents", "✓", "✓", "✓", "—", "—"],
+          ["Create reports", "✓", "✓", "✓", "—", "—"],
+          ["Configure cameras", "✓", "✓", "—", "—", "—"],
+          ["Manage users & invites", "✓", "✓", "—", "—", "—"],
+          ["Edit policies / KPIs", "✓", "✓", "—", "—", "—"],
+          ["Manage tenants (create/suspend)", "✓", "—", "—", "—", "—"],
+        ]},
+      { kind: "warn", text: "Never grant Admin to solve a permission issue mid-shift. Log the intent, request access through your Tenant Admin, and let the audit trail show it." },
     ],
   },
 
-  // ─── Alerts ───
+  // ─────────────── Dashboard ───────────────
   {
-    id: "al-1",
-    title: "Managing Alerts & Incidents",
+    id: "dash-overview",
+    title: "Dashboard tour — every card explained",
+    category: "dashboard",
+    tags: ["dashboard", "kpi", "metrics"],
+    summary: "What each metric card means, where its number comes from and how to drill in.",
+    readMinutes: 6,
+    relatedRoute: { label: "Open Dashboard", to: "/app" },
+    blocks: [
+      { kind: "snapshot", caption: "Dashboard hero", body: "Four stat cards: Live Alerts · Compliance Score · OEE · Active Cameras. Trend chip on each shows change vs. previous 7 days." },
+      { kind: "h", text: "Live Alerts" },
+      { kind: "p", text: "Count of alerts opened in the tenant over the current time window (default: last 24h). Realtime — updates instantly as cameras stream detections." },
+      { kind: "h", text: "Compliance Score" },
+      { kind: "formula", label: "Compliance Score",
+        formula: "score = passed_checks / total_checks × 100",
+        example: "471 passed of 500 checks → 94.2%. Weekly rollup shown; daily hover reveals the split." },
+      { kind: "h", text: "Overall Equipment Effectiveness (OEE)" },
+      { kind: "formula", label: "OEE",
+        formula: "OEE = Availability × Performance × Quality",
+        example: "Availability 92% × Performance 88% × Quality 97% = 78.5% (World-Class benchmark is 85%)." },
+      { kind: "h", text: "Active Cameras" },
+      { kind: "p", text: "cameras.status = 'online' derived from heartbeats within the configured interval. Missed heartbeats flip the tile to offline automatically." },
+    ],
+  },
+
+  // ─────────────── Alerts ───────────────
+  {
+    id: "al-lifecycle",
+    title: "Alert lifecycle — from detection to audit record",
     category: "alerts",
-    tags: ["alerts", "incidents", "severity", "response"],
-    summary: "How to view, filter, acknowledge, and resolve safety and operational alerts.",
-    content: [
-      {
-        heading: "Alert Severity Levels",
-        body: "Alerts are categorized into four severity levels to help you prioritize response:\n\n• Critical — Immediate danger to personnel or equipment. Requires instant action.\n• High — Significant risk that needs attention within 15 minutes.\n• Medium — Moderate concern that should be addressed within 1 hour.\n• Low — Informational or minor issues for awareness.",
-        snapshot: "🔴 Critical: 'Worker detected in restricted blast zone without PPE — Camera 7, Zone A'\n🟠 High: 'Forklift speed exceeding 15km/h in pedestrian area — Camera 3'\n🟡 Medium: 'Conveyor belt vibration anomaly detected — Sensor B12'\n🟢 Low: 'Lighting level below optimal in Warehouse C'",
-      },
-      {
-        heading: "Alert Lifecycle",
-        body: "Every alert follows a defined lifecycle: Open → Acknowledged → Investigating → Resolved. Use the status dropdown on each alert to update its state. Resolved alerts are moved to the history view automatically after 24 hours.",
-        tip: "Assign alerts to specific team members using the 'Assign' button to ensure accountability.",
-      },
-      {
-        heading: "Filtering & Searching Alerts",
-        body: "Use the search bar to find alerts by keyword, camera ID, or zone name. Apply filters by severity, status, type, and date range. Sort by newest, severity, or time-to-resolve.",
-        snapshot: "🔍 Filter Bar — [All Severities ▾] [All Status ▾] [All Types ▾] [Date Range] [Search…]\nShowing 23 of 47 alerts matching your criteria.",
-      },
-      {
-        heading: "Response Time Metrics",
-        body: "FactoryAI tracks how quickly your team responds to alerts. These metrics are used in compliance reporting and shift handover reviews.",
-        calculation: {
-          label: "Average Response Time",
-          formula: "Avg Response Time = Σ (Acknowledged Time − Alert Time) / Total Alerts",
-          example: "If 10 alerts had total response times of 45 minutes: 45 / 10 = 4.5 min average response time.",
-        },
-      },
+    tags: ["alerts", "workflow", "lifecycle"],
+    summary: "Every state an alert passes through and who moves it there.",
+    readMinutes: 7,
+    relatedRoute: { label: "Open Alerts", to: "/app/alerts" },
+    blocks: [
+      { kind: "steps", items: [
+        "Detection — Inference worker or heartbeat pushes a row into the alerts table.",
+        "Notification — Trigger fires notify-alert (email/SMS via Resend/Twilio) based on tenant preferences.",
+        "Open — Alert appears in /app/alerts with severity, zone, camera and risk score.",
+        "Acknowledged — Operator confirms they've seen it. Timestamp + user recorded, audit entry alert.acknowledge written.",
+        "Investigating — Opening the Resolution Workflow creates (or links) an incident with a timeline seed event.",
+        "Resolved — Supervisor closes the incident with resolution notes and root-cause tags. Audit entry incident.resolve written.",
+        "Archived — Auto-close after N days per tenant retention policy. Compliance export remains available.",
+      ] },
+      { kind: "table",
+        head: ["Severity", "SLA to acknowledge", "SLA to resolve", "Default channels"],
+        rows: [
+          ["Critical", "≤ 1 min", "≤ 15 min", "In-app · Email · SMS · Webhook"],
+          ["High", "≤ 5 min", "≤ 1 h", "In-app · Email · Webhook"],
+          ["Medium", "≤ 15 min", "≤ 4 h", "In-app · Email"],
+          ["Low", "≤ 60 min", "Same shift", "In-app"],
+        ]},
+      { kind: "tip", text: "Use the Severity + Status filter combo to build focused work queues — e.g. 'critical + open' as a supervisor triage view." },
     ],
   },
   {
-    id: "al-2",
-    title: "Incident Investigation Workflow",
+    id: "al-triage",
+    title: "Triaging alerts fast — filters, search & bulk actions",
     category: "alerts",
-    tags: ["investigation", "root-cause", "workflow"],
-    summary: "Step-by-step guide to investigating incidents from alert to resolution report.",
-    content: [
-      {
-        heading: "Starting an Investigation",
-        body: "When an alert is escalated, click 'Investigate' to open the investigation panel. This captures the alert context, camera footage timestamp, and any related sensor data automatically.",
-        snapshot: "🔎 Investigation Panel\n• Alert: AL-2024-089 — PPE Violation, Zone C\n• Timestamp: 2024-03-12 14:23:17\n• Camera: CAM-007 (auto-bookmarked ±30s footage)\n• Related Alerts: AL-2024-087 (same zone, 10 min prior)\n• Assigned Investigator: Sarah Johnson",
-      },
-      {
-        heading: "Root Cause Analysis (RCA)",
-        body: "Use the built-in RCA template to document findings. FactoryAI provides three analysis frameworks:\n\n• 5 Whys — Iterative questioning to drill down to root cause\n• Fishbone Diagram — Categorize contributing factors\n• Fault Tree — Map logical relationships between events",
-        tip: "Attach camera snapshots and sensor charts directly to your RCA for a complete evidence package.",
-      },
-      {
-        heading: "Incident Closure Metrics",
-        body: "Track how effectively your team resolves incidents with these key metrics.",
-        calculation: {
-          label: "Mean Time to Resolve (MTTR-Incident)",
-          formula: "MTTR = Σ (Resolved Time − Alert Time) / Total Incidents",
-          example: "5 incidents resolved in total 6.5 hours: MTTR = 6.5 / 5 = 1.3 hours average.",
-        },
-      },
+    tags: ["alerts", "triage", "filters"],
+    summary: "How to reduce noise, find the alert you need and take action across many at once.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "list", items: [
+        "Search box matches title, zone, type and short ID.",
+        "Severity filter: critical / high / medium / low / all.",
+        "Status filter: open / acknowledged / resolved / all.",
+        "Click any row for the full detail dialog with metadata, risk score and workflow buttons.",
+      ] },
+      { kind: "info", text: "Bulk actions live on the Incidents page — /app/incidents. Multi-select and use Acknowledge, Assign or Mark False Positive; each row gets an individual audit entry." },
     ],
   },
   {
-    id: "al-3",
-    title: "Escalation Rules & SLAs",
+    id: "al-false-positive",
+    title: "Handling false positives without losing signal",
     category: "alerts",
-    tags: ["escalation", "SLA", "rules"],
-    summary: "Configure automatic escalation rules and service level agreements for alert response.",
-    content: [
-      {
-        heading: "Default SLA Timers",
-        body: "Each severity level has a default SLA for acknowledgement and resolution:\n\n• Critical — Acknowledge: 2 min, Resolve: 30 min\n• High — Acknowledge: 10 min, Resolve: 2 hours\n• Medium — Acknowledge: 30 min, Resolve: 8 hours\n• Low — Acknowledge: 2 hours, Resolve: 24 hours",
-        snapshot: "⏱ SLA Dashboard\n| Severity | Ack SLA | Resolve SLA | Current Compliance |\n| Critical |  2 min  |    30 min   |       97.3%        |\n| High     | 10 min  |    2 hrs    |       94.1%        |\n| Medium   | 30 min  |    8 hrs    |       98.6%        |\n| Low      |  2 hrs  |   24 hrs    |       99.2%        |",
-      },
-      {
-        heading: "Escalation Chain",
-        body: "When an SLA is breached, alerts auto-escalate:\n\n1. Level 1 — Notify assigned operator (original assignee)\n2. Level 2 — Notify shift supervisor + send SMS\n3. Level 3 — Notify plant manager + trigger external webhook\n4. Level 4 — Notify regional director + create emergency incident",
-        calculation: {
-          label: "SLA Compliance Rate",
-          formula: "SLA Compliance = (Alerts Resolved Within SLA / Total Alerts) × 100",
-          example: "47 alerts total, 44 resolved within SLA: (44 / 47) × 100 = 93.6% compliance",
-        },
-      },
+    tags: ["false-positive", "tuning", "ai"],
+    summary: "Mark, learn from and reduce false-positive noise across your fleet.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "steps", items: [
+        "Mark the alert (or bulk in /app/incidents) as False Positive — audit entry incident.bulk.false_positive.",
+        "Add a resolution note explaining what triggered it (glare, reflection, mannequin, etc.).",
+        "In /admin/rules → Alert Rules, raise the confidence_threshold for the offending model, or add a zone exclusion.",
+        "In /admin/cameras, adjust the camera's confidence_threshold or disable the model that generated the false hit.",
+      ] },
+      { kind: "warn", text: "False-positive rate is a KPI. Track it weekly — > 15% suggests thresholds are too low; < 2% suggests they may be too high and you are missing real events." },
     ],
   },
 
-  // ─── Cameras ───
+  // ─────────────── Incidents ───────────────
   {
-    id: "cam-1",
-    title: "Camera Feeds & Zones",
+    id: "inc-workflow",
+    title: "Resolution workflow — turning alerts into closed cases",
+    category: "incidents",
+    tags: ["incidents", "workflow", "resolution"],
+    summary: "How the supervisor resolution workflow generates tasks, tracks progress and writes compliance records.",
+    readMinutes: 8,
+    relatedRoute: { label: "Open Incidents", to: "/app/incidents" },
+    blocks: [
+      { kind: "p", text: "Any alert can be promoted into an incident with a full resolution workflow. Incidents carry status, assignee, timeline, tasks and audit references." },
+      { kind: "h", text: "Statuses" },
+      { kind: "table", head: ["Status", "Meaning"], rows: [
+        ["open", "Newly created, not yet acknowledged"],
+        ["investigating", "Assigned & work in progress"],
+        ["resolved", "Root cause addressed, awaiting close-out"],
+        ["closed", "Compliance sign-off complete"],
+        ["false_positive", "Confirmed non-event — feeds model tuning"],
+      ] },
+      { kind: "h", text: "Resolution tasks" },
+      { kind: "p", text: "The dialog creates one or more tasks (checklist items) assigned to team members. Tasks track status (open, in_progress, completed, cancelled) and support notes. All state changes emit audit entries." },
+      { kind: "h", text: "Escalation" },
+      { kind: "p", text: "If next_escalation_at passes and no one has resolved the incident, the escalate-incidents cron reassigns to the next supervisor in the tenant's active escalation policy and logs incident.escalated." },
+    ],
+  },
+  {
+    id: "inc-timeline",
+    title: "Incident audit timeline — every event, every record ID",
+    category: "incidents",
+    tags: ["audit", "timeline", "compliance"],
+    summary: "Read the timeline view: alerts, tasks, status changes and matching AUD- records.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "p", text: "Click Timeline on any incident row. The dialog shows a strict chronological feed with source (alert, task, status, note), actor, timestamp and the AUD-… reference for the underlying audit record." },
+      { kind: "tip", text: "Include the AUD- IDs when exporting or citing an incident in an external system. They are stable across the tenant lifecycle." },
+    ],
+  },
+  {
+    id: "inc-bulk",
+    title: "Bulk triage — acknowledge, assign or dismiss many incidents",
+    category: "incidents",
+    tags: ["bulk", "triage"],
+    summary: "How to work through backlog quickly without losing audit fidelity.",
+    readMinutes: 3,
+    blocks: [
+      { kind: "steps", items: [
+        "Filter to the queue you want to work (e.g. status: open).",
+        "Tick the header checkbox to select all filtered rows, or individual rows.",
+        "Use the sticky action bar: Acknowledge, Assign (supervisor picker), or Mark False Positive.",
+        "Every affected incident gets its own audit_log row — bulk actions are never anonymised.",
+      ] },
+    ],
+  },
+  {
+    id: "inc-export",
+    title: "Compliance export — PDF / CSV of resolution outcomes",
+    category: "incidents",
+    tags: ["export", "compliance", "audit"],
+    summary: "Generate a date-scoped, site-scoped resolution report for auditors.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "steps", items: [
+        "Click Compliance Export on the Incidents page.",
+        "Pick date range and (optionally) site / zone.",
+        "Choose format — PDF for signature-ready reports, CSV for downstream analytics.",
+        "The bundle includes: incident, opened/closed times, assignee, resolution notes and the AUD- IDs.",
+      ] },
+    ],
+  },
+
+  // ─────────────── Cameras ───────────────
+  {
+    id: "cam-wall",
+    title: "The video wall — layouts, shortcuts and the operator HUD",
     category: "cameras",
-    tags: ["cameras", "video", "zones", "live"],
-    summary: "Monitor live camera feeds, configure zones, and understand AI detection overlays.",
-    content: [
-      {
-        heading: "Live Camera Grid",
-        body: "The Camera Feeds page shows a grid of all active cameras. Each feed displays the camera name, zone, current status (online/offline), and any active AI detections highlighted with bounding boxes.",
-        snapshot: "📹 Camera Grid (4×3 layout)\n• CAM-001: Assembly Line A — 🟢 Online — 2 active detections\n• CAM-002: Loading Dock B — 🟢 Online — No detections\n• CAM-003: Chemical Storage — 🟢 Online — 1 PPE violation\n• CAM-004: Parking Area — 🔴 Offline — Last seen 3m ago",
-      },
-      {
-        heading: "AI Detection Overlays",
-        body: "When AI detects an anomaly, it draws a colored bounding box on the feed:\n\n• Red box — Safety violation (no PPE, restricted zone breach)\n• Orange box — Operational anomaly (equipment malfunction)\n• Blue box — Quality defect (product inspection failure)\n• Green box — Tracked object (normal tracking, no issue)",
-        tip: "Click on any bounding box to see detection details including confidence score, timestamp, and recommended action.",
-      },
-      {
-        heading: "Detection Confidence Scoring",
-        body: "Each AI detection includes a confidence score from 0–100%. Detections below 70% are flagged for manual review. Only detections above 85% trigger automatic alerts.",
-        calculation: {
-          label: "False Positive Rate",
-          formula: "FPR = False Positives / (False Positives + True Negatives) × 100",
-          example: "If 5 out of 200 detections were false positives: 5 / 200 × 100 = 2.5% FPR",
-        },
-      },
+    tags: ["cameras", "wall", "monitoring"],
+    summary: "Grid switching, keyboard shortcuts, focus mode, auto-cycle and the live HUD.",
+    readMinutes: 7,
+    relatedRoute: { label: "Open Camera Feeds", to: "/app/cameras" },
+    blocks: [
+      { kind: "table", head: ["Layout", "Cameras shown", "Shortcut"], rows: [
+        ["Focus", "1", "1"],
+        ["2×2", "4", "4"],
+        ["3×3", "9", "9"],
+        ["4×4", "16", "6"],
+      ] },
+      { kind: "list", items: [
+        "Auto-cycle rotates the visible page every N seconds — hands-free monitoring.",
+        "Focus mode enlarges the selected tile and puts detection overlays front-and-centre.",
+        "Fullscreen (F) hides all chrome for wall-mounted displays.",
+        "Audio button unmutes only cameras with audio_enabled and only the focused tile — browsers refuse to autoplay sound across 16 tiles.",
+      ] },
+      { kind: "info", text: "The HUD (FPS, latency, resolution, sync clock) is fed by the camera heartbeat, so it reflects real ingest health, not the client's guess." },
     ],
   },
   {
-    id: "cam-2",
-    title: "Camera Configuration & Setup",
+    id: "cam-onboarding",
+    title: "Onboarding a new camera — RTSP to live in three steps",
     category: "cameras",
-    tags: ["configuration", "setup", "RTSP", "resolution"],
-    summary: "How to add, configure, and calibrate cameras within FactoryAI.",
-    content: [
-      {
-        heading: "Adding a New Camera",
-        body: "Navigate to Admin → Camera Management → Add Camera. You'll need:\n\n• Camera Name — Descriptive label (e.g., 'Assembly Line A - Overhead')\n• RTSP URL — The camera's streaming endpoint\n• Zone Assignment — Which factory zone this camera covers\n• Resolution — Recommended 1080p or higher for optimal AI detection\n• Frame Rate — 15–30 FPS depending on use case",
-        snapshot: "➕ Add Camera Form\n• Name: [Assembly Line A - Overhead]\n• RTSP URL: [rtsp://192.168.1.101:554/stream1]\n• Zone: [Zone A - Assembly ▾]\n• Resolution: [1920×1080 ▾]\n• FPS: [25 ▾]\n• AI Models: [☑ PPE Detection] [☑ Zone Intrusion] [☐ Quality Inspect]",
-      },
-      {
-        heading: "Zone Calibration",
-        body: "After adding a camera, calibrate its detection zones by drawing polygons on the camera view. Types of zones:\n\n• Restricted Zone — No unauthorized entry (triggers critical alert)\n• PPE Required — Monitors for proper safety equipment\n• Speed Zone — Tracks vehicle/forklift speed\n• Quality Inspection — Focused on product inspection area",
-        tip: "Test your zone configuration by walking through the area and verifying detection accuracy before going live.",
-      },
-      {
-        heading: "Bandwidth Estimation",
-        body: "Plan your network capacity based on camera count and resolution settings.",
-        calculation: {
-          label: "Bandwidth per Camera",
-          formula: "Bandwidth (Mbps) = Resolution Factor × FPS × Compression Ratio",
-          example: "1080p at 25 FPS with H.264: 2.07 × 25 × 0.07 = ~3.6 Mbps per camera\n12 cameras: 12 × 3.6 = ~43.2 Mbps total required",
-        },
-      },
+    tags: ["cameras", "rtsp", "onboarding"],
+    summary: "Provision, test and go live. Onboarding is blocked until stream test passes.",
+    readMinutes: 6,
+    blocks: [
+      { kind: "steps", items: [
+        "Admin → Camera Config → New Camera. Fill in name, zone, RTSP URL, credentials.",
+        "Click Test Stream. The test-stream edge function probes HLS / WebRTC / MJPEG endpoints and returns pass/fail with reason.",
+        "On pass, Save enables. On fail, the failure reason is shown — fix and re-test.",
+        "After save, the gateway heartbeat begins updating status. Flip Inference on when you want AI on this feed.",
+      ] },
+      { kind: "code", lang: "bash", text: "# Heartbeat example — your gateway posts this every N seconds\ncurl -X POST $SUPABASE_URL/functions/v1/camera-heartbeat \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"camera_id\":\"...\",\"token\":\"...\",\"status\":\"online\",\"resolution\":\"1920x1080\",\"fps\":25}'" },
     ],
   },
   {
-    id: "cam-3",
-    title: "Camera Health & Troubleshooting",
+    id: "cam-inference",
+    title: "Continuous AI inference — cadence, status and confidence",
     category: "cameras",
-    tags: ["health", "troubleshooting", "offline", "diagnostics"],
-    summary: "Diagnose camera issues, understand health metrics, and resolve common problems.",
-    content: [
-      {
-        heading: "Camera Health Dashboard",
-        body: "Each camera has a health score based on uptime, stream quality, and detection accuracy. Access it via Camera → Details → Health tab.",
-        snapshot: "📊 Camera Health — CAM-001\n• Uptime (30d): 99.4%\n• Avg Stream Quality: 94/100\n• Detection Accuracy: 97.2%\n• Last Maintenance: 2024-02-28\n• Firmware: v3.2.1 (up to date)",
-      },
-      {
-        heading: "Common Issues & Fixes",
-        body: "• Camera Offline — Check network cable, verify RTSP URL, restart camera power\n• Blurry Feed — Clean lens, check focus settings, verify resolution config\n• False Detections — Recalibrate zones, adjust confidence threshold, check lighting\n• High Latency — Reduce resolution/FPS, check network bandwidth, use wired connection\n• Night Vision Issues — Enable IR mode, check IR LED array, adjust exposure settings",
-        tip: "Set up automated health checks to receive alerts when camera quality drops below 80%.",
-      },
+    tags: ["ai", "inference", "detections"],
+    summary: "How the inference worker samples frames, produces detections and pushes alerts.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "p", text: "Each online camera with inference_enabled = true is picked up by run-inference every minute. If last_inference_at is older than inference_interval_seconds, analyze-frame is invoked with the stream URL, AI model list and confidence threshold." },
+      { kind: "list", items: [
+        "AI models: PPE, Restricted Zone, Fall Detection, Forklift Speed, Quality Defect (extendable).",
+        "Confidence threshold — 0–1. Detections below the threshold are dropped.",
+        "Status pill on the card shows: 'Inference running · every Ns · last Xs ago'.",
+        "Detections above threshold write an alert row → notify-alert fires per tenant preferences.",
+      ] },
     ],
   },
 
-  // ─── Reports ───
+  // ─────────────── Insights ───────────────
   {
-    id: "rpt-1",
-    title: "Creating & Managing Reports",
-    category: "reports",
-    tags: ["reports", "compliance", "export", "create"],
-    summary: "Generate compliance reports, customize fields, and export to PDF or CSV.",
-    content: [
-      {
-        heading: "Report Types",
-        body: "FactoryAI supports four report types:\n\n• Safety Audit — Comprehensive safety compliance assessment\n• Quality Inspection — Product quality metrics and defect analysis\n• Environmental Audit — Environmental compliance and emissions data\n• Productivity Report — Operational efficiency and output metrics",
-        snapshot: "📄 Reports Dashboard\n| Report ID | Title              | Type        | Score  | Status    |\n| RPT-001   | Q1 Safety Audit    | Safety      | 94.2%  | Completed |\n| RPT-002   | Line 3 Quality     | Quality     | 87.5%  | In Review |\n| RPT-003   | March Environment  | Env. Audit  | 91.0%  | Draft     |",
-      },
-      {
-        heading: "Creating a New Report",
-        body: "Click the '+ Create Report' button at the top of the Reports page. Fill in the title, select the report type, set the initial status, enter the compliance score, list key findings, and choose the generation method (AI-generated or manual).",
-        tip: "Use 'AI-Generated' to let FactoryAI automatically compile data from cameras, alerts, and sensors into a structured report draft.",
-      },
-      {
-        heading: "Score Calculations",
-        body: "Each report includes a compliance score based on the findings and check results from the reporting period.",
-        calculation: {
-          label: "Weighted Compliance Score",
-          formula: "Score = Σ (Category Weight × Category Score) / Σ Category Weights",
-          example: "Safety (40% weight, 95 score) + Quality (30%, 88) + Environment (30%, 91):\n(0.4×95 + 0.3×88 + 0.3×91) / 1.0 = 38 + 26.4 + 27.3 = 91.7%",
-        },
-      },
-    ],
-  },
-  {
-    id: "sr-1",
-    title: "Shift Handover Reports",
-    category: "reports",
-    tags: ["shift", "handover", "supervisor"],
-    summary: "Create and review shift handover reports to ensure continuity across shifts.",
-    content: [
-      {
-        heading: "Shift Report Structure",
-        body: "Each shift report captures key operational data for a shift period including the supervisor name, shift timing, safety score, operational efficiency, number of incidents, and defects found.",
-        snapshot: "📋 Shift Report Example\n• Shift: Morning (06:00 – 14:00)\n• Supervisor: John Smith\n• Safety Score: 96/100\n• Efficiency: 94.2%\n• Incidents: 1 (minor — resolved)\n• Defects Found: 3",
-      },
-      {
-        heading: "Efficiency Calculation",
-        body: "Shift efficiency is calculated based on actual output versus planned output, adjusted for downtime.",
-        calculation: {
-          label: "Shift Efficiency",
-          formula: "Efficiency = (Actual Output / Planned Output) × (1 − Unplanned Downtime / Total Shift Hours) × 100",
-          example: "Planned: 500 units, Actual: 470, Unplanned downtime: 25 min in 8hr shift:\n(470/500) × (1 − 25/480) × 100 = 94% × 94.8% = 89.1%",
-        },
-      },
-    ],
-  },
-  {
-    id: "rpt-2",
-    title: "Exporting & Scheduling Reports",
-    category: "reports",
-    tags: ["export", "PDF", "CSV", "schedule"],
-    summary: "Export reports in multiple formats and set up automated report schedules.",
-    content: [
-      {
-        heading: "Export Formats",
-        body: "FactoryAI supports three export formats:\n\n• PDF — Formatted document with charts, tables, and branding. Ideal for stakeholder presentations.\n• CSV — Raw data export for further analysis in Excel or BI tools.\n• JSON — Machine-readable format for integration with external systems.",
-        snapshot: "📥 Export Dialog\n• Format: [PDF ▾] [CSV ▾] [JSON ▾]\n• Include Charts: [☑ Yes]\n• Date Range: [Last 30 days ▾]\n• Sections: [☑ Summary] [☑ Findings] [☑ Metrics] [☐ Raw Data]\n[Download Report]",
-      },
-      {
-        heading: "Scheduled Reports",
-        body: "Automate report generation by setting up schedules:\n\n1. Go to Reports → Schedules → New Schedule\n2. Select report template and type\n3. Set frequency (daily, weekly, monthly)\n4. Choose recipients (email distribution list)\n5. Configure format and included sections",
-        tip: "Schedule weekly safety reports for Monday mornings so supervisors start the week with full visibility.",
-      },
-    ],
-  },
-
-  // ─── Insights ───
-  {
-    id: "ins-1",
-    title: "Understanding AI Insights",
+    id: "ai-what",
+    title: "What are AI Insights?",
     category: "insights",
-    tags: ["ai", "analytics", "predictions", "trends"],
-    summary: "Leverage AI-powered analytics to identify trends, predict risks, and optimize operations.",
-    content: [
-      {
-        heading: "Insight Categories",
-        body: "AI Insights are organized into three categories:\n\n• Predictive — Forward-looking risk assessments and failure predictions\n• Diagnostic — Root cause analysis of recurring issues\n• Prescriptive — Actionable recommendations to improve operations",
-        snapshot: "🤖 AI Insight Example\n[PREDICTIVE] Conveyor Belt B3 — Predicted failure in 72 hours\nConfidence: 89% | Based on: vibration trend, temperature anomaly\nRecommendation: Schedule preventive maintenance before Thursday 14:00",
-      },
-      {
-        heading: "Trend Analysis",
-        body: "The trend view shows patterns over time for alerts, compliance scores, and equipment health. Use the time range selector (7d, 30d, 90d) to adjust the analysis window.",
-        calculation: {
-          label: "Trend Direction Score",
-          formula: "Trend = (Current Period Average − Previous Period Average) / Previous Period Average × 100",
-          example: "Current week avg alerts: 6.2, Previous week: 8.4:\n(6.2 − 8.4) / 8.4 × 100 = −26.2% (improving trend ↓)",
-        },
-      },
+    tags: ["insights", "ai", "analytics"],
+    summary: "Patterns detected across alerts, incidents and telemetry — with impact, confidence and a recommendation.",
+    readMinutes: 6,
+    relatedRoute: { label: "Open Insights", to: "/app/insights" },
+    blocks: [
+      { kind: "p", text: "Insights are periodic AI-generated observations that go beyond individual alerts. They correlate signals across cameras, shifts and zones to surface systemic issues." },
+      { kind: "table", head: ["Category", "What it tracks"], rows: [
+        ["Safety", "PPE compliance, restricted-zone entries, near-misses"],
+        ["Efficiency", "Downtime clusters, throughput drops, changeover delays"],
+        ["Quality", "Defect rates, inspection failures, drift"],
+        ["Cost", "Cost of downtime, rework, energy anomalies"],
+      ] },
+      { kind: "h", text: "Each insight carries" },
+      { kind: "list", items: [
+        "Impact (high / medium / low) — how much it moves the needle.",
+        "Confidence % — the model's certainty.",
+        "Trend (↑ ↓ →) — direction over the selected window.",
+        "Recommendation — the concrete next action.",
+        "Related alerts — one click drills to the raw events that produced it.",
+      ] },
     ],
   },
   {
-    id: "ins-2",
-    title: "Anomaly Detection & Pattern Recognition",
+    id: "ai-export",
+    title: "Exporting an insight as a PDF report",
     category: "insights",
-    tags: ["anomaly", "pattern", "detection", "machine-learning"],
-    summary: "How FactoryAI's ML models detect unusual patterns and operational anomalies.",
-    content: [
-      {
-        heading: "How Anomaly Detection Works",
-        body: "FactoryAI uses a multi-layer anomaly detection approach:\n\n1. Statistical Baseline — Learns 'normal' patterns over 14-day rolling window\n2. Real-Time Comparison — Compares current readings against the baseline\n3. Contextual Analysis — Considers time of day, shift patterns, and seasonal factors\n4. Correlation Engine — Checks if anomaly in one sensor correlates with others",
-        snapshot: "📉 Anomaly Detection Example\nSensor: Vibration Monitor — Conveyor B3\n• Baseline: 2.1–3.4 mm/s (normal range)\n• Current: 5.8 mm/s (⚠ 2.7σ above mean)\n• Trend: Increasing over 48 hours\n• Correlated: Temperature sensor B3 also elevated (+4°C)\n• Verdict: ANOMALY — Likely bearing wear",
-      },
-      {
-        heading: "Detection Accuracy Metrics",
-        body: "Monitor the performance of AI models with these key metrics tracked on the Insights dashboard.",
-        calculation: {
-          label: "F1 Score (Model Accuracy)",
-          formula: "F1 = 2 × (Precision × Recall) / (Precision + Recall)\nPrecision = True Positives / (True Positives + False Positives)\nRecall = True Positives / (True Positives + False Negatives)",
-          example: "TP=180, FP=8, FN=12:\nPrecision = 180/188 = 95.7%, Recall = 180/192 = 93.8%\nF1 = 2 × (0.957 × 0.938) / (0.957 + 0.938) = 94.7%",
-        },
-      },
-    ],
-  },
-  {
-    id: "ins-3",
-    title: "Custom Dashboards & KPI Tracking",
-    category: "insights",
-    tags: ["dashboard", "KPI", "custom", "widgets"],
-    summary: "Build custom dashboards and track the KPIs that matter most to your operation.",
-    content: [
-      {
-        heading: "Creating Custom KPI Widgets",
-        body: "Navigate to Insights → Custom Dashboard → Add Widget. Available widget types:\n\n• Metric Card — Single KPI with trend arrow\n• Line Chart — Time series data (alerts, scores, output)\n• Bar Chart — Comparison data (zone performance, shift comparison)\n• Pie Chart — Distribution data (alert types, defect categories)\n• Table — Detailed data with sorting and filtering",
-        snapshot: "📊 Custom Dashboard — 'Plant Manager View'\n┌─────────────┬──────────────┬─────────────┐\n│ OEE: 87.3%  │ Yield: 96.1% │ MTBF: 420h  │\n│    ↑ 2.1%   │    ↑ 0.8%    │   ↑ 15h     │\n├─────────────┴──────────────┴─────────────┤\n│   [Alert Trend Chart — 7 day view]       │\n├──────────────────┬───────────────────────┤\n│ [Zone Heatmap]   │ [Top 5 Issues Table]  │\n└──────────────────┴───────────────────────┘",
-      },
-      {
-        heading: "OEE Calculation",
-        body: "Overall Equipment Effectiveness (OEE) is the gold standard manufacturing KPI, combining availability, performance, and quality.",
-        calculation: {
-          label: "OEE (Overall Equipment Effectiveness)",
-          formula: "OEE = Availability × Performance × Quality\nAvailability = Run Time / Planned Production Time\nPerformance = (Ideal Cycle Time × Total Count) / Run Time\nQuality = Good Count / Total Count",
-          example: "Availability: 90%, Performance: 95%, Quality: 99%:\nOEE = 0.90 × 0.95 × 0.99 = 84.6%\nWorld-class OEE benchmark: 85%+",
-        },
-      },
+    tags: ["export", "pdf"],
+    summary: "Turn any insight into a signature-ready PDF with impact metrics and action plan.",
+    readMinutes: 3,
+    blocks: [
+      { kind: "steps", items: [
+        "Open the insight detail page.",
+        "Click Download PDF in the header.",
+        "The PDF includes title, category, impact metrics, action plan and generation timestamp.",
+      ] },
     ],
   },
 
-  // ─── Maintenance ───
+  // ─────────────── Reports ───────────────
   {
-    id: "mt-1",
-    title: "Maintenance Management",
-    category: "maintenance",
-    tags: ["maintenance", "work orders", "preventive", "equipment"],
-    summary: "Track equipment health, schedule preventive maintenance, and manage work orders.",
-    content: [
-      {
-        heading: "Work Order Lifecycle",
-        body: "Maintenance work orders follow this lifecycle: Requested → Approved → In Progress → Completed → Verified. Each stage has a responsible party and SLA timer.",
-        snapshot: "🔧 Work Order #WO-2024-047\n• Equipment: Conveyor Belt B3\n• Type: Preventive Maintenance\n• Priority: High\n• Assigned: Mike Chen (Maintenance Lead)\n• Due: 2024-03-15 14:00\n• Status: In Progress (2h 15m elapsed)",
-      },
-      {
-        heading: "Equipment Health Score",
-        body: "Each piece of equipment has a health score from 0–100 based on sensor data, maintenance history, and AI predictions.",
-        calculation: {
-          label: "Equipment Health Score",
-          formula: "Health = Base Score − Σ Deductions + Maintenance Bonus",
-          example: "Base: 100, Deductions: vibration anomaly (−8), age factor (−5), Maintenance bonus: recent service (+3):\n100 − 8 − 5 + 3 = 90 (Good condition)",
-        },
-      },
-      {
-        heading: "MTBF & MTTR Metrics",
-        body: "Two critical maintenance KPIs tracked by FactoryAI:\n\n• MTBF (Mean Time Between Failures) — Average operating time between breakdowns\n• MTTR (Mean Time To Repair) — Average time to restore equipment to operation",
-        calculation: {
-          label: "MTBF & MTTR",
-          formula: "MTBF = Total Operating Hours / Number of Failures\nMTTR = Total Repair Hours / Number of Repairs",
-          example: "Equipment ran 2,000 hours with 4 failures, total repair time 12 hours:\nMTBF = 2000 / 4 = 500 hours\nMTTR = 12 / 4 = 3 hours per repair",
-        },
-      },
+    id: "rep-create",
+    title: "Creating a custom report",
+    category: "reports",
+    tags: ["reports", "create"],
+    summary: "Build a scoped report — pick period, sections, KPIs and export target.",
+    readMinutes: 5,
+    relatedRoute: { label: "Open Reports", to: "/app/reports" },
+    blocks: [
+      { kind: "steps", items: [
+        "Click Create Report on /app/reports.",
+        "Set title, type (daily / weekly / monthly / custom), date range and sections.",
+        "Toggle KPIs to include: Safety Score, OEE, Compliance, Incidents, MTTR.",
+        "Save — the report becomes shareable, exportable and searchable in the list.",
+      ] },
+      { kind: "tip", text: "Save recurring shapes (e.g. 'Monday Safety Weekly') as templates by cloning your best report." },
     ],
   },
   {
-    id: "mt-2",
-    title: "Preventive Maintenance Scheduling",
-    category: "maintenance",
-    tags: ["preventive", "schedule", "calendar", "planning"],
-    summary: "Set up and manage preventive maintenance schedules to minimize unplanned downtime.",
-    content: [
-      {
-        heading: "Creating a PM Schedule",
-        body: "Go to Maintenance → Schedules → New Schedule:\n\n1. Select equipment or equipment group\n2. Choose maintenance type (inspection, lubrication, replacement, calibration)\n3. Set frequency (hours-based, calendar-based, or condition-based)\n4. Assign default technician or team\n5. Attach checklist or SOP document",
-        snapshot: "📅 PM Schedule — Conveyor System\n| Task                  | Frequency    | Next Due   | Assigned     |\n| Belt tension check    | Weekly       | 2024-03-18 | Mike Chen    |\n| Bearing lubrication   | Monthly      | 2024-04-01 | James Park   |\n| Motor inspection      | Quarterly    | 2024-06-15 | Mike Chen    |\n| Full overhaul         | Annually     | 2024-12-01 | Ext. Vendor  |",
-      },
-      {
-        heading: "Condition-Based Triggers",
-        body: "Instead of fixed schedules, set maintenance triggers based on real-time sensor data:\n\n• Vibration exceeds threshold → Schedule bearing inspection\n• Temperature delta > 10°C → Schedule cooling system check\n• Operating hours > limit → Schedule component replacement\n• AI prediction confidence > 85% → Auto-create work order",
-        tip: "Condition-based maintenance can reduce maintenance costs by 25–30% compared to fixed-schedule preventive maintenance.",
-      },
-      {
-        heading: "PM Compliance Rate",
-        body: "Track how well your team adheres to the preventive maintenance schedule.",
-        calculation: {
-          label: "PM Compliance Rate",
-          formula: "PM Compliance = (PM Tasks Completed On Time / Total PM Tasks Due) × 100",
-          example: "In March: 28 PM tasks due, 25 completed on time:\n(25 / 28) × 100 = 89.3% PM compliance\nTarget: > 90%",
-        },
-      },
-    ],
-  },
-  {
-    id: "mt-3",
-    title: "Spare Parts & Inventory",
-    category: "maintenance",
-    tags: ["spare parts", "inventory", "stock", "reorder"],
-    summary: "Manage spare parts inventory, set reorder points, and track usage patterns.",
-    content: [
-      {
-        heading: "Inventory Dashboard",
-        body: "The spare parts inventory tracks all maintenance consumables and replacement parts. Each item shows current stock, reorder point, lead time, and usage trend.",
-        snapshot: "📦 Spare Parts Inventory\n| Part              | Stock | Reorder Point | Lead Time | Status     |\n| Conveyor Belt 12m | 3     | 2             | 5 days    | 🟢 OK     |\n| Bearing SKF 6205  | 8     | 5             | 3 days    | 🟢 OK     |\n| Motor Drive V-Belt| 1     | 3             | 7 days    | 🔴 Low    |\n| Hydraulic Filter  | 0     | 2             | 4 days    | 🔴 Order  |",
-      },
-      {
-        heading: "Reorder Calculations",
-        body: "FactoryAI automatically calculates optimal reorder points based on usage history and lead times.",
-        calculation: {
-          label: "Reorder Point (ROP)",
-          formula: "ROP = (Average Daily Usage × Lead Time in Days) + Safety Stock\nSafety Stock = Z-score × σ(demand) × √(Lead Time)",
-          example: "Avg daily usage: 0.5 units, Lead time: 5 days, Safety stock: 2 units:\nROP = (0.5 × 5) + 2 = 4.5 → Reorder when stock hits 5 units",
-        },
-      },
+    id: "rep-export",
+    title: "Exporting reports — CSV vs PDF",
+    category: "reports",
+    tags: ["export", "csv", "pdf"],
+    summary: "When to choose each format and what fields land in the file.",
+    readMinutes: 3,
+    blocks: [
+      { kind: "list", items: [
+        "CSV — best for downstream analytics, BI tools, Excel pivoting.",
+        "PDF — best for auditors, regulatory submissions and printed signatures.",
+        "Both include tenant name, generation timestamp and the exporting user.",
+      ] },
     ],
   },
 
-  // ─── Admin ───
+  // ─────────────── Shift ───────────────
   {
-    id: "adm-1",
-    title: "Admin Panel Overview",
-    category: "admin",
-    tags: ["admin", "tenants", "users", "billing"],
-    summary: "Manage tenants, users, billing, system monitoring, and platform settings.",
-    content: [
-      {
-        heading: "Tenant Management",
-        body: "The Admin Panel allows platform administrators to manage multiple factory tenants. Each tenant represents a separate factory or facility with its own cameras, users, and configurations.",
-        snapshot: "🏭 Tenants Overview\n| Tenant         | Plan        | Users | Cameras | Status  |\n| Acme Steel     | Enterprise  | 45    | 24      | Active  |\n| BioPharm Inc   | Professional| 18    | 12      | Active  |\n| GreenEnergy Co | Starter     | 6     | 4       | Trial   |",
-      },
-      {
-        heading: "User Roles & Permissions",
-        body: "FactoryAI uses a role-based access control system:\n\n• Super Admin — Full platform access, tenant management\n• Tenant Admin — Full access within their tenant\n• Supervisor — View dashboards, manage alerts, create reports\n• Operator — View cameras and acknowledge alerts\n• Viewer — Read-only access to dashboards and reports",
-        tip: "Always follow the principle of least privilege — assign the minimum role needed for each user's responsibilities.",
-      },
+    id: "shift-anatomy",
+    title: "Anatomy of a shift handover report",
+    category: "shift",
+    tags: ["shift", "handover"],
+    summary: "Safety score, efficiency, key events, unresolved issues and recommendations — read them right.",
+    readMinutes: 6,
+    relatedRoute: { label: "Open Shift Handover", to: "/app/shift-reports" },
+    blocks: [
+      { kind: "formula", label: "Safety Score",
+        formula: "safety = 100 - (weighted_incidents / shift_hours × 10)",
+        example: "3 medium incidents over 8h → 100 - (3 × 1 / 8 × 10) = 96.25%" },
+      { kind: "formula", label: "Production Efficiency",
+        formula: "efficiency = actual_output / planned_output × 100",
+        example: "9,200 units of a planned 10,000 → 92%" },
+      { kind: "list", items: [
+        "Key Events — critical/high alerts and any manually flagged occurrences.",
+        "Unresolved Issues — anything the outgoing shift is handing over.",
+        "AI Recommendations — trend-based suggestions for the incoming shift.",
+      ] },
     ],
   },
   {
-    id: "adm-2",
-    title: "Billing & Subscription Management",
-    category: "admin",
-    tags: ["billing", "subscription", "pricing", "invoices"],
-    summary: "Understand pricing tiers, manage subscriptions, and view billing history.",
-    content: [
-      {
-        heading: "Pricing Tiers",
-        body: "FactoryAI offers three subscription tiers:\n\n• Starter — Up to 4 cameras, 10 users, basic AI detection, email support\n• Professional — Up to 16 cameras, 50 users, advanced AI, priority support\n• Enterprise — Unlimited cameras & users, custom AI models, dedicated support, SLA guarantee",
-        snapshot: "💳 Subscription — Acme Steel (Enterprise)\n• Monthly Cost: $2,400/month\n• Cameras: 24/Unlimited\n• Users: 45/Unlimited\n• AI Models: 6 active (PPE, Zone, Quality, Speed, Smoke, Spill)\n• Support: Dedicated CSM + 24/7 phone\n• Next Invoice: April 1, 2024",
-      },
-      {
-        heading: "Usage-Based Add-ons",
-        body: "Beyond the base subscription, usage-based charges may apply:\n\n• Additional AI model training: $200/model/month\n• Video storage beyond 30 days: $0.50/camera/day\n• API calls beyond 10,000/month: $0.01/call\n• Custom report templates: $50/template (one-time)",
-        tip: "Monitor your usage dashboard monthly to avoid unexpected charges. Set up usage alerts at 80% of your plan limits.",
-      },
-    ],
-  },
-  {
-    id: "adm-3",
-    title: "Audit Log & Compliance",
-    category: "admin",
-    tags: ["audit", "log", "compliance", "tracking"],
-    summary: "Track all user actions, system changes, and access events for compliance purposes.",
-    content: [
-      {
-        heading: "Audit Log Overview",
-        body: "Every action in FactoryAI is logged with a timestamp, user, action type, and details. The audit log is immutable and retained for the duration of your subscription (minimum 1 year).",
-        snapshot: "📝 Audit Log (Recent Entries)\n| Timestamp           | User          | Action              | Details                    |\n| 2024-03-12 14:23:17 | sarah.j       | Alert Acknowledged  | AL-2024-089 (Critical)     |\n| 2024-03-12 14:20:05 | mike.c        | Work Order Created  | WO-2024-048 (Conveyor B3)  |\n| 2024-03-12 14:15:30 | admin         | User Role Changed   | john.d: Operator → Supervisor |\n| 2024-03-12 14:10:12 | system        | Camera Offline      | CAM-004 (Parking Area)     |",
-      },
-      {
-        heading: "Compliance Frameworks",
-        body: "FactoryAI's audit logging supports compliance with:\n\n• ISO 45001 — Occupational Health & Safety\n• ISO 9001 — Quality Management Systems\n• OSHA — Occupational Safety and Health Administration\n• FDA 21 CFR Part 11 — Electronic Records (pharma)\n• SOC 2 Type II — Service Organization Controls",
-        tip: "Export audit logs quarterly and store them in your organization's long-term archival system for regulatory compliance.",
-      },
+    id: "shift-create",
+    title: "Filing a shift report (or letting FactoryAI auto-generate it)",
+    category: "shift",
+    tags: ["shift", "create"],
+    summary: "Fill out the handover form or accept the auto-generated draft at shift-end.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "steps", items: [
+        "Click Create Report on /app/shift-reports.",
+        "Pick the shift, date, supervisor, start/end times.",
+        "Enter safety %, efficiency %, incident counts, defects.",
+        "Add key events, unresolved issues and recommendations for the next shift.",
+        "Save — the report becomes part of the searchable, exportable handover log.",
+      ] },
+      { kind: "info", text: "End-time must be after start-time. Percentages are capped 0–100. The dialog blocks save until valid." },
     ],
   },
 
-  // ─── FAQ ───
+  // ─────────────── Maintenance ───────────────
   {
-    id: "faq-1",
-    title: "Frequently Asked Questions",
-    category: "getting-started",
-    tags: ["faq", "common", "questions"],
-    summary: "Answers to the most common questions about using FactoryAI.",
-    content: [
-      {
-        heading: "General Questions",
-        body: "Below are answers to frequently asked questions about the platform.",
-      },
+    id: "maint-overview",
+    title: "Predictive maintenance overview",
+    category: "maintenance",
+    tags: ["maintenance", "predictive"],
+    summary: "Failure risk, MTTR, work order lifecycle and how alerts convert to work orders.",
+    readMinutes: 7,
+    relatedRoute: { label: "Open Maintenance", to: "/app/maintenance" },
+    blocks: [
+      { kind: "formula", label: "MTTR (Mean Time To Repair)",
+        formula: "MTTR = Σ downtime_hours / number_of_repairs",
+        example: "12h across 4 repairs → 3h MTTR" },
+      { kind: "formula", label: "Failure Risk Score",
+        formula: "risk = 0.4 × vibration + 0.3 × temperature + 0.2 × runtime_hours + 0.1 × age",
+        example: "vib .8, temp .6, runtime .5, age .9 → 0.32 + 0.18 + 0.10 + 0.09 = 0.69 (High)" },
+      { kind: "table", head: ["Work Order Status", "Meaning"], rows: [
+        ["draft", "Created, not yet approved"],
+        ["approved", "Ready to execute"],
+        ["in_progress", "Being worked"],
+        ["completed", "Repair done, awaiting sign-off"],
+        ["cancelled", "Superseded or not required"],
+      ] },
+    ],
+  },
+
+  // ─────────────── Admin ───────────────
+  {
+    id: "adm-tenants",
+    title: "Managing tenants and sub-tenants",
+    category: "admin",
+    tags: ["tenants", "hierarchy"],
+    summary: "Create, edit, suspend and structure a parent/child tenant hierarchy.",
+    readMinutes: 6,
+    relatedRoute: { label: "Open Admin", to: "/admin" },
+    blocks: [
+      { kind: "p", text: "FactoryAI supports parent/child tenant hierarchies. A parent inherits visibility into children; child tenants remain isolated from siblings." },
+      { kind: "steps", items: [
+        "Admin → Tenants → New Tenant. Set name, plan, contact and address.",
+        "To create a sub-tenant, pick a parent when creating.",
+        "Suspend from the row action to disable access without deleting data.",
+      ] },
+    ],
+  },
+  {
+    id: "adm-invites",
+    title: "Inviting users and managing membership",
+    category: "admin",
+    tags: ["users", "invites"],
+    summary: "Email invites, role assignment, acceptance flow and revocation.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "steps", items: [
+        "Admin → Users → Invite. Enter email and pick role (Owner, Admin, Operator, Viewer).",
+        "The invite token expires in 7 days. Recipient opens /invite/:token and accepts.",
+        "accept_tenant_invitation validates email match, creates the membership, marks the invite accepted.",
+        "Revoke pending invites or remove members from the same page.",
+      ] },
+      { kind: "warn", text: "Never share invite links publicly — they mint tenant access on the first accept." },
+    ],
+  },
+  {
+    id: "adm-kpi",
+    title: "KPI & OKR configuration",
+    category: "admin",
+    tags: ["kpi", "okr", "thresholds"],
+    summary: "Define KPIs, set red/amber/green thresholds and tie them to dashboards.",
+    readMinutes: 6,
+    blocks: [
+      { kind: "steps", items: [
+        "Admin → KPI Config → Add KPI (name, unit, target, direction).",
+        "Set thresholds: red < amber < green (or reversed if lower is better).",
+        "Save — dashboards and reports colour the metric accordingly.",
+      ] },
+      { kind: "formula", label: "Traffic light bucket",
+        formula: "bucket = value < red_threshold ? 'red' : value < amber_threshold ? 'amber' : 'green'",
+        example: "Safety Score 87 with red<80, amber<90 → amber" },
+    ],
+  },
+  {
+    id: "adm-escalation",
+    title: "Escalation policies — never let an incident go stale",
+    category: "admin",
+    tags: ["escalation", "sla"],
+    summary: "Configure timeouts, supervisor rotation and automatic reassignment.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "steps", items: [
+        "Admin → Escalation → New Policy. Add supervisors in rotation order.",
+        "Set timeout_minutes — how long before auto-escalation.",
+        "The escalate-incidents cron runs every minute; when next_escalation_at passes, it reassigns and logs incident.escalated.",
+      ] },
+    ],
+  },
+  {
+    id: "adm-notify",
+    title: "Notification preferences per tenant",
+    category: "admin",
+    tags: ["notifications", "email", "sms"],
+    summary: "Recipients, channels, minimum severity and escalation opt-in.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "list", items: [
+        "Email — comma-separated recipient list, validated on save.",
+        "SMS — E.164 phone numbers via Twilio.",
+        "Minimum severity — mute channels for anything below the picked level.",
+        "Escalation opt-in — receive a copy when the escalation cron reassigns.",
+      ] },
+    ],
+  },
+  {
+    id: "adm-audit",
+    title: "Audit log — the source of truth for compliance",
+    category: "admin",
+    tags: ["audit", "compliance"],
+    summary: "Every mutation is recorded with actor, action, entity and metadata.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "table", head: ["Column", "Meaning"], rows: [
+        ["id", "AUD-… stable identifier"],
+        ["tenant_id", "Isolation boundary"],
+        ["actor_user_id", "Who did it"],
+        ["action", "alert.acknowledge, incident.resolve, camera.create, …"],
+        ["entity_type / entity_id", "What was affected"],
+        ["metadata", "JSON payload — before/after, notes, IDs"],
+        ["created_at", "UTC timestamp"],
+      ] },
+    ],
+  },
+
+  // ─────────────── Rules ───────────────
+  {
+    id: "rules-templates",
+    title: "Policy templates library",
+    category: "rules",
+    tags: ["policies", "templates", "osha", "iso"],
+    summary: "Clone battle-tested templates (Hard Hats, PPE Zones, Forklift Safety) and customise.",
+    readMinutes: 5,
+    relatedRoute: { label: "Open Rules", to: "/admin/rules" },
+    blocks: [
+      { kind: "list", items: [
+        "12 templates covering PPE, restricted zones, forklift/pedestrian, spill, fire lanes and more.",
+        "Each template maps to an OSHA / ISO standard reference for audit traceability.",
+        "Clone → edit thresholds → activate. Templates never mutate — cloning is safe.",
+      ] },
+    ],
+  },
+  {
+    id: "rules-ai",
+    title: "AI-compiled rules from natural language",
+    category: "rules",
+    tags: ["ai", "rules", "nl"],
+    summary: "Describe what to detect in plain English; the platform compiles a detection rule.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "code", text: 'Prompt: "Alert me when a person is inside Zone A during shifts outside Mon-Fri 08:00-17:00 without a hard hat"' },
+      { kind: "p", text: "The compile-policy edge function converts this into a structured alert_rule with zone, schedule, model requirements and severity." },
+      { kind: "warn", text: "Always review the compiled rule before activating. AI is fast, not infallible." },
+    ],
+  },
+  {
+    id: "rules-violations",
+    title: "Policy violations — what fires, what's tuned out",
+    category: "rules",
+    tags: ["violations", "audit"],
+    summary: "Track policy hits, tune thresholds and export for review.",
+    readMinutes: 4,
+    blocks: [
+      { kind: "list", items: [
+        "Every rule hit writes a policy_violations row with the alert reference.",
+        "Filter by policy, severity, date to see hot-spots.",
+        "Export violations as CSV for internal audit committees.",
+      ] },
+    ],
+  },
+
+  // ─────────────── Security ───────────────
+  {
+    id: "sec-isolation",
+    title: "Multi-tenant isolation — how your data stays yours",
+    category: "security",
+    tags: ["rls", "isolation", "security"],
+    summary: "RLS policies, membership checks and the SECURITY DEFINER pattern.",
+    readMinutes: 6,
+    blocks: [
+      { kind: "list", items: [
+        "Every tenant-scoped table has RLS on and policies keyed on tenant_id.",
+        "Membership is checked via is_tenant_member() — SECURITY DEFINER, no recursion.",
+        "Roles live in the user_roles table, never on profile — prevents privilege escalation.",
+        "The service_role bypasses RLS only for edge functions (heartbeat, notify, escalate).",
+      ] },
+      { kind: "info", text: "Cross-tenant reads are impossible from the client. Admin sees only tenants they belong to; Super Admin sees all via role check." },
+    ],
+  },
+  {
+    id: "sec-standards",
+    title: "Standards mapping — OSHA, ISO 45001, SOC 2",
+    category: "security",
+    tags: ["compliance", "standards"],
+    summary: "How platform features map to common compliance frameworks.",
+    readMinutes: 5,
+    blocks: [
+      { kind: "table", head: ["Standard", "Requirement", "How FactoryAI delivers"], rows: [
+        ["OSHA 1910.132", "PPE assessment & enforcement", "PPE policy templates + AI detection + violation log"],
+        ["ISO 45001", "Incident reporting & investigation", "Incident lifecycle, resolution tasks, root-cause notes"],
+        ["ISO 9001", "Corrective action tracking", "Work orders, MTTR, closed-loop audit"],
+        ["SOC 2 CC7.2", "Anomaly detection & response", "AI Insights + escalation + notification"],
+        ["SOC 2 CC6.1", "Logical access controls", "RBAC, RLS, tenant isolation"],
+      ] },
     ],
   },
 ];
 
-const faqs = [
-  { q: "How often does the dashboard refresh?", a: "The dashboard refreshes every 30 seconds by default. Critical alerts trigger an immediate push notification regardless of the refresh cycle." },
-  { q: "Can I export reports to PDF?", a: "Yes. On any report detail page, click the 'Export' button and choose PDF or CSV format. PDF exports include all charts and images." },
-  { q: "What happens when a camera goes offline?", a: "An automatic alert is generated with 'Medium' severity. The system retries connection every 60 seconds for 10 minutes, then escalates to 'High' if still offline." },
-  { q: "How is the compliance score calculated?", a: "Compliance Score = (Passed Checks / Total Checks) × 100. Weights can be configured per category in Admin → Settings." },
-  { q: "Can I customize alert thresholds?", a: "Yes. Go to Admin → Settings → Alert Configuration. You can set custom thresholds for detection confidence, response time SLAs, and escalation rules." },
-  { q: "How does predictive maintenance work?", a: "AI models analyze sensor data (vibration, temperature, pressure) and historical patterns to predict equipment failures 24–72 hours in advance with 85%+ accuracy." },
-  { q: "What browsers are supported?", a: "FactoryAI supports the latest versions of Chrome, Firefox, Safari, and Edge. For best performance with live camera feeds, Chrome is recommended." },
-  { q: "Can I integrate with existing ERP systems?", a: "Yes. FactoryAI provides REST APIs and webhook integrations for SAP, Oracle, Microsoft Dynamics, and other ERP systems. Contact support for custom integration setup." },
-  { q: "How is data backed up?", a: "All data is backed up continuously with point-in-time recovery available for the last 30 days. Full backups are stored in geographically redundant data centers." },
-  { q: "What is the uptime SLA?", a: "Enterprise plans include a 99.9% uptime SLA. Professional plans target 99.5%. Scheduled maintenance windows are communicated 72 hours in advance." },
-];
+// ---------------------------------------------------------------------------
+// Rendering primitives
+// ---------------------------------------------------------------------------
+
+const BlockRenderer = ({ block }: { block: Block }) => {
+  switch (block.kind) {
+    case "p":
+      return <p className="text-sm leading-relaxed text-muted-foreground">{block.text}</p>;
+    case "h":
+      return <h3 className="text-base font-semibold text-foreground mt-6 mb-1">{block.text}</h3>;
+    case "list":
+      return block.ordered ? (
+        <ol className="list-decimal pl-5 space-y-1.5 text-sm text-muted-foreground">
+          {block.items.map((i, idx) => <li key={idx}>{i}</li>)}
+        </ol>
+      ) : (
+        <ul className="list-disc pl-5 space-y-1.5 text-sm text-muted-foreground">
+          {block.items.map((i, idx) => <li key={idx}>{i}</li>)}
+        </ul>
+      );
+    case "steps":
+      return (
+        <ol className="space-y-2">
+          {block.items.map((i, idx) => (
+            <li key={idx} className="flex gap-3 text-sm">
+              <span className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold border border-primary/20">{idx + 1}</span>
+              <span className="text-foreground/90 leading-relaxed">{i}</span>
+            </li>
+          ))}
+        </ol>
+      );
+    case "tip":
+      return (
+        <div className="flex gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground/90"><span className="font-semibold text-primary">Tip · </span>{block.text}</p>
+        </div>
+      );
+    case "warn":
+      return (
+        <div className="flex gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground/90"><span className="font-semibold text-warning">Watch out · </span>{block.text}</p>
+        </div>
+      );
+    case "info":
+      return (
+        <div className="flex gap-3 rounded-lg border border-border bg-muted/40 p-3">
+          <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground/90">{block.text}</p>
+        </div>
+      );
+    case "code":
+      return (
+        <div className="relative rounded-lg border border-border bg-muted/50 overflow-hidden group">
+          {block.lang && <span className="absolute top-2 right-10 text-[10px] uppercase tracking-wider text-muted-foreground">{block.lang}</span>}
+          <button
+            aria-label="Copy code"
+            onClick={() => { navigator.clipboard.writeText(block.text); toast.success("Copied to clipboard"); }}
+            className="absolute top-2 right-2 p-1.5 rounded hover:bg-background transition-colors opacity-0 group-hover:opacity-100"
+          >
+            <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <pre className="text-xs p-4 overflow-x-auto text-foreground/90 font-mono leading-relaxed"><code>{block.text}</code></pre>
+        </div>
+      );
+    case "formula":
+      return (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">{block.label}</span>
+          </div>
+          <pre className="text-sm font-mono text-foreground bg-muted/40 rounded px-3 py-2 overflow-x-auto">{block.formula}</pre>
+          {block.example && <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Example · </span>{block.example}</p>}
+        </div>
+      );
+    case "table":
+      return (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr>{block.head.map((h) => <th key={h} className="text-left px-3 py-2 font-medium">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i} className="border-t border-border">
+                  {row.map((cell, j) => <td key={j} className="px-3 py-2 text-foreground/90">{cell}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    case "snapshot":
+      return (
+        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/[0.03] p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Eye className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">{block.caption}</span>
+          </div>
+          <p className="text-sm text-foreground/90 whitespace-pre-line">{block.body}</p>
+        </div>
+      );
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Main Help page
+// ---------------------------------------------------------------------------
 
 const Help = () => {
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [openArticle, setOpenArticle] = useState<Article | null>(null);
 
-  const filtered = articles.filter((a) => {
-    const matchesSearch =
-      !search ||
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.summary.toLowerCase().includes(search.toLowerCase()) ||
-      a.tags.some((t) => t.includes(search.toLowerCase()));
-    const matchesCategory = !selectedCategory || a.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filtered = useMemo(() => {
+    let list = articles;
+    if (activeCategory) list = list.filter((a) => a.category === activeCategory);
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter((a) =>
+        [a.title, a.summary, ...a.tags, a.category].some((t) => t.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [query, activeCategory]);
 
-  if (selectedArticle) {
+  const countsByCategory = useMemo(() => {
+    const m: Record<string, number> = {};
+    articles.forEach((a) => { m[a.category] = (m[a.category] ?? 0) + 1; });
+    return m;
+  }, []);
+
+  // ─────────────── Article view ───────────────
+  if (openArticle) {
+    const cat = categories.find((c) => c.id === openArticle.category);
+    const CatIcon = cat?.icon ?? BookOpen;
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => setSelectedArticle(null)} className="gap-2 text-muted-foreground">
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <Button variant="ghost" size="sm" onClick={() => setOpenArticle(null)} className="gap-2">
           <ArrowLeft className="w-4 h-4" /> Back to Knowledge Base
         </Button>
 
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="secondary">{categories.find((c) => c.id === selectedArticle.category)?.label}</Badge>
-            {selectedArticle.tags.map((t) => (
-              <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-            ))}
+        <div className="glass rounded-2xl border border-border p-6 md:p-8 space-y-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="gap-1"><CatIcon className={cn("w-3 h-3", cat?.color)} /> {cat?.label}</Badge>
+            <Badge variant="outline" className="gap-1"><Play className="w-3 h-3" /> {openArticle.readMinutes} min read</Badge>
+            {openArticle.tags.slice(0, 4).map((t) => <Badge key={t} variant="secondary" className="text-[10px]">#{t}</Badge>)}
           </div>
-          <h1 className="text-3xl font-bold text-foreground">{selectedArticle.title}</h1>
-          <p className="text-muted-foreground mt-2">{selectedArticle.summary}</p>
+          <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground leading-tight">{openArticle.title}</h1>
+          <p className="text-sm md:text-base text-muted-foreground">{openArticle.summary}</p>
+          {openArticle.relatedRoute && (
+            <Link to={openArticle.relatedRoute.to}>
+              <Button size="sm" variant="outline" className="gap-2">
+                <ExternalLink className="w-3.5 h-3.5" /> {openArticle.relatedRoute.label}
+              </Button>
+            </Link>
+          )}
         </div>
 
-        <div className="space-y-8">
-          {selectedArticle.content.map((section, i) => (
-            <div key={i} className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2">{section.heading}</h2>
-              <div className="text-muted-foreground whitespace-pre-line leading-relaxed">{section.body}</div>
+        <div className="glass rounded-2xl border border-border p-6 md:p-8 space-y-4">
+          {openArticle.blocks.map((b, i) => <BlockRenderer key={i} block={b} />)}
+        </div>
 
-              {section.snapshot && (
-                <Card className="bg-muted/50 border-border">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-2">
-                      <Eye className="w-4 h-4 text-primary mt-1 shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-primary mb-1 uppercase tracking-wider">Snapshot Preview</p>
-                        <pre className="text-sm text-foreground whitespace-pre-wrap font-mono leading-relaxed">{section.snapshot}</pre>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {section.calculation && (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-2">
-                      <Calculator className="w-4 h-4 text-primary mt-1 shrink-0" />
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-primary uppercase tracking-wider">{section.calculation.label}</p>
-                        <div className="bg-background/80 rounded-md p-3 border border-border">
-                          <code className="text-sm font-mono text-foreground">{section.calculation.formula}</code>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground">Example: </span>
-                          <span className="whitespace-pre-wrap">{section.calculation.example}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {section.tip && (
-                <Card className="border-amber-500/20 bg-amber-500/5">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-2">
-                      <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                      <p className="text-sm text-foreground"><span className="font-semibold">Pro Tip:</span> {section.tip}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          ))}
-
-          {selectedArticle.id === "faq-1" && (
-            <Accordion type="single" collapsible className="w-full">
-              {faqs.map((faq, i) => (
-                <AccordionItem key={i} value={`faq-${i}`}>
-                  <AccordionTrigger className="text-left">{faq.q}</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">{faq.a}</AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          )}
+        <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-4">
+          <span>Was this article helpful?</span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={() => toast.success("Thanks — feedback recorded")}><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Yes</Button>
+            <Button size="sm" variant="ghost" onClick={() => toast.info("Thanks — we'll improve this")}><XCircle className="w-3.5 h-3.5 mr-1" /> No</Button>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ─────────────── Index view ───────────────
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Help & Knowledge Base</h1>
-        <p className="text-muted-foreground mt-1">Find documentation, examples, calculations, and answers to common questions.</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Knowledge Base"
+        icon={HelpCircle}
+        title="Help & Documentation"
+        description={`${articles.length} in-depth articles across ${categories.length} modules — formulas, snapshots, workflows and compliance mapping.`}
+        actions={
+          <Link to="/app">
+            <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to App</Button>
+          </Link>
+        }
+      />
 
       {/* Search */}
-      <div className="relative max-w-xl">
+      <div className="relative max-w-2xl">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search articles, topics, or keywords…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
+          placeholder="Search across every article, tag, formula…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="pl-9 bg-card border-border h-11"
+          aria-label="Search knowledge base"
         />
       </div>
 
-      {/* Category filters */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={selectedCategory === null ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSelectedCategory(null)}
-        >
-          All Topics
-        </Button>
-        {categories.map((cat) => (
-          <Button
-            key={cat.id}
-            variant={selectedCategory === cat.id ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory(cat.id)}
-            className="gap-1.5"
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        {/* Sidebar categories */}
+        <aside className="space-y-1 lg:sticky lg:top-20 self-start">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors",
+              activeCategory === null ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:bg-muted/50 border border-transparent"
+            )}
           >
-            <cat.icon className="w-3.5 h-3.5" />
-            {cat.label}
-          </Button>
-        ))}
-      </div>
+            <span className="flex items-center gap-2 font-medium"><Layers className="w-4 h-4" /> All articles</span>
+            <Badge variant="secondary" className="text-[10px]">{articles.length}</Badge>
+          </button>
+          {categories.map((c) => {
+            const Icon = c.icon;
+            const count = countsByCategory[c.id] ?? 0;
+            const active = activeCategory === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setActiveCategory(c.id)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors border",
+                  active ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground hover:bg-muted/50 border-transparent"
+                )}
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  <Icon className={cn("w-4 h-4", c.color)} /> {c.label}
+                </span>
+                <Badge variant="secondary" className="text-[10px]">{count}</Badge>
+              </button>
+            );
+          })}
+        </aside>
 
-      {/* Articles grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filtered.map((article) => {
-          const cat = categories.find((c) => c.id === article.category);
-          return (
-            <Card
-              key={article.id}
-              className="cursor-pointer hover:border-primary/40 transition-colors group"
-              onClick={() => setSelectedArticle(article)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className="text-xs">{cat?.label}</Badge>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        {/* Article list */}
+        <div className="space-y-4">
+          {/* Category hero */}
+          {activeCategory && (() => {
+            const cat = categories.find((c) => c.id === activeCategory)!;
+            const Icon = cat.icon;
+            return (
+              <div className="glass rounded-xl border border-border p-5 flex items-start gap-4">
+                <div className={cn("w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center shrink-0")}>
+                  <Icon className={cn("w-6 h-6", cat.color)} />
                 </div>
-                <CardTitle className="text-lg group-hover:text-primary transition-colors">{article.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{article.summary}</p>
-                <div className="flex gap-1.5 mt-3">
-                  {article.tags.slice(0, 3).map((t) => (
-                    <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-                  ))}
+                <div className="min-w-0">
+                  <h2 className="font-display text-lg font-semibold text-foreground">{cat.label}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{cat.description}</p>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </div>
+            );
+          })()}
 
-      {filtered.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="font-medium">No articles found</p>
-          <p className="text-sm">Try adjusting your search or category filter.</p>
+          {filtered.length === 0 && (
+            <div className="glass rounded-xl border border-border p-12 text-center">
+              <BookOpen className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No articles match your search.</p>
+              <Button size="sm" variant="ghost" className="mt-3" onClick={() => { setQuery(""); setActiveCategory(null); }}>Clear filters</Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filtered.map((a) => {
+              const cat = categories.find((c) => c.id === a.category);
+              const Icon = cat?.icon ?? BookOpen;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setOpenArticle(a)}
+                  className="text-left glass rounded-xl border border-border p-5 hover:border-primary/30 hover:shadow-lg transition-all group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center shrink-0">
+                      <Icon className={cn("w-4 h-4", cat?.color)} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+                        {a.title}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{cat?.label} · {a.readMinutes} min</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{a.summary}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {a.tags.slice(0, 3).map((t) => (
+                      <Badge key={t} variant="secondary" className="text-[10px]">#{t}</Badge>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
