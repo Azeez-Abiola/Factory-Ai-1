@@ -29,6 +29,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
     items: [
       { to: "/admin/rules", icon: ShieldCheck, label: "Rules & Policy" },
       { to: "/admin/escalation", icon: Timer, label: "Escalation Policies" },
+      { to: "/admin/notifications", icon: Bell, label: "Notifications" },
       { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
       { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
       { to: "/admin/settings", icon: Settings2, label: "Settings" },
