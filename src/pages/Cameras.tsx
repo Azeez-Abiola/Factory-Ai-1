@@ -371,7 +371,7 @@ const HealthTile = ({ icon: Icon, label, value, tone }: { icon: any; label: stri
   );
 };
 
-const CameraTile = ({ cam, onOpen, now, focus }: { cam: Camera; onOpen: () => void; now: Date; focus: boolean }) => {
+const CameraTile = ({ cam, onOpen, now, focus }: { cam: LiveCamera; onOpen: () => void; now: Date; focus: boolean }) => {
   const config = statusConfig[cam.status];
   return (
     <div
