@@ -944,6 +944,74 @@ const Help = () => {
         />
       </div>
 
+      </div>
+
+      {/* Compliance Standards Matrix */}
+      {showMatrix && (
+        <div className="glass rounded-2xl border border-border p-5 md:p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-5 h-5 text-primary" />
+                <h2 className="font-display text-lg md:text-xl font-semibold">Global Compliance Standards Matrix</h2>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-3xl">
+                Per-module mapping to OSHA (29 CFR 1904/1910), ISO 45001 / 9001 / 27001 / 55000, and SOC 2 Trust Services Criteria — with retention windows and audit-trail completeness. Use this checklist during internal audits, SOC 2 walkthroughs, or ISO 45001 certification prep.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-[11px]">
+              {(["covered","partial","gap"] as ComplianceStatus[]).map((s) => (
+                <span key={s} className="flex items-center gap-1.5">
+                  <span className={cn("inline-block w-2.5 h-2.5 rounded-full", s === "covered" ? "bg-success" : s === "partial" ? "bg-warning" : "bg-destructive")} />
+                  {statusMeta[s].label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Module</th>
+                  <th className="text-left px-3 py-2 font-medium">OSHA</th>
+                  <th className="text-left px-3 py-2 font-medium">ISO</th>
+                  <th className="text-left px-3 py-2 font-medium">SOC 2</th>
+                  <th className="text-left px-3 py-2 font-medium">Retention</th>
+                  <th className="text-left px-3 py-2 font-medium">Audit Trail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {complianceMatrix.map((row) => (
+                  <tr key={row.module} className="border-t border-border align-top hover:bg-muted/20">
+                    <td className="px-3 py-2.5">
+                      <Link to={row.route} className="font-semibold text-foreground hover:text-primary transition-colors">
+                        {row.module}
+                      </Link>
+                      <div className="text-[11px] text-muted-foreground font-mono">{row.route}</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.osha}</td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.iso}</td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.soc2}</td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.retention}</td>
+                    <td className="px-3 py-2.5">
+                      <Badge variant="outline" className={cn("text-[10px] mb-1", statusMeta[row.auditTrail].className)}>
+                        {statusMeta[row.auditTrail].label}
+                      </Badge>
+                      <div className="text-[11px] text-muted-foreground leading-snug">{row.auditNotes}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-[11px] text-muted-foreground flex flex-wrap gap-4">
+            <span>Sources: OSHA 29 CFR Parts 1904 & 1910 · ISO 45001:2018 · ISO 9001:2015 · ISO 27001:2022 · ISO 55000 · AICPA SOC 2 (2017 TSC).</span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Sidebar categories */}
         <aside className="space-y-1 lg:sticky lg:top-20 self-start">
