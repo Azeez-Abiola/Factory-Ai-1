@@ -423,10 +423,18 @@ const FeedInner = ({ cam, now, large = false }: { cam: LiveCamera; now: Date; la
   const showLive = cam.isLive && cam.streamUrl;
   return (
     <>
-      <div className="absolute inset-0 grid-bg opacity-20" />
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="w-full h-px bg-primary/40 animate-scan-line" />
-      </div>
+      {showLive ? (
+        <div className="absolute inset-0">
+          <LiveFeed url={cam.streamUrl!} type={cam.streamType ?? "hls"} />
+        </div>
+      ) : (
+        <>
+          <div className="absolute inset-0 grid-bg opacity-20" />
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="w-full h-px bg-primary/40 animate-scan-line" />
+          </div>
+        </>
+      )}
 
       {cam.detections > 0 && (
         <>
