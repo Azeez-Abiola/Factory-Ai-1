@@ -301,7 +301,7 @@ const Cameras = () => {
 
               <div className="space-y-4">
                 <div className="relative h-80 bg-muted/30 rounded-lg overflow-hidden border border-border">
-                  <FeedInner cam={selected} now={now} large />
+                  <FeedInner cam={selected} now={now} large audioOn={audioOn} />
                 </div>
 
                 {/* Telemetry */}
