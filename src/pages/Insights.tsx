@@ -34,10 +34,21 @@ const Insights = () => {
   const [filterImpact, setFilterImpact] = useState("all");
   const [timeRange, setTimeRange] = useState("7d");
 
+  const latestGeneratedAt = useMemo(
+    () => mockInsights.reduce((max, i) => (i.generatedAt > max ? i.generatedAt : max), mockInsights[0]?.generatedAt ?? ""),
+    []
+  );
+
   const filtered = useMemo(() => {
     let result = [...mockInsights];
     if (filterCategory !== "all") result = result.filter((i) => i.category === filterCategory);
     if (filterImpact !== "all") result = result.filter((i) => i.impact === filterImpact);
+    // Time range is measured backwards from the latest insight so seed/live data both filter meaningfully.
+    if (latestGeneratedAt) {
+      const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
+      const cutoff = new Date(latestGeneratedAt).getTime() - days * 86_400_000;
+      result = result.filter((i) => new Date(i.generatedAt).getTime() >= cutoff);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -48,7 +59,11 @@ const Insights = () => {
       );
     }
     return result;
-  }, [search, filterCategory, filterImpact]);
+  }, [search, filterCategory, filterImpact, timeRange, latestGeneratedAt]);
+
+  const clearFilters = () => {
+    setSearch(""); setFilterCategory("all"); setFilterImpact("all"); setTimeRange("90d");
+  };
 
   return (
     <div className="space-y-6">
@@ -58,9 +73,11 @@ const Insights = () => {
         title="AI Insights"
         description={`${filtered.length} insight${filtered.length !== 1 ? "s" : ""} · ${timeRange === "7d" ? "Last 7 days" : timeRange === "30d" ? "Last 30 days" : "Last 90 days"} — patterns detected across the factory.`}
         actions={
-          <Badge variant="outline" className="text-xs gap-1">
-            <Brain className="w-3 h-3" /> Generated Mar 27, 2026
-          </Badge>
+          latestGeneratedAt ? (
+            <Badge variant="outline" className="text-xs gap-1">
+              <Brain className="w-3 h-3" /> Updated {new Date(latestGeneratedAt).toLocaleDateString()}
+            </Badge>
+          ) : null
         }
       />
 
