@@ -406,7 +406,7 @@ const CameraTile = ({ cam, onOpen, now, focus, audioOn }: { cam: LiveCamera; onO
   );
 };
 
-const FeedInner = ({ cam, now, large = false }: { cam: LiveCamera; now: Date; large?: boolean }) => {
+const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
   if (cam.status !== "online") {
@@ -422,11 +422,15 @@ const FeedInner = ({ cam, now, large = false }: { cam: LiveCamera; now: Date; la
     );
   }
   const showLive = cam.isLive && cam.streamUrl;
+  // Only unmute where the operator can actually attend to the audio:
+  // the selected-camera dialog (`large`) or the single-camera focused wall (`tileFocus`).
+  // Requires the camera itself to be configured with audio_enabled.
+  const canPlayAudio = audioOn && !!cam.audioEnabled && (large || tileFocus);
   return (
     <>
       {showLive ? (
         <div className="absolute inset-0">
-          <LiveFeed url={cam.streamUrl!} type={cam.streamType ?? "hls"} />
+          <LiveFeed url={cam.streamUrl!} type={cam.streamType ?? "hls"} muted={!canPlayAudio} />
         </div>
       ) : (
         <>
