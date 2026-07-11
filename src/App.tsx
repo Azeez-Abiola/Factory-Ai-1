@@ -35,6 +35,7 @@ import TenantDetail from "./pages/admin/TenantDetail.tsx";
 import AuditDetail from "./pages/admin/AuditDetail.tsx";
 import CameraConfig from "./pages/admin/CameraConfig.tsx";
 import RulesPolicy from "./pages/admin/RulesPolicy.tsx";
+import EscalationPolicies from "./pages/admin/EscalationPolicies.tsx";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,7 @@ const App = () => (
               <Route path="audit-log/:auditId" element={<AuditDetail />} />
               <Route path="cameras" element={<CameraConfig />} />
               <Route path="rules" element={<RulesPolicy />} />
+              <Route path="escalation" element={<EscalationPolicies />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

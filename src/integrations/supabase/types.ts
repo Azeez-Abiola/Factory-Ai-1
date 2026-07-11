@@ -254,6 +254,47 @@ export type Database = {
           },
         ]
       }
+      escalation_policies: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          supervisor_ids: string[]
+          tenant_id: string
+          timeout_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          supervisor_ids?: string[]
+          tenant_id: string
+          timeout_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          supervisor_ids?: string[]
+          tenant_id?: string
+          timeout_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_policies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidents: {
         Row: {
           alert_id: string | null
@@ -261,7 +302,10 @@ export type Database = {
           closed_at: string | null
           created_at: string
           created_by: string | null
+          escalation_level: number
           id: string
+          last_escalated_at: string | null
+          next_escalation_at: string | null
           notes: string | null
           opened_at: string
           severity: string | null
@@ -277,7 +321,10 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          escalation_level?: number
           id?: string
+          last_escalated_at?: string | null
+          next_escalation_at?: string | null
           notes?: string | null
           opened_at?: string
           severity?: string | null
@@ -293,7 +340,10 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           created_by?: string | null
+          escalation_level?: number
           id?: string
+          last_escalated_at?: string | null
+          next_escalation_at?: string | null
           notes?: string | null
           opened_at?: string
           severity?: string | null
