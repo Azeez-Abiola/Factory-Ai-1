@@ -229,9 +229,10 @@ const Cameras = () => {
         <Button
           size="sm" variant="outline" onClick={() => setAudioOn((v) => !v)}
           className={cn("h-9 gap-1.5", audioOn && "border-primary/40 text-primary")}
-          title="Play chime on new detection"
+          title="Enable live audio on the focused/selected camera (only cameras with audio configured will emit sound)"
         >
           {audioOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{audioOn ? "Audio on" : "Audio"}</span>
         </Button>
 
         <Button size="sm" variant="outline" onClick={toggleFullscreen} className="h-9 gap-1.5" title="Toggle wall fullscreen (F)">
