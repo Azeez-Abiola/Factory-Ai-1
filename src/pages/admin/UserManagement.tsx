@@ -160,7 +160,7 @@ const UserManagement = () => {
     if (!confirm("Remove this member from the tenant?")) return;
     const { error } = await supabase.from("tenant_members").delete().eq("id", memberId);
     if (error) return toast.error(error.message);
-    await logAudit({ tenant_id: activeTenantId!, action: "member.removed", entity_type: "tenant_member", entity_id: userId });
+    await auditLog({ tenantId: activeTenantId, action: "member.removed", entityType: "tenant_member", entityId: userId });
     toast.success("Member removed");
     load();
   };
