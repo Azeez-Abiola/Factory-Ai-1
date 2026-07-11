@@ -95,6 +95,7 @@ const App = () => (
               <Route path="cameras" element={<CameraConfig />} />
               <Route path="rules" element={<RulesPolicy />} />
               <Route path="escalation" element={<EscalationPolicies />} />
+              <Route path="notifications" element={<NotificationSettings />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
