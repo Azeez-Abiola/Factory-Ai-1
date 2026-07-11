@@ -109,7 +109,7 @@ const ShiftReports = () => {
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="w-4 h-4 mr-2" /> Create Report
             </Button>
-            <Button variant="outline" className="border-border" onClick={() => toast.success("Exporting shift reports...")}>
+            <Button variant="outline" className="border-border" onClick={handleExportAll}>
               <FileText className="w-4 h-4 mr-2" /> Export All
             </Button>
           </>
@@ -161,8 +161,11 @@ const ShiftReports = () => {
         {filtered.map((report) => (
           <div
             key={report.id}
+            role="button"
+            tabIndex={0}
             onClick={() => setSelectedReport(report)}
-            className="glass rounded-xl p-5 border border-border hover:border-primary/30 cursor-pointer transition-all"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedReport(report); } }}
+            className="glass rounded-xl p-5 border border-border hover:border-primary/30 cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
