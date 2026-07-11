@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
   Factory, ChevronLeft, ChevronRight, ArrowLeft,
-  ScrollText, Rocket, Settings2, Target, Camera, ShieldCheck, Timer, Bell
+  ScrollText, Rocket, Settings2, Target, Camera, ShieldCheck, Timer, Bell, Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
     items: [
       { to: "/admin/system", icon: Activity, label: "System Monitoring" },
       { to: "/admin/cameras", icon: Camera, label: "IP Cameras & AI" },
+      { to: "/admin/ai-config", icon: Sparkles, label: "AI Model & Categories" },
       { to: "/admin/kpi-config", icon: Target, label: "KPI & OKRs" },
     ],
   },

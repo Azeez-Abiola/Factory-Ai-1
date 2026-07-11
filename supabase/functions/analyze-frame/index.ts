@@ -1,31 +1,44 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
   cameraName?: string;
   zone?: string;
-  aiModels?: string[];    // e.g. ["ppe", "intrusion", "downtime", "quality"]
+  aiModels?: string[];    // legacy — kept for backward compatibility
+  categories?: string[];  // preferred — override active categories for this call
   context?: string;
+  tenantId?: string;      // if provided, tenant-specific config is loaded
 }
 
-const SYSTEM_PROMPT = `You are an industrial vision safety analyst for a factory floor monitoring platform.
+const DEFAULT_CATEGORIES = [
+  { id: "ppe",          label: "PPE Compliance",       description: "hard hats, hi-vis vests, gloves, goggles, hearing/respiratory protection" },
+  { id: "intrusion",    label: "Restricted Zone Entry",description: "unauthorized personnel in cordoned or hazardous areas" },
+  { id: "downtime",     label: "Machine Downtime",     description: "idle machinery, stalled lines, missing operators at stations" },
+  { id: "ergonomics",   label: "Ergonomic Risk",       description: "unsafe lifts, awkward postures, repetitive strain indicators" },
+  { id: "quality",      label: "Quality / Defect",     description: "visible defects, misalignment, damaged product, packaging errors" },
+  { id: "housekeeping", label: "Housekeeping",         description: "spills, obstructions, blocked exits, poor 5S" },
+  { id: "forklift",     label: "Forklift / Pedestrian",description: "pedestrian in forklift zone, no spotter, unsafe speed" },
+];
+
+const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision safety analyst for a factory floor monitoring platform.
 Analyze the provided camera frame and return a STRICT JSON object with this schema:
 {
-  "summary": string,                       // one-line description of the scene
-  "risk_score": number,                    // 0-100 (higher = more risk)
+  "summary": string,
+  "risk_score": number,
   "severity": "low"|"medium"|"high"|"critical",
-  "detections": [
-    { "label": string, "confidence": number, "bbox_hint": string }
-  ],
-  "safety_violations": [
-    { "type": string, "description": string, "severity": "low"|"medium"|"high"|"critical" }
-  ],
+  "detections": [ { "label": string, "confidence": number, "bbox_hint": string } ],
+  "safety_violations": [ { "type": string, "description": string, "severity": "low"|"medium"|"high"|"critical" } ],
   "productivity_notes": string[],
   "recommended_actions": string[]
 }
-Focus on: PPE compliance (hard hats, vests, gloves, goggles), restricted zone entry,
-machine idle/downtime signals, ergonomic risks, quality/defect indicators, housekeeping (spills, obstructions).
 Return ONLY the JSON object — no markdown, no prose.`;
+
+function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
+  if (!categories.length) return base;
+  const focus = categories.map((c) => `• ${c.label}: ${c.description}`).join("\n");
+  return `${base}\n\nActive detection categories (focus your attention here):\n${focus}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -45,10 +58,46 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Load tenant-specific configuration if a tenantId was provided.
+    let systemPrompt = DEFAULT_SYSTEM_PROMPT;
+    let model = "google/gemini-2.5-pro";
+    let categories = DEFAULT_CATEGORIES;
+
+    if (body.tenantId) {
+      try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        const { data } = await supabase
+          .from("ai_analysis_config")
+          .select("system_prompt, model, categories")
+          .eq("tenant_id", body.tenantId)
+          .maybeSingle();
+        if (data) {
+          if (data.system_prompt && data.system_prompt.trim().length > 20) systemPrompt = data.system_prompt;
+          if (data.model) model = data.model;
+          if (Array.isArray(data.categories) && data.categories.length) {
+            categories = data.categories.filter((c: any) => c?.enabled !== false);
+          }
+        }
+      } catch (e) {
+        console.warn("failed to load tenant ai_analysis_config", (e as Error).message);
+      }
+    }
+
+    // Category filter from request (subset of active ids)
+    const filter = body.categories ?? body.aiModels;
+    if (filter && filter.length) {
+      categories = categories.filter((c) => filter.includes(c.id));
+    }
+
+    const finalSystemPrompt = buildSystemPrompt(systemPrompt, categories);
+
     const userText = [
       `Camera: ${body.cameraName ?? "Unknown"}`,
       `Zone: ${body.zone ?? "Unknown"}`,
-      `Active AI models: ${(body.aiModels ?? ["ppe", "intrusion", "downtime", "quality"]).join(", ")}`,
+      `Active categories: ${categories.map((c) => c.id).join(", ") || "all"}`,
       body.context ? `Additional context: ${body.context}` : "",
       "Analyze this frame and return the JSON per schema.",
     ].filter(Boolean).join("\n");
@@ -60,9 +109,9 @@ Deno.serve(async (req) => {
         "Lovable-API-Key": key,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: finalSystemPrompt },
           { role: "user", content: [
             { type: "text", text: userText },
             { type: "image_url", image_url: { url: body.imageUrl } },
@@ -86,12 +135,11 @@ Deno.serve(async (req) => {
     let analysis: unknown = null;
     try { analysis = JSON.parse(cleaned); }
     catch {
-      // Fallback: try to find first {...} block
       const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) { try { analysis = JSON.parse(match[0]); } catch { /* noop */ } }
     }
 
-    return new Response(JSON.stringify({ analysis, raw }), {
+    return new Response(JSON.stringify({ analysis, raw, model, categories: categories.map((c) => c.id) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

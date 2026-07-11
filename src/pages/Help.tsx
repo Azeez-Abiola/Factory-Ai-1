@@ -801,10 +801,56 @@ const BlockRenderer = ({ block }: { block: Block }) => {
 // Main Help page
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Global Compliance Standards Matrix (per module)
+// ---------------------------------------------------------------------------
+
+type ComplianceStatus = "covered" | "partial" | "gap";
+
+interface ComplianceRow {
+  module: string;
+  route: string;
+  osha: string;
+  iso: string;
+  soc2: string;
+  retention: string;
+  auditTrail: ComplianceStatus;
+  auditNotes: string;
+}
+
+const complianceMatrix: ComplianceRow[] = [
+  { module: "Alerts",              route: "/app/alerts",         osha: "29 CFR 1910.132 (PPE), 1910.147 (LOTO)", iso: "ISO 45001 §8.2 (Emergency)",           soc2: "CC7.2 System Monitoring", retention: "365 days hot / 7 yrs cold",     auditTrail: "covered", auditNotes: "Every ack/assign/resolve appended to audit_log with AUD-id." },
+  { module: "Incidents",           route: "/app/incidents",      osha: "29 CFR 1904 (Recordkeeping)",           iso: "ISO 45001 §10.2 (Incident Invest.)",   soc2: "CC7.4, CC7.5 Incident Response", retention: "7 yrs (OSHA 1904.33)",        auditTrail: "covered", auditNotes: "Timeline links alerts, tasks, status changes to audit records." },
+  { module: "Resolution Tasks",    route: "/app/incidents",      osha: "29 CFR 1910 (Corrective actions)",      iso: "ISO 9001 §10.2 (Nonconformity)",       soc2: "CC7.4 Remediation",       retention: "3 yrs after close",             auditTrail: "covered", auditNotes: "Assignment, reassignment, completion all logged." },
+  { module: "Cameras & Live Feed", route: "/app/cameras",        osha: "29 CFR 1910.132(d) (Hazard assess.)",   iso: "ISO 45001 §6.1.2 (Hazard ID)",         soc2: "CC6.1 Logical Access",    retention: "30-90 days video (configurable)", auditTrail: "partial", auditNotes: "Config changes audited; frame retention depends on gateway policy." },
+  { module: "AI Insights",         route: "/app/insights",       osha: "General Duty Clause §5(a)(1)",           iso: "ISO 45001 §9.1 (Performance eval.)",   soc2: "CC4.1 Monitoring Activities", retention: "365 days",                  auditTrail: "covered", auditNotes: "PDF export + tenant-scoped storage; category/model changes audited." },
+  { module: "Reports",             route: "/app/reports",        osha: "29 CFR 1904.35 (Employee involvement)", iso: "ISO 9001 §9.1.3 (Analysis)",           soc2: "CC4.2 Communication",     retention: "7 yrs",                         auditTrail: "covered", auditNotes: "Create/export events logged; PDF & CSV are audit-ready." },
+  { module: "Shift Handover",      route: "/app/shift-reports",  osha: "29 CFR 1910.120(q) (Emergency response)", iso: "ISO 45001 §7.4 (Communication)",     soc2: "CC2.2 Internal comms.",   retention: "3 yrs",                         auditTrail: "covered", auditNotes: "Handover creation, edits, and unresolved-carryover captured." },
+  { module: "Maintenance",         route: "/app/maintenance",    osha: "29 CFR 1910.147 (LOTO)",                iso: "ISO 55000 (Asset Mgmt.), ISO 9001",    soc2: "CC7.1 Change Mgmt.",      retention: "Asset lifetime + 3 yrs",        auditTrail: "covered", auditNotes: "Work orders + MTTR/risk history persisted." },
+  { module: "Rules & Policy",      route: "/admin/rules",        osha: "Cross-cutting (varies by rule)",         iso: "ISO 45001 §5.2 (Policy)",              soc2: "CC5.2 Policy Enforcement", retention: "Version-history retained indefinitely", auditTrail: "covered", auditNotes: "Compile/create/edit/deactivate logged with actor and diff." },
+  { module: "KPI & OKRs",          route: "/admin/kpi-config",   osha: "N/A (management)",                       iso: "ISO 9001 §6.2 (Objectives)",           soc2: "CC4.1 Monitoring",        retention: "Indefinite",                    auditTrail: "covered", auditNotes: "Threshold changes and target edits audited." },
+  { module: "Escalation Policies", route: "/admin/escalation",   osha: "29 CFR 1910.38 (Emergency action)",     iso: "ISO 45001 §8.2 (Emergency prep.)",     soc2: "CC7.4 Response",          retention: "Indefinite (policy versions)",  auditTrail: "covered", auditNotes: "Cron reassignments append to audit_log per hop." },
+  { module: "Notifications",       route: "/admin/notifications",osha: "N/A",                                    iso: "ISO 27001 A.16.1 (Comms.)",            soc2: "CC2.3 External comms.",   retention: "Delivery log 90 days",          auditTrail: "partial", auditNotes: "Preference edits audited; provider delivery receipts in notification_log." },
+  { module: "AI Model & Categories", route: "/admin/ai-config",  osha: "Supports 1910.132 hazard assessments",  iso: "ISO 45001 §6.1.2, ISO 9001",           soc2: "CC7.1 Change Mgmt.",      retention: "Config version history",        auditTrail: "covered", auditNotes: "Prompt/model/category changes captured with actor id." },
+  { module: "Tenants & Users",     route: "/admin",              osha: "N/A",                                    iso: "ISO 27001 A.9 (Access control)",       soc2: "CC6.1, CC6.2, CC6.3",     retention: "Indefinite (membership history)", auditTrail: "covered", auditNotes: "Invitations, role changes, removals all logged." },
+  { module: "Audit Log",           route: "/admin/audit-log",    osha: "29 CFR 1904.33 (Records 5 yrs)",        iso: "ISO 27001 A.12.4 (Logging)",           soc2: "CC7.2, CC7.3 Logging",    retention: "Append-only, ≥7 yrs",           auditTrail: "covered", auditNotes: "Immutable append-only table with tenant-scoped RLS." },
+];
+
+const statusMeta: Record<ComplianceStatus, { label: string; className: string }> = {
+  covered: { label: "Covered",  className: "text-success border-success/40 bg-success/10" },
+  partial: { label: "Partial",  className: "text-warning border-warning/40 bg-warning/10" },
+  gap:     { label: "Gap",      className: "text-destructive border-destructive/40 bg-destructive/10" },
+};
+
+// ---------------------------------------------------------------------------
+// Main Help page
+// ---------------------------------------------------------------------------
+
 const Help = () => {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [openArticle, setOpenArticle] = useState<Article | null>(null);
+  const [showMatrix, setShowMatrix] = useState(false);
 
   const filtered = useMemo(() => {
     let list = articles;
@@ -875,9 +921,14 @@ const Help = () => {
         title="Help & Documentation"
         description={`${articles.length} in-depth articles across ${categories.length} modules — formulas, snapshots, workflows and compliance mapping.`}
         actions={
-          <Link to="/app">
-            <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to App</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setShowMatrix((v) => !v)}>
+              <Shield className="w-4 h-4" /> {showMatrix ? "Hide" : "View"} Standards Matrix
+            </Button>
+            <Link to="/app">
+              <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to App</Button>
+            </Link>
+          </div>
         }
       />
 
@@ -892,6 +943,72 @@ const Help = () => {
           aria-label="Search knowledge base"
         />
       </div>
+
+      {/* Compliance Standards Matrix */}
+      {showMatrix && (
+        <div className="glass rounded-2xl border border-border p-5 md:p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-5 h-5 text-primary" />
+                <h2 className="font-display text-lg md:text-xl font-semibold">Global Compliance Standards Matrix</h2>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-3xl">
+                Per-module mapping to OSHA (29 CFR 1904/1910), ISO 45001 / 9001 / 27001 / 55000, and SOC 2 Trust Services Criteria — with retention windows and audit-trail completeness. Use this checklist during internal audits, SOC 2 walkthroughs, or ISO 45001 certification prep.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-[11px]">
+              {(["covered","partial","gap"] as ComplianceStatus[]).map((s) => (
+                <span key={s} className="flex items-center gap-1.5">
+                  <span className={cn("inline-block w-2.5 h-2.5 rounded-full", s === "covered" ? "bg-success" : s === "partial" ? "bg-warning" : "bg-destructive")} />
+                  {statusMeta[s].label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Module</th>
+                  <th className="text-left px-3 py-2 font-medium">OSHA</th>
+                  <th className="text-left px-3 py-2 font-medium">ISO</th>
+                  <th className="text-left px-3 py-2 font-medium">SOC 2</th>
+                  <th className="text-left px-3 py-2 font-medium">Retention</th>
+                  <th className="text-left px-3 py-2 font-medium">Audit Trail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {complianceMatrix.map((row) => (
+                  <tr key={row.module} className="border-t border-border align-top hover:bg-muted/20">
+                    <td className="px-3 py-2.5">
+                      <Link to={row.route} className="font-semibold text-foreground hover:text-primary transition-colors">
+                        {row.module}
+                      </Link>
+                      <div className="text-[11px] text-muted-foreground font-mono">{row.route}</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.osha}</td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.iso}</td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.soc2}</td>
+                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.retention}</td>
+                    <td className="px-3 py-2.5">
+                      <Badge variant="outline" className={cn("text-[10px] mb-1", statusMeta[row.auditTrail].className)}>
+                        {statusMeta[row.auditTrail].label}
+                      </Badge>
+                      <div className="text-[11px] text-muted-foreground leading-snug">{row.auditNotes}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-[11px] text-muted-foreground flex flex-wrap gap-4">
+            <span>Sources: OSHA 29 CFR Parts 1904 & 1910 · ISO 45001:2018 · ISO 9001:2015 · ISO 27001:2022 · ISO 55000 · AICPA SOC 2 (2017 TSC).</span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Sidebar categories */}
