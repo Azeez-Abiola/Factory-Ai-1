@@ -8,10 +8,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockCameras, Camera } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLiveCameras, LiveCamera } from "@/hooks/useLiveCameras";
+import LiveFeed from "@/components/app/LiveFeed";
 import { toast } from "sonner";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
 import PageHeader from "@/components/app/PageHeader";
