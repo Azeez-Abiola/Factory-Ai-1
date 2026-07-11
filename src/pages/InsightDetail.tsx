@@ -3,8 +3,11 @@ import { useMemo } from "react";
 import {
   ArrowLeft, Brain, TrendingUp, TrendingDown, Minus, Shield, Zap, Eye, DollarSign,
   Sparkles, Calendar, Target, BarChart3, Lightbulb, AlertTriangle, CheckCircle2,
-  Clock, ArrowUpRight, Activity
+  Clock, ArrowUpRight, Activity, Download
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,6 +120,97 @@ const InsightDetail = () => {
   const config = categoryConfig[insight.category];
   const trendColor = insight.trend === "up" ? "text-destructive" : insight.trend === "down" ? "text-success" : "text-foreground";
 
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF({ orientation: "portrait" });
+    const marginX = 14;
+    let y = 18;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const contentWidth = pageWidth - marginX * 2;
+
+    doc.setFontSize(16);
+    doc.setTextColor(30, 41, 59);
+    doc.text("AI Insight Report", marginX, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setTextColor(60);
+    doc.text(insight.title, marginX, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(
+      `${insight.id}  •  ${config.label}  •  ${insight.impact.toUpperCase()} impact  •  ${insight.confidence}% confidence`,
+      marginX, y
+    );
+    y += 5;
+    doc.text(`Generated: ${new Date(insight.generatedAt).toLocaleString()}`, marginX, y);
+    y += 8;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Key Metric", "Value", "Trend"]],
+      body: [[insight.metric, String(insight.metricValue), insight.trend]],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+      margin: { left: marginX, right: marginX },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text("AI Analysis", marginX, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    const descLines = doc.splitTextToSize(insight.description, contentWidth);
+    doc.text(descLines, marginX, y);
+    y += descLines.length * 4.2 + 6;
+
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Recommendation", marginX, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    const recLines = doc.splitTextToSize(insight.recommendation, contentWidth);
+    doc.text(recLines, marginX, y);
+    y += recLines.length * 4.2 + 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Zone", "Incidents"]],
+      body: zoneBreakdown.map((z) => [z.zone, z.incidents]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+      margin: { left: marginX, right: marginX },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Step", "Title", "Status", "Due"]],
+      body: actionSteps.map((s) => [s.step, s.title, s.status, s.dueDate]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [30, 41, 59] },
+      margin: { left: marginX, right: marginX },
+    });
+    y = (doc as any).lastAutoTable.finalY + 6;
+
+    if (relatedAlerts.length) {
+      autoTable(doc, {
+        startY: y,
+        head: [["Alert ID", "Title", "Zone", "Severity", "Timestamp"]],
+        body: relatedAlerts.map((a) => [a.id, a.title, a.zone, a.severity, new Date(a.timestamp).toLocaleString()]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [30, 41, 59] },
+        margin: { left: marginX, right: marginX },
+      });
+    }
+
+    doc.save(`${insight.id}-insight.pdf`);
+    toast.success("Insight PDF downloaded");
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -145,9 +239,14 @@ const InsightDetail = () => {
             </div>
           </div>
 
-          <Badge variant="outline" className="text-xs gap-1 shrink-0">
-            <Calendar className="w-3 h-3" /> Generated {new Date(insight.generatedAt).toLocaleDateString()}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="outline" className="text-xs gap-1">
+              <Calendar className="w-3 h-3" /> Generated {new Date(insight.generatedAt).toLocaleDateString()}
+            </Badge>
+            <Button size="sm" variant="outline" onClick={handleDownloadPDF} className="gap-1">
+              <Download className="w-4 h-4" /> Download PDF
+            </Button>
+          </div>
         </div>
       </div>
 
