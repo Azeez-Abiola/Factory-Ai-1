@@ -921,9 +921,14 @@ const Help = () => {
         title="Help & Documentation"
         description={`${articles.length} in-depth articles across ${categories.length} modules — formulas, snapshots, workflows and compliance mapping.`}
         actions={
-          <Link to="/app">
-            <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to App</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setShowMatrix((v) => !v)}>
+              <Shield className="w-4 h-4" /> {showMatrix ? "Hide" : "View"} Standards Matrix
+            </Button>
+            <Link to="/app">
+              <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to App</Button>
+            </Link>
+          </div>
         }
       />
 
