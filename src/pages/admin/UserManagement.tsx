@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/app/PageHeader";
-import { logAudit } from "@/lib/audit";
+import { auditLog } from "@/lib/audit";
 
 type MemberRole = "owner" | "admin" | "operator" | "viewer";
 
@@ -151,7 +151,7 @@ const UserManagement = () => {
   const changeRole = async (memberId: string, role: MemberRole) => {
     const { error } = await supabase.from("tenant_members").update({ role }).eq("id", memberId);
     if (error) return toast.error(error.message);
-    await logAudit({ tenant_id: activeTenantId!, action: "member.role_changed", entity_type: "tenant_member", entity_id: memberId, metadata: { role } });
+    await auditLog({ tenantId: activeTenantId, action: "member.role_changed", entityType: "tenant_member", entityId: memberId, metadata: { role } });
     toast.success("Role updated");
     load();
   };
