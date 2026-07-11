@@ -1,204 +1,333 @@
-import { useState } from "react";
-import { Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles, Search, Volume2, VolumeX,
+  Maximize2, Minimize2, LayoutGrid, Grid2x2, Grid3x3, Square, Play, Pause,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ZoomIn, ZoomOut,
+  CircleDot, ShieldCheck, ShieldAlert, Activity, Radio
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { mockCameras, Camera } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
 import PageHeader from "@/components/app/PageHeader";
 
+type LayoutKey = "1" | "4" | "9" | "12" | "16";
+
+const layoutConfig: Record<LayoutKey, { cols: string; label: string; icon: any; count: number }> = {
+  "1":  { cols: "grid-cols-1",                                    label: "Focus",   icon: Square,     count: 1 },
+  "4":  { cols: "grid-cols-2",                                    label: "Quad",    icon: Grid2x2,    count: 4 },
+  "9":  { cols: "grid-cols-2 md:grid-cols-3",                     label: "3×3",     icon: Grid3x3,    count: 9 },
+  "12": { cols: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4",      label: "3×4",     icon: LayoutGrid, count: 12 },
+  "16": { cols: "grid-cols-2 md:grid-cols-4",                     label: "4×4",     icon: LayoutGrid, count: 16 },
+};
+
 const statusConfig = {
-  online: { color: "bg-success", icon: Wifi, label: "Online", text: "text-success" },
-  offline: { color: "bg-destructive", icon: WifiOff, label: "Offline", text: "text-destructive" },
-  maintenance: { color: "bg-warning", icon: Wrench, label: "Maintenance", text: "text-warning" },
+  online:      { color: "bg-success",     icon: Wifi,    label: "Online",   text: "text-success",     ring: "ring-success/40" },
+  offline:     { color: "bg-destructive", icon: WifiOff, label: "Offline",  text: "text-destructive", ring: "ring-destructive/40" },
+  maintenance: { color: "bg-warning",     icon: Wrench,  label: "Maint.",   text: "text-warning",     ring: "ring-warning/40" },
+};
+
+// Simulated per-camera telemetry (deterministic from id so it doesn't jitter each render)
+const seed = (id: string) => id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+const telemetryFor = (cam: Camera) => {
+  const s = seed(cam.id);
+  return {
+    fps: cam.status === "online" ? 24 + (s % 8) : 0,
+    latencyMs: cam.status === "online" ? 60 + (s % 90) : null,
+    bitrateKbps: cam.status === "online" ? 1800 + ((s * 13) % 2200) : 0,
+    resolution: (s % 3 === 0 ? "1080p" : s % 3 === 1 ? "4K" : "720p"),
+  };
 };
 
 const Cameras = () => {
   const [selected, setSelected] = useState<Camera | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
-  const [filter, setFilter] = useState<string>("all");
+  const [status, setStatus] = useState<string>("all");
+  const [zone, setZone] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [layout, setLayout] = useState<LayoutKey>("9");
+  const [page, setPage] = useState(0);
+  const [audioOn, setAudioOn] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(false);
+  const [wallFullscreen, setWallFullscreen] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const wallRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const filtered = filter === "all" ? mockCameras : mockCameras.filter((c) => c.status === filter);
-  const online = mockCameras.filter((c) => c.status === "online").length;
+  // Live clock — one interval, drives all overlay timestamps.
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const zones = useMemo(
+    () => Array.from(new Set(mockCameras.map((c) => c.zone))).sort(),
+    []
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return mockCameras.filter((c) => {
+      if (status !== "all" && c.status !== status) return false;
+      if (zone !== "all" && c.zone !== zone) return false;
+      if (q && !`${c.name} ${c.id} ${c.zone} ${c.type}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [status, zone, search]);
+
+  const perPage = layoutConfig[layout].count;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage = Math.min(page, totalPages - 1);
+  const visible = filtered.slice(safePage * perPage, safePage * perPage + perPage);
+
+  // Auto-rotate pages
+  useEffect(() => {
+    if (!autoRotate || totalPages <= 1) return;
+    const t = setInterval(() => setPage((p) => (p + 1) % totalPages), 8000);
+    return () => clearInterval(t);
+  }, [autoRotate, totalPages]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "/") { e.preventDefault(); searchRef.current?.focus(); }
+      if (e.key === "1") setLayout("1");
+      if (e.key === "4") setLayout("4");
+      if (e.key === "9") setLayout("9");
+      if (e.key === "6") setLayout("16");
+      if (e.key === "ArrowRight") setPage((p) => (p + 1) % totalPages);
+      if (e.key === "ArrowLeft") setPage((p) => (p - 1 + totalPages) % totalPages);
+      if (e.key === "f" || e.key === "F") toggleFullscreen();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [totalPages]);
+
+  useEffect(() => {
+    const onFsChange = () => setWallFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      wallRef.current?.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  const counts = useMemo(() => ({
+    total: mockCameras.length,
+    online: mockCameras.filter((c) => c.status === "online").length,
+    offline: mockCameras.filter((c) => c.status === "offline").length,
+    maintenance: mockCameras.filter((c) => c.status === "maintenance").length,
+    detections: mockCameras.reduce((a, c) => a + c.detections, 0),
+  }), []);
+
+  const uptimePct = Math.round((counts.online / counts.total) * 100);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         eyebrow="Vision"
         icon={CameraIcon}
         title="Camera Feeds"
-        description={`${online} of ${mockCameras.length} cameras streaming live across the factory.`}
+        description={`${counts.online} of ${counts.total} cameras streaming • ${counts.detections} active AI detections`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            {["all", "online", "offline", "maintenance"].map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize",
-                  filter === s ? "bg-primary/10 text-primary border border-primary/30" : "bg-card text-muted-foreground border border-border hover:bg-muted"
-                )}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1.5 text-xs">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+              </span>
+              LIVE • {now.toLocaleTimeString()}
+            </Badge>
           </div>
         }
       />
 
-      {/* Camera Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map((cam) => {
-          const config = statusConfig[cam.status];
-          return (
-            <div
-              key={cam.id}
-              onClick={() => setSelected(cam)}
-              className="glass rounded-xl border border-border hover:border-primary/30 cursor-pointer transition-all duration-200 overflow-hidden group"
-            >
-              {/* Camera View */}
-              <div className="relative h-40 bg-muted/30 overflow-hidden">
-                <div className="absolute inset-0 grid-bg opacity-20" />
+      {/* Health strip */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <HealthTile icon={Activity}      label="Fleet Uptime"  value={`${uptimePct}%`}         tone="primary" />
+        <HealthTile icon={ShieldCheck}   label="Online"        value={counts.online}           tone="success" />
+        <HealthTile icon={ShieldAlert}   label="Offline"       value={counts.offline}          tone="destructive" />
+        <HealthTile icon={Wrench}        label="Maintenance"   value={counts.maintenance}      tone="warning" />
+        <HealthTile icon={Radio}         label="AI Detections" value={counts.detections}       tone="primary" />
+      </div>
 
-                {/* Simulated feed */}
-                {cam.status === "online" ? (
-                  <>
-                    {/* Scan line effect */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="w-full h-px bg-primary/40 animate-scan-line" />
-                    </div>
+      {/* Controls bar */}
+      <div className="glass rounded-xl border border-border p-3 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search cameras, zones, IDs…  ( press / )"
+            className="pl-9 h-9 bg-background/60"
+          />
+        </div>
 
-                    {/* AI overlay boxes */}
-                    {cam.detections > 0 && (
-                      <>
-                        <div className="absolute top-6 left-8 w-14 h-12 border border-primary/60 rounded" />
-                        <div className="absolute top-4 left-7 bg-primary/80 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-mono">
-                          {cam.lastDetection}
-                        </div>
-                        {cam.detections > 1 && (
-                          <div className="absolute bottom-12 right-10 w-12 h-10 border border-warning/60 rounded" />
-                        )}
-                      </>
-                    )}
+        <Select value={zone} onValueChange={setZone}>
+          <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Zone" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All zones</SelectItem>
+            {zones.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+          </SelectContent>
+        </Select>
 
-                    {/* Recording indicator */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-destructive animate-pulse-glow" />
-                      <span className="text-[9px] text-destructive font-mono">REC</span>
-                    </div>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="online">Online</SelectItem>
+            <SelectItem value="offline">Offline</SelectItem>
+            <SelectItem value="maintenance">Maintenance</SelectItem>
+          </SelectContent>
+        </Select>
 
-                    {/* Camera ID */}
-                    <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
-                      {cam.id} • {new Date().toLocaleTimeString()}
-                    </div>
-                  </>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <config.icon className={cn("w-6 h-6 mx-auto mb-1", config.text)} />
-                      <p className={cn("text-xs font-mono", config.text)}>{config.label}</p>
-                    </div>
-                  </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5 bg-background/60">
+          {(Object.keys(layoutConfig) as LayoutKey[]).map((k) => {
+            const Icon = layoutConfig[k].icon;
+            return (
+              <button
+                key={k}
+                onClick={() => { setLayout(k); setPage(0); }}
+                title={`${layoutConfig[k].label} (${layoutConfig[k].count} cams)`}
+                aria-pressed={layout === k}
+                className={cn(
+                  "px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-colors",
+                  layout === k ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-muted"
                 )}
-              </div>
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{layoutConfig[k].label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-              {/* Info */}
-              <div className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-sm font-semibold text-foreground truncate">{cam.name}</h3>
-                  <div className={cn("w-2 h-2 rounded-full", config.color)} />
+        <Button
+          size="sm" variant="outline" onClick={() => setAutoRotate((v) => !v)}
+          className={cn("h-9 gap-1.5", autoRotate && "border-primary/40 text-primary")}
+          title="Auto-cycle pages every 8s"
+        >
+          {autoRotate ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{autoRotate ? "Rotating" : "Auto-cycle"}</span>
+        </Button>
+
+        <Button
+          size="sm" variant="outline" onClick={() => setAudioOn((v) => !v)}
+          className={cn("h-9 gap-1.5", audioOn && "border-primary/40 text-primary")}
+          title="Play chime on new detection"
+        >
+          {audioOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+        </Button>
+
+        <Button size="sm" variant="outline" onClick={toggleFullscreen} className="h-9 gap-1.5" title="Toggle wall fullscreen (F)">
+          {wallFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+        </Button>
+      </div>
+
+      {/* Wall */}
+      <div ref={wallRef} className={cn("space-y-3", wallFullscreen && "bg-background p-4")}>
+        {filtered.length === 0 ? (
+          <div className="glass rounded-xl border border-border p-12 text-center">
+            <CameraIcon className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">No cameras match the current filters.</p>
+            <Button variant="link" size="sm" onClick={() => { setSearch(""); setStatus("all"); setZone("all"); }}>Clear filters</Button>
+          </div>
+        ) : (
+          <>
+            <div className={cn("grid gap-3", layoutConfig[layout].cols)}>
+              {visible.map((cam) => (
+                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} />
+              ))}
+              {/* Fill empty slots so grid keeps its shape */}
+              {Array.from({ length: Math.max(0, perPage - visible.length) }).map((_, i) => (
+                <div key={`empty-${i}`} className="rounded-xl border border-dashed border-border/60 min-h-[140px] flex items-center justify-center text-[10px] text-muted-foreground/60">
+                  Empty slot
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{cam.zone}</span>
-                  {cam.detections > 0 && (
-                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
-                      {cam.detections} detection{cam.detections > 1 ? "s" : ""}
-                    </Badge>
-                  )}
+              ))}
+            </div>
+
+            {/* Paginator */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  Showing {safePage * perPage + 1}–{Math.min(filtered.length, safePage * perPage + perPage)} of {filtered.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => setPage((p) => (p - 1 + totalPages) % totalPages)}>
+                    <ChevronLeft className="w-3.5 h-3.5" /> Prev
+                  </Button>
+                  <span className="px-2 font-mono">Page {safePage + 1} / {totalPages}</span>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => setPage((p) => (p + 1) % totalPages)}>
+                    Next <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            )}
+          </>
+        )}
       </div>
 
       {/* Camera Detail Dialog */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="max-w-2xl bg-card border-border">
+        <DialogContent className="max-w-3xl bg-card border-border">
           {selected && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 flex-wrap">
                   <CameraIcon className="w-5 h-5 text-primary" />
                   {selected.name}
                   <Badge variant="outline" className={cn("text-xs", statusConfig[selected.status].text)}>
-                    {selected.status}
+                    {statusConfig[selected.status].label}
                   </Badge>
+                  <span className="text-xs text-muted-foreground font-mono ml-1">{selected.id} • {selected.zone}</span>
                 </DialogTitle>
               </DialogHeader>
+
               <div className="space-y-4">
-                {/* Large camera view */}
-                <div className="relative h-72 bg-muted/30 rounded-lg overflow-hidden border border-border">
-                  <div className="absolute inset-0 grid-bg opacity-20" />
-                  {selected.status === "online" && (
-                    <>
-                      <div className="absolute inset-0 overflow-hidden">
-                        <div className="w-full h-px bg-primary/40 animate-scan-line" />
-                      </div>
-                      {/* Multiple AI detection boxes */}
-                      <div className="absolute top-12 left-16 w-24 h-20 border-2 border-primary/60 rounded">
-                        <div className="absolute -top-5 left-0 bg-primary/80 text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
-                          Worker #1 – PPE ✓
-                        </div>
-                      </div>
-                      {selected.detections > 0 && (
-                        <div className="absolute top-20 right-24 w-20 h-16 border-2 border-destructive/60 rounded">
-                          <div className="absolute -top-5 left-0 bg-destructive/80 text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
-                            {selected.lastDetection}
-                          </div>
-                        </div>
-                      )}
-                      <div className="absolute bottom-16 left-1/3 w-16 h-14 border border-success/50 rounded">
-                        <div className="absolute -top-5 left-0 bg-success/80 text-primary-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
-                          Machine OK
-                        </div>
-                      </div>
-                      <div className="absolute top-2 right-2 flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-destructive animate-pulse-glow" />
-                        <span className="text-[10px] text-destructive font-mono">LIVE</span>
-                      </div>
-                      <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
-                        {selected.id} • {selected.zone} • {new Date().toLocaleString()}
-                      </div>
-                    </>
-                  )}
+                <div className="relative h-80 bg-muted/30 rounded-lg overflow-hidden border border-border">
+                  <FeedInner cam={selected} now={now} large />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div className="glass rounded-lg p-3 border border-border">
-                    <p className="text-xs text-muted-foreground">Camera ID</p>
-                    <p className="font-mono text-foreground">{selected.id}</p>
-                  </div>
-                  <div className="glass rounded-lg p-3 border border-border">
-                    <p className="text-xs text-muted-foreground">Type</p>
-                    <p className="text-foreground">{selected.type}</p>
-                  </div>
-                  <div className="glass rounded-lg p-3 border border-border">
-                    <p className="text-xs text-muted-foreground">Active Detections</p>
-                    <p className="text-foreground">{selected.detections}</p>
-                  </div>
+                {/* Telemetry */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <Telemetry label="Resolution" value={telemetryFor(selected).resolution} />
+                  <Telemetry label="FPS" value={telemetryFor(selected).fps || "—"} />
+                  <Telemetry label="Latency" value={telemetryFor(selected).latencyMs ? `${telemetryFor(selected).latencyMs} ms` : "—"} />
+                  <Telemetry label="Bitrate" value={telemetryFor(selected).bitrateKbps ? `${telemetryFor(selected).bitrateKbps} kbps` : "—"} />
                 </div>
 
-                <div className="flex justify-end">
-                  <Button onClick={() => setAnalyzeOpen(true)} className="gap-2">
-                    <Sparkles className="w-4 h-4" /> Analyze Frame with AI
-                  </Button>
+                {/* PTZ + actions */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground mr-1">PTZ</span>
+                    <PtzBtn icon={ChevronUp}    onClick={() => toast.info("Tilt up sent")} />
+                    <PtzBtn icon={ChevronDown}  onClick={() => toast.info("Tilt down sent")} />
+                    <PtzBtn icon={ChevronLeft}  onClick={() => toast.info("Pan left sent")} />
+                    <PtzBtn icon={ChevronRight} onClick={() => toast.info("Pan right sent")} />
+                    <PtzBtn icon={ZoomIn}       onClick={() => toast.info("Zoom in sent")} />
+                    <PtzBtn icon={ZoomOut}      onClick={() => toast.info("Zoom out sent")} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => toast.success("Snapshot saved to evidence vault")} className="gap-1.5">
+                      <CircleDot className="w-4 h-4" /> Snapshot
+                    </Button>
+                    <Button size="sm" onClick={() => setAnalyzeOpen(true)} className="gap-1.5">
+                      <Sparkles className="w-4 h-4" /> Analyze with AI
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
@@ -217,5 +346,132 @@ const Cameras = () => {
     </div>
   );
 };
+
+// ---------- Sub-components ----------
+
+const HealthTile = ({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string | number; tone: "primary" | "success" | "warning" | "destructive" }) => {
+  const toneMap = {
+    primary: "text-primary bg-primary/10",
+    success: "text-success bg-success/10",
+    warning: "text-warning bg-warning/10",
+    destructive: "text-destructive bg-destructive/10",
+  } as const;
+  return (
+    <div className="glass rounded-xl border border-border p-3 flex items-center gap-3">
+      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", toneMap[tone])}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-lg font-semibold text-foreground leading-tight">{value}</p>
+      </div>
+    </div>
+  );
+};
+
+const CameraTile = ({ cam, onOpen, now, focus }: { cam: Camera; onOpen: () => void; now: Date; focus: boolean }) => {
+  const config = statusConfig[cam.status];
+  return (
+    <div
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}
+      className={cn(
+        "glass rounded-xl border border-border hover:border-primary/40 cursor-pointer transition-all overflow-hidden group focus:outline-none focus-visible:ring-2 ring-primary/40",
+        cam.status === "offline" && "opacity-80"
+      )}
+    >
+      <div className={cn("relative bg-muted/30 overflow-hidden", focus ? "h-[420px]" : "h-40")}>
+        <FeedInner cam={cam} now={now} />
+      </div>
+      <div className="p-2.5">
+        <div className="flex items-center justify-between mb-0.5">
+          <h3 className="text-sm font-semibold text-foreground truncate">{cam.name}</h3>
+          <div className={cn("w-2 h-2 rounded-full", config.color)} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{cam.zone} • {cam.type}</span>
+          {cam.detections > 0 && (
+            <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+              {cam.detections} det.
+            </Badge>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FeedInner = ({ cam, now, large = false }: { cam: Camera; now: Date; large?: boolean }) => {
+  const config = statusConfig[cam.status];
+  const tel = telemetryFor(cam);
+  if (cam.status !== "online") {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 grid-bg opacity-10" />
+        <div className="text-center relative">
+          <config.icon className={cn(large ? "w-10 h-10" : "w-6 h-6", "mx-auto mb-1", config.text)} />
+          <p className={cn("font-mono", large ? "text-sm" : "text-xs", config.text)}>{config.label}</p>
+          <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.id}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="absolute inset-0 grid-bg opacity-20" />
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="w-full h-px bg-primary/40 animate-scan-line" />
+      </div>
+
+      {cam.detections > 0 && (
+        <>
+          <div className={cn("absolute border rounded", large ? "top-14 left-20 w-28 h-24 border-2 border-primary/60" : "top-6 left-8 w-14 h-12 border-primary/60")}>
+            <div className="absolute -top-4 left-0 bg-primary/85 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-mono whitespace-nowrap">
+              {cam.lastDetection}
+            </div>
+          </div>
+          {cam.detections > 1 && (
+            <div className={cn("absolute border rounded", large ? "bottom-20 right-24 w-24 h-20 border-2 border-warning/60" : "bottom-12 right-10 w-12 h-10 border-warning/60")} />
+          )}
+        </>
+      )}
+
+      {/* Corner HUD */}
+      <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-mono text-primary/90 bg-background/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
+        {tel.resolution} • {tel.fps}fps
+      </div>
+      <div className="absolute top-2 right-2 flex items-center gap-1">
+        <div className="w-2 h-2 rounded-full bg-destructive animate-pulse-glow" />
+        <span className="text-[9px] text-destructive font-mono">{large ? "LIVE" : "REC"}</span>
+      </div>
+      <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
+        {cam.id} • {now.toLocaleTimeString()}
+      </div>
+      {tel.latencyMs != null && (
+        <div className="absolute bottom-2 right-2 text-[9px] font-mono text-muted-foreground">
+          {tel.latencyMs}ms
+        </div>
+      )}
+    </>
+  );
+};
+
+const Telemetry = ({ label, value }: { label: string; value: string | number }) => (
+  <div className="glass rounded-lg p-3 border border-border">
+    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+    <p className="text-sm font-semibold text-foreground">{value}</p>
+  </div>
+);
+
+const PtzBtn = ({ icon: Icon, onClick }: { icon: any; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="w-8 h-8 rounded-md border border-border hover:border-primary/40 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+  >
+    <Icon className="w-4 h-4" />
+  </button>
+);
 
 export default Cameras;
