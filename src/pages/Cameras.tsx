@@ -67,14 +67,14 @@ const Cameras = () => {
     return () => clearInterval(t);
   }, []);
 
-  const zones = useMemo(
-    () => Array.from(new Set(mockCameras.map((c) => c.zone))).sort(),
-    []
+  const zones = useMemo<string[]>(
+    () => Array.from(new Set(cameras.map((c) => c.zone))).sort(),
+    [cameras]
   );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return mockCameras.filter((c) => {
+    return cameras.filter((c) => {
       if (status !== "all" && c.status !== status) return false;
       if (zone !== "all" && c.zone !== zone) return false;
       if (q && !`${c.name} ${c.id} ${c.zone} ${c.type}`.toLowerCase().includes(q)) return false;
