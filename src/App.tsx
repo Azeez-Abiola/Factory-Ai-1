@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index.tsx";
 import Auth from "./pages/Auth.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
+import InviteAccept from "./pages/InviteAccept.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AppLayout from "./components/app/AppLayout.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
