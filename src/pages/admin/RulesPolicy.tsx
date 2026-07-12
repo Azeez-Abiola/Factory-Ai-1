@@ -203,10 +203,30 @@ function PolicyDialog({
             </div>
             <div>
               <Label>Category</Label>
-              <Select value={form.category} onValueChange={(v) => setForm(f => ({ ...f, category: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
+              {form.category === "__custom__" || (form.category && !CATEGORIES.includes(form.category)) ? (
+                <div className="flex gap-1.5">
+                  <Input
+                    autoFocus
+                    value={form.category === "__custom__" ? "" : form.category}
+                    onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
+                    placeholder="e.g. ergonomics"
+                  />
+                  <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0"
+                    onClick={() => setForm(f => ({ ...f, category: "safety" }))}
+                    title="Use preset list">
+                    <ListTree className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Select value={form.category} onValueChange={(v) => setForm(f => ({ ...f, category: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    <SelectItem value="__custom__">+ Custom category…</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1">Presets from best-practice taxonomy; custom values are stored per-policy.</p>
             </div>
           </div>
           <div>
