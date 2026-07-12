@@ -423,7 +423,7 @@ const Onboarding = () => {
                 <Select value={inviteRole} onValueChange={setInviteRole}>
                   <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="tenant_admin">Tenant Admin</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="operator">Operator</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
                   </SelectContent>
