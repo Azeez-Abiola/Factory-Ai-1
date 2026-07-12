@@ -435,18 +435,21 @@ const Onboarding = () => {
               </div>
             </div>
             <div className="space-y-2">
-              {[
-                { name: "ravi@company.com", role: "Tenant Admin", status: "Invited" },
-                { name: "priya@company.com", role: "Operator", status: "Invited" },
-              ].map((user, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
+              {pendingInvites.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No invitations queued yet. Add teammates above — they'll be sent when you complete onboarding.</p>
+              ) : pendingInvites.map((inv) => (
+                <div key={inv.email} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-primary" />
-                    <span className="text-sm text-foreground">{user.name}</span>
+                    <span className="text-sm text-foreground">{inv.email}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{user.role}</Badge>
-                    <Badge variant="outline" className="text-xs bg-warning/10 text-warning">{user.status}</Badge>
+                    <Badge variant="outline" className="text-xs capitalize">{inv.role.replace("_", " ")}</Badge>
+                    <Badge variant="outline" className="text-xs bg-warning/10 text-warning">Queued</Badge>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeQueuedInvite(inv.email)}>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -460,7 +463,7 @@ const Onboarding = () => {
         <Button
           variant="outline"
           onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-          disabled={currentStep === 0}
+          disabled={currentStep === 0 || submitting}
           className="gap-2"
         >
           <ChevronLeft className="w-4 h-4" /> Back
@@ -470,8 +473,8 @@ const Onboarding = () => {
             Next <ArrowRight className="w-4 h-4" />
           </Button>
         ) : (
-          <Button onClick={handleComplete} className="gap-2 bg-success hover:bg-success/90 text-primary-foreground">
-            <CheckCircle className="w-4 h-4" /> Complete Onboarding
+          <Button onClick={handleComplete} disabled={submitting} className="gap-2 bg-success hover:bg-success/90 text-primary-foreground">
+            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning…</> : <><CheckCircle className="w-4 h-4" /> Complete Onboarding</>}
           </Button>
         )}
       </div>
