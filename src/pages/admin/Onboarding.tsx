@@ -36,11 +36,16 @@ const defaultCameras: CameraEntry[] = [
 const RTSP_RE = /^rtsp:\/\/[^\s]+$/i;
 
 const Onboarding = () => {
+  const { user } = useAuth();
+  const { reload: reloadTenants, setActiveTenantId } = useTenants();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [cameras, setCameras] = useState<CameraEntry[]>(defaultCameras);
   const [addCameraOpen, setAddCameraOpen] = useState(false);
   const [newCameraName, setNewCameraName] = useState("");
   const [newCameraUrl, setNewCameraUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<{ email: string; role: string }[]>([]);
 
   // Org details
   const [companyName, setCompanyName] = useState("");
@@ -52,9 +57,73 @@ const Onboarding = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("operator");
 
-  const handleComplete = () => {
-    toast.success("Tenant onboarding complete! The new factory is now active.", { duration: 4000 });
-    setCurrentStep(0);
+  const slugify = (s: string) =>
+    s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40) || `tenant-${Date.now()}`;
+
+  const handleComplete = async () => {
+    if (!companyName.trim() || !industry || !plan) {
+      toast.error("Complete Organization details (name, industry, plan) before finishing.");
+      setCurrentStep(0);
+      return;
+    }
+    if (!user?.id) {
+      toast.error("You must be signed in to complete onboarding.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // 1. Create tenant
+      const { data: tenant, error: tErr } = await supabase.from("tenants").insert({
+        name: companyName.trim(),
+        slug: slugify(companyName),
+        industry,
+        plan,
+        status: "active",
+        address: address || null,
+        created_by: user.id,
+      }).select().single();
+      if (tErr || !tenant) throw tErr ?? new Error("Tenant creation failed");
+
+      // 2. Add creator as owner
+      await supabase.from("tenant_members").insert({
+        tenant_id: tenant.id, user_id: user.id, role: "owner",
+      });
+
+      // 3. Cameras
+      if (cameras.length) {
+        await supabase.from("cameras").insert(cameras.map((c) => ({
+          tenant_id: tenant.id,
+          name: c.name,
+          stream_url: c.rtspUrl,
+          stream_type: "rtsp",
+          status: "offline",
+        })));
+      }
+
+      // 4. Invitations
+      if (pendingInvites.length) {
+        await supabase.from("tenant_invitations").insert(pendingInvites.map((i) => ({
+          tenant_id: tenant.id, email: i.email, role: i.role, invited_by: user.id,
+        })));
+      }
+
+      await auditLog({
+        tenantId: tenant.id, action: "tenant.onboarded", entityType: "tenant", entityId: tenant.id,
+        metadata: { cameras: cameras.length, invites: pendingInvites.length, plan, industry },
+      });
+
+      await reloadTenants();
+      setActiveTenantId(tenant.id);
+      toast.success(`${tenant.name} is live · ${cameras.length} cameras · ${pendingInvites.length} invites sent`, { duration: 4500 });
+      setCurrentStep(0);
+      setCompanyName(""); setIndustry(""); setPlan(""); setAddress("");
+      setCameras(defaultCameras); setPendingInvites([]);
+      navigate(`/admin/tenants/${tenant.id}`);
+    } catch (e: any) {
+      toast.error("Onboarding failed: " + (e?.message ?? "unknown error"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleAddCamera = () => {
