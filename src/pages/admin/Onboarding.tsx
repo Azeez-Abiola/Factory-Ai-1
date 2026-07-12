@@ -154,13 +154,22 @@ const Onboarding = () => {
   };
 
   const handleInvite = () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error("Enter a valid email address");
       return;
     }
-    toast.success(`Invitation drafted for ${inviteEmail} as ${inviteRole}`);
+    if (pendingInvites.some((i) => i.email === email)) {
+      toast.info("Already queued");
+      return;
+    }
+    setPendingInvites((p) => [...p, { email, role: inviteRole }]);
+    toast.success(`Invitation queued for ${email} as ${inviteRole}`);
     setInviteEmail("");
   };
+
+  const removeQueuedInvite = (email: string) =>
+    setPendingInvites((p) => p.filter((i) => i.email !== email));
 
   return (
     <div className="space-y-6">
