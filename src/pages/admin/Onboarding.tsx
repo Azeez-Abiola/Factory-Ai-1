@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail } from "lucide-react";
+import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,11 @@ import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import FieldLabel from "@/components/forms/FieldLabel";
 import AddressFields from "@/components/forms/AddressFields";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useTenants } from "@/hooks/useTenants";
+import { auditLog } from "@/lib/audit";
+import { useNavigate } from "react-router-dom";
 
 const stepIcons = [Building2, Camera, MapPin, Bell, Users];
 
