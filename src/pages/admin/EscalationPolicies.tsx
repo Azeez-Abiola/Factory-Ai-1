@@ -37,12 +37,17 @@ export default function EscalationPolicies() {
     setLoading(true);
     const [{ data: pol }, { data: mem }] = await Promise.all([
       supabase.from("escalation_policies").select("*").eq("tenant_id", activeTenantId).order("created_at"),
-      supabase.from("tenant_members").select("user_id, role, profiles(display_name)").eq("tenant_id", activeTenantId),
+      supabase.from("tenant_members").select("user_id, role").eq("tenant_id", activeTenantId),
     ]);
+    const userIds = (mem ?? []).map((m: any) => m.user_id);
+    const { data: profs } = userIds.length
+      ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
+      : { data: [] as { id: string; display_name: string | null }[] };
+    const nameById = new Map((profs ?? []).map((p: any) => [p.id, p.display_name]));
     setPolicies((pol ?? []) as Policy[]);
     setMembers(((mem ?? []) as any[]).map((m) => ({
       user_id: m.user_id, role: m.role,
-      display_name: m.profiles?.display_name ?? null,
+      display_name: nameById.get(m.user_id) ?? null,
     })));
     setLoading(false);
   };
