@@ -513,6 +513,7 @@ function AlertRuleDialog({
 
 // ── Main Page ──
 const RulesPolicy = () => {
+  const { activeTenantId } = useTenants();
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -524,6 +525,37 @@ const RulesPolicy = () => {
   const [tplSearch, setTplSearch] = useState("");
   const [tplCategory, setTplCategory] = useState<string>("all");
   const [tab, setTab] = useState<string>("policies");
+  const [catSearch, setCatSearch] = useState("");
+  const [renaming, setRenaming] = useState<{ old: string; next: string } | null>(null);
+  const [savingRename, setSavingRename] = useState(false);
+
+  // Merged category list: presets + any custom ones already in use.
+  const allCategories = useMemo(() => {
+    const set = new Set<string>(PRESET_CATEGORIES);
+    policies.forEach(p => p.category && set.add(p.category));
+    return Array.from(set).sort();
+  }, [policies]);
+
+  const categoryStats = useMemo(() => {
+    const counts = new Map<string, { policies: number; enabled: number }>();
+    allCategories.forEach(c => counts.set(c, { policies: 0, enabled: 0 }));
+    policies.forEach(p => {
+      const entry = counts.get(p.category) ?? { policies: 0, enabled: 0 };
+      entry.policies += 1;
+      if (p.enabled) entry.enabled += 1;
+      counts.set(p.category, entry);
+    });
+    return Array.from(counts.entries()).map(([name, s]) => ({
+      name,
+      isPreset: PRESET_CATEGORIES.includes(name),
+      ...s,
+    }));
+  }, [allCategories, policies]);
+
+  const filteredCategories = useMemo(() => {
+    const q = catSearch.trim().toLowerCase();
+    return categoryStats.filter(c => !q || c.name.toLowerCase().includes(q));
+  }, [categoryStats, catSearch]);
 
   const filteredTemplates = useMemo(() => {
     const q = tplSearch.trim().toLowerCase();
