@@ -118,8 +118,8 @@ const Tenants = () => {
     const children = getChildren(tenant.id);
     const parent = tenants.find((p) => p.id === tenant.parent_id);
     return (
-      <>
-        <TableRow key={tenant.id} className="border-border cursor-pointer hover:bg-muted/30 transition-colors"
+      <React.Fragment key={tenant.id}>
+        <TableRow className="border-border cursor-pointer hover:bg-muted/30 transition-colors"
           onClick={() => navigate(`/admin/tenants/${tenant.id}`)}>
           <TableCell>
             <div className={cn("flex items-center gap-3", isChild && "pl-6")}>
@@ -159,7 +159,7 @@ const Tenants = () => {
           </TableCell>
         </TableRow>
         {children.map((c) => renderRow(c, true))}
-      </>
+      </React.Fragment>
     );
   };
 
