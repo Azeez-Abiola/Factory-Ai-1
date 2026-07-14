@@ -206,12 +206,12 @@ function PolicyDialog({
             </div>
             <div>
               <Label>Category</Label>
-              {form.category === "__custom__" || (form.category && !CATEGORIES.includes(form.category)) ? (
+              {form.category === "__custom__" || (form.category && !categories.includes(form.category)) ? (
                 <div className="flex gap-1.5">
                   <Input
                     autoFocus
                     value={form.category === "__custom__" ? "" : form.category}
-                    onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
+                    onChange={(e) => setForm(f => ({ ...f, category: e.target.value.toLowerCase().replace(/\s+/g, "-") }))}
                     placeholder="e.g. ergonomics"
                   />
                   <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0"
@@ -224,7 +224,7 @@ function PolicyDialog({
                 <Select value={form.category} onValueChange={(v) => setForm(f => ({ ...f, category: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     <SelectItem value="__custom__">+ Custom category…</SelectItem>
                   </SelectContent>
                 </Select>
