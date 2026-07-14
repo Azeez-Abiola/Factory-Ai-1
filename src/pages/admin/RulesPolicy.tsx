@@ -69,13 +69,14 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, seed, onSaved,
+  open, onOpenChange, editing, seed, onSaved, categories,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing?: Policy | null;
   seed?: PolicyTemplate | null;
   onSaved: () => void;
+  categories: string[];
 }) {
   const [form, setForm] = useState({
     name: "", description: "", natural_language: "",
