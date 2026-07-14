@@ -863,7 +863,125 @@ const RulesPolicy = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Categories */}
+        <TabsContent value="categories" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Tag className="w-5 h-5 text-primary" /> Policy Categories</CardTitle>
+              <CardDescription>
+                Review every category in use across your policies, rename custom ones (updates every linked policy),
+                and reuse them from the "Category" dropdown when authoring a new policy.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={catSearch} onChange={(e) => setCatSearch(e.target.value)} placeholder="Search categories…" className="pl-9" />
+                </div>
+                <Button variant="outline" onClick={() => { setEditingPolicy(null); setSeedTemplate(null); setPolicyDialog(true); }}>
+                  <Plus className="w-4 h-4 mr-1.5" /> New policy with custom category
+                </Button>
+              </div>
+
+              <div className="rounded-lg border border-border divide-y divide-border">
+                <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
+                  <div className="col-span-5">Category</div>
+                  <div className="col-span-2 text-center">Policies</div>
+                  <div className="col-span-2 text-center">Active</div>
+                  <div className="col-span-3 text-right">Actions</div>
+                </div>
+                {filteredCategories.length === 0 && (
+                  <div className="px-4 py-6 text-sm text-muted-foreground text-center">No categories match.</div>
+                )}
+                {filteredCategories.map((c) => (
+                  <div key={c.name} className="grid grid-cols-12 gap-2 px-4 py-3 items-center">
+                    <div className="col-span-5 flex items-center gap-2 min-w-0">
+                      <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-medium truncate">{c.name}</span>
+                      {c.isPreset ? (
+                        <Badge variant="outline" className="text-[10px]"><Star className="w-2.5 h-2.5 mr-1" /> preset</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">custom</Badge>
+                      )}
+                    </div>
+                    <div className="col-span-2 text-center text-sm">{c.policies}</div>
+                    <div className="col-span-2 text-center text-sm">
+                      {c.enabled}<span className="text-muted-foreground">/{c.policies}</span>
+                    </div>
+                    <div className="col-span-3 flex items-center justify-end gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => { setTplCategory(c.name); setTab("policies"); }}
+                        disabled={c.policies === 0} title="View policies">
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRenaming({ old: c.name, next: c.name })}
+                        disabled={c.isPreset || c.policies === 0} title={c.isPreset ? "Preset categories can't be renamed" : "Rename & bulk update"}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Renaming a custom category updates <strong>every policy</strong> referencing it and records an entry in the audit log.
+                Preset categories are locked to keep the best-practice taxonomy consistent across tenants.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <Dialog open={!!renaming} onOpenChange={(v) => { if (!v) setRenaming(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="w-4 h-4 text-primary" /> Rename category</DialogTitle>
+            <DialogDescription>
+              This will update every policy that uses <code className="font-mono text-xs">{renaming?.old}</code>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>New category name</Label>
+              <Input
+                autoFocus
+                value={renaming?.next ?? ""}
+                onChange={(e) => setRenaming(r => r ? { ...r, next: e.target.value.toLowerCase().replace(/\s+/g, "-") } : r)}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Lowercase, hyphenated. Merging into an existing category is allowed.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenaming(null)}>Cancel</Button>
+            <Button
+              disabled={savingRename || !renaming?.next.trim() || renaming.next === renaming.old || PRESET_CATEGORIES.includes(renaming?.old ?? "")}
+              onClick={async () => {
+                if (!renaming) return;
+                const next = renaming.next.trim();
+                if (!next) return;
+                setSavingRename(true);
+                const affected = policies.filter(p => p.category === renaming.old).map(p => p.id);
+                const { error } = await supabase.from("policies").update({ category: next }).eq("category", renaming.old);
+                setSavingRename(false);
+                if (error) return toast.error(error.message);
+                toast.success(`Renamed to "${next}" (${affected.length} polic${affected.length === 1 ? "y" : "ies"} updated).`);
+                if (activeTenantId) {
+                  await auditLog({
+                    tenantId: activeTenantId,
+                    action: "policy_category.rename",
+                    entityType: "policy_category",
+                    metadata: { from: renaming.old, to: next, affected_policies: affected },
+                  });
+                }
+                setRenaming(null);
+                load();
+              }}>
+              {savingRename ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Renaming…</> : "Rename & update policies"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PolicyDialog
         open={policyDialog}
@@ -871,6 +989,7 @@ const RulesPolicy = () => {
         editing={editingPolicy}
         seed={seedTemplate}
         onSaved={load}
+        categories={allCategories}
       />
       <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} />
     </div>
