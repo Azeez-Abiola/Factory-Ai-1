@@ -665,6 +665,7 @@ const RulesPolicy = () => {
         <TabsList>
           <TabsTrigger value="policies"><ListTree className="w-4 h-4 mr-1.5" /> Policies</TabsTrigger>
           <TabsTrigger value="rules"><Bell className="w-4 h-4 mr-1.5" /> Alert Rules</TabsTrigger>
+          <TabsTrigger value="categories"><Tag className="w-4 h-4 mr-1.5" /> Categories</TabsTrigger>
           <TabsTrigger value="templates"><BookOpen className="w-4 h-4 mr-1.5" /> Templates</TabsTrigger>
           <TabsTrigger value="guardrails"><BrainCircuit className="w-4 h-4 mr-1.5" /> AI Guardrails</TabsTrigger>
         </TabsList>
