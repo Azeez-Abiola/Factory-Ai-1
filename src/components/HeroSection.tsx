@@ -20,14 +20,6 @@ const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/5 mb-8">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />
-              <span className="text-xs font-medium text-primary tracking-wide uppercase">
-                AI-Powered Manufacturing Intelligence
-              </span>
-            </div>
-
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] mb-6">
               <span className="text-foreground">AI That Watches</span>
               <br />
