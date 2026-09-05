@@ -49,9 +49,6 @@ const Navbar = () => {
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
             <Link to="/app">Log In</Link>
           </Button>
-          <Button size="sm" asChild>
-            <Link to="/app">Launch Demo</Link>
-          </Button>
         </div>
 
         <button className="md:hidden text-foreground" onClick={() => setOpen(!open)}>

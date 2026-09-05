@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-factory.jpg";
 
 const HeroSection = () => {
@@ -33,12 +32,6 @@ const HeroSection = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-base px-8 h-12 gap-2 group" asChild>
-                <Link to="/app">
-                  Launch Demo
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
               <Button variant="outline" size="lg" className="text-base px-8 h-12 gap-2" asChild>
                 <a href="#how-it-works">
                   <Play className="w-4 h-4" />
