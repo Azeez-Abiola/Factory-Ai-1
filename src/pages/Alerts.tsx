@@ -121,13 +121,20 @@ export default function Alerts() {
 
   const acknowledge = async (a: AlertRow) => {
     if (!user || !activeTenantId) return;
-    const { error } = await supabase.from("alerts").update({
-      status: "acknowledged", acknowledged_by: user.id, acknowledged_at: new Date().toISOString(),
-    }).eq("id", a.id);
+    const patch = {
+      status: "acknowledged",
+      acknowledged_by: user.id,
+      acknowledged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("alerts").update(patch).eq("id", a.id);
     if (error) return toast.error(error.message);
+    // Keep local + dialog state in sync even if realtime is delayed.
+    setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, ...patch } : x)));
+    setSelected((prev) => (prev && prev.id === a.id ? { ...prev, ...patch } : prev));
     await auditLog({ tenantId: activeTenantId, action: "alert.acknowledge", entityType: "alert", entityId: a.id, metadata: { title: a.title } });
     toast.success("Alert acknowledged");
   };
+
 
   const openResolutionWorkflow = async (a: AlertRow) => {
     if (!user || !activeTenantId) return;
