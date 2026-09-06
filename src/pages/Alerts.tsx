@@ -44,11 +44,19 @@ const severityColors: Record<string, string> = {
   low: "bg-muted text-muted-foreground border-border",
 };
 
+// Alerts may arrive from inference, camera gateways or manual entry with
+// slightly different status vocabularies — normalise them for the UI.
+const OPEN_STATUSES = ["open", "new", "active"];
+const ACK_STATUSES = ["acknowledged", "assigned", "investigating"];
+const isOpen = (s: string) => OPEN_STATUSES.includes(s);
+const isResolved = (s: string) => s === "resolved" || s === "closed";
+
 const statusIcon = (status: string) => {
-  if (status === "resolved") return <CheckCircle className="w-4 h-4 text-success" />;
-  if (status === "acknowledged" || status === "assigned") return <Clock className="w-4 h-4 text-primary" />;
+  if (isResolved(status)) return <CheckCircle className="w-4 h-4 text-success" />;
+  if (ACK_STATUSES.includes(status)) return <Clock className="w-4 h-4 text-primary" />;
   return <AlertTriangle className="w-4 h-4 text-warning" />;
 };
+
 
 export default function Alerts() {
   const { user } = useAuth();
