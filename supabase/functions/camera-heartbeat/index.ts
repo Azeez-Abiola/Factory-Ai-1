@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
         title: String(detection.title ?? "Detection"),
         description: String(detection.description ?? "Live camera detection"),
         severity: String(detection.severity ?? "medium"),
-        status: "active",
+        status: "open",
         zone: cam.zone ?? cam.name,
         risk_score: Math.round(Number(detection.confidence ?? 0) * 100),
         metadata: { ...(detection.metadata ?? {}), confidence: Number(detection.confidence ?? 0), source: "camera_ai" },
