@@ -145,7 +145,7 @@ const Settings = () => {
     setSavingBranding(true);
     const { error } = await supabase
       .from("tenants")
-      .update({ branding: branding as unknown as Record<string, unknown> })
+      .update({ branding: JSON.parse(JSON.stringify(branding)) })
       .eq("id", activeTenantId);
     setSavingBranding(false);
     if (error) toast.error(error.message);
