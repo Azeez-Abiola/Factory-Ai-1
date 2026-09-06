@@ -228,7 +228,7 @@ const ShiftReports = () => {
       recommendations: payload.recommendations,
       metrics: a.metrics,
     }).eq("id", activeShift.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     await auditLog({
       tenantId: activeTenantId, action: "shift.handover", entityType: "shift", entityId: activeShift.id,
       metadata: { name: activeShift.name, unresolved: payload.unresolvedIssues.length },
