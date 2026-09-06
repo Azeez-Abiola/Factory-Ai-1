@@ -1,5 +1,5 @@
 # Roadmap
 
-- [ ] Upgrade member directory with clickable detail and editing
-- [ ] Polish shared admin shell and global admin presentation
-- [ ] Validate desktop and mobile behavior
+- [x] Upgrade member directory with clickable detail and editing
+- [x] Polish shared admin shell and global admin presentation
+- [x] Validate desktop and mobile behavior

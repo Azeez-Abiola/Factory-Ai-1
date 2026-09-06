@@ -46,7 +46,7 @@ const AdminSidebar = () => {
     <aside
       className={cn(
         "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 z-30",
-        collapsed ? "w-16" : "w-64"
+        collapsed ? "w-16" : "w-16 md:w-64"
       )}
     >
       {/* Logo */}
@@ -55,7 +55,7 @@ const AdminSidebar = () => {
           <Factory className="w-5 h-5 text-primary-foreground" />
         </div>
         {!collapsed && (
-          <div className="min-w-0">
+          <div className="hidden min-w-0 md:block">
             <div className="font-display font-bold text-foreground text-[15px] tracking-tight leading-tight">
               Factory<span className="text-primary">AI</span>
             </div>
@@ -69,7 +69,7 @@ const AdminSidebar = () => {
         {navGroups.map((group) => (
           <div key={group.label} className="mb-4 last:mb-0">
             {!collapsed && (
-              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              <div className="hidden px-3 mb-1.5 text-[10px] font-semibold uppercase text-muted-foreground/70 md:block">
                 {group.label}
               </div>
             )}
@@ -94,7 +94,7 @@ const AdminSidebar = () => {
                       <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-primary" />
                     )}
                     <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive && "text-primary")} />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
+                    {!collapsed && <span className="hidden truncate md:inline">{item.label}</span>}
                   </NavLink>
                 );
               })}
@@ -110,7 +110,7 @@ const AdminSidebar = () => {
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Back to App</span>}
+          {!collapsed && <span className="hidden md:inline">Back to App</span>}
         </NavLink>
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -118,7 +118,7 @@ const AdminSidebar = () => {
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span className="hidden md:inline">Collapse</span>}
         </button>
       </div>
     </aside>
