@@ -126,10 +126,10 @@ const UserManagement = () => {
         role: inviteRole,
         invited_by: user?.id,
       })
-      .select("token")
+      .select("id, token")
       .single();
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast.error(error.message.includes("duplicate") ? "An invite for this email is already pending." : error.message);
       return;
     }
@@ -141,7 +141,18 @@ const UserManagement = () => {
     });
     const link = `${window.location.origin}/invite/${data.token}`;
     await navigator.clipboard.writeText(link).catch(() => undefined);
-    toast.success("Invitation created — link copied to clipboard");
+
+    const { data: sent, error: sendErr } = await supabase.functions.invoke("send-invite", {
+      body: { invitation_id: data.id, app_url: window.location.origin },
+    });
+    setSubmitting(false);
+    if (sendErr || !(sent as any)?.ok) {
+      toast.warning(
+        (sent as any)?.message ?? "Invite created, but the email could not be sent. The link is on your clipboard.",
+      );
+    } else {
+      toast.success(`Invitation emailed to ${inviteEmail.trim()} — link also copied to clipboard`);
+    }
     setInviteEmail("");
     setInviteRole("viewer");
     setInviteOpen(false);
@@ -179,11 +190,21 @@ const UserManagement = () => {
   };
 
   const resendInvite = async (id: string) => {
-    // Extend expiry by 14 days
+    // Extend expiry by 14 days, then email the invitation again.
     const newExpiry = new Date(Date.now() + 14 * 86400_000).toISOString();
-    const { error } = await supabase.from("tenant_invitations").update({ expires_at: newExpiry }).eq("id", id);
+    const { error } = await supabase
+      .from("tenant_invitations")
+      .update({ expires_at: newExpiry, status: "pending" })
+      .eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Expiration extended by 14 days");
+    const { data: sent, error: sendErr } = await supabase.functions.invoke("send-invite", {
+      body: { invitation_id: id, app_url: window.location.origin },
+    });
+    if (sendErr || !(sent as any)?.ok) {
+      toast.warning((sent as any)?.message ?? "Expiry extended, but the email could not be sent.");
+    } else {
+      toast.success("Invitation re-sent and expiry extended by 14 days");
+    }
     load();
   };
 
@@ -439,7 +460,7 @@ const UserManagement = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                We'll generate a secure invite link — no email is sent from this form.
+                We'll email the invitation and copy a secure link to your clipboard as a backup.
               </p>
             </div>
             <div className="space-y-2">
