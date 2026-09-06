@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, UserRound, ChevronRight } from "lucide-react";
+import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { useAuth } from "@/hooks/useAuth";
@@ -173,14 +173,6 @@ const UserManagement = () => {
     setInviteEmail("");
     setInviteRole("viewer");
     setInviteOpen(false);
-    load();
-  };
-
-  const changeRole = async (memberId: string, role: MemberRole) => {
-    const { error } = await supabase.from("tenant_members").update({ role }).eq("id", memberId);
-    if (error) return toast.error(error.message);
-    await auditLog({ tenantId: activeTenantId, action: "member.role_changed", entityType: "tenant_member", entityId: memberId, metadata: { role } });
-    toast.success("Role updated");
     load();
   };
 
