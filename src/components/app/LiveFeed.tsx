@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface LiveFeedProps {
   url: string;
@@ -24,6 +25,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<"loading" | "playing" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setState("loading");
@@ -31,7 +33,6 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     const video = videoRef.current;
 
     if (type === "mjpeg") {
-      setState("playing");
       return;
     }
 
@@ -51,6 +52,14 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
             video.play().catch(() => {});
           }
         };
+        pc.onconnectionstatechange = () => {
+          if (cancelled || !pc) return;
+          if (pc.connectionState === "connected") setState("playing");
+          if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+            setErrorMsg(`WebRTC ${pc.connectionState}`);
+            setState("error");
+          }
+        };
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         const res = await fetch(url, {
@@ -62,9 +71,11 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         const answer = await res.text();
         if (cancelled) return;
         await pc.setRemoteDescription({ type: "answer", sdp: answer });
-        setState("playing");
-      } catch (e: any) {
-        if (!cancelled) { setErrorMsg(e?.message ?? "WebRTC failed"); setState("error"); }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setErrorMsg(error instanceof Error ? error.message : "WebRTC failed");
+          setState("error");
+        }
       }
     }
 
@@ -97,10 +108,23 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
       if (pc) { pc.close(); }
       if (video) { video.srcObject = null; video.removeAttribute("src"); video.load(); }
     };
-  }, [url, type]);
+  }, [url, type, attempt]);
 
   if (type === "mjpeg") {
-    return <img src={url} alt="Live feed" className={className} />;
+    return (
+      <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
+        <img
+          key={attempt}
+          src={url}
+          alt="Live camera feed"
+          className="h-full w-full object-cover"
+          onLoad={() => setState("playing")}
+          onError={() => { setErrorMsg("MJPEG stream could not be loaded by this browser"); setState("error"); }}
+        />
+        {state === "loading" && <FeedLoading />}
+        {state === "error" && <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />}
+      </div>
+    );
   }
 
   return (
@@ -114,17 +138,28 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000" }}
       />
       {state === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
+        <FeedLoading />
       )}
       {state === "error" && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/70 text-center px-3">
-          <AlertTriangle className="w-5 h-5 text-destructive" />
-          <p className="text-[10px] font-mono text-destructive">Stream unavailable</p>
-          <p className="text-[9px] text-muted-foreground truncate max-w-full">{errorMsg}</p>
-        </div>
+        <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />
       )}
     </div>
   );
 }
+
+const FeedLoading = () => (
+  <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm">
+    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-label="Connecting to live stream" />
+  </div>
+);
+
+const FeedError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 px-3 text-center">
+    <AlertTriangle className="h-5 w-5 text-destructive" />
+    <p className="text-[10px] font-mono text-destructive">Stream unavailable</p>
+    <p className="max-w-full truncate text-[9px] text-muted-foreground">{message}</p>
+    <Button type="button" size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={onRetry}>
+      <RefreshCw className="h-3 w-3" /> Retry
+    </Button>
+  </div>
+);

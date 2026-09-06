@@ -3,7 +3,7 @@ import {
   Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles, Search, Volume2, VolumeX,
   Maximize2, Minimize2, LayoutGrid, Grid2x2, Grid3x3, Square, Play, Pause,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ZoomIn, ZoomOut,
-  CircleDot, ShieldCheck, ShieldAlert, Activity, Radio
+  ShieldCheck, ShieldAlert, Activity, Radio
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,15 +33,10 @@ const statusConfig = {
   maintenance: { color: "bg-warning",     icon: Wrench,  label: "Maint.",   text: "text-warning",     ring: "ring-warning/40" },
 };
 
-// Simulated per-camera telemetry (deterministic from id so it doesn't jitter each render)
-const seed = (id: string) => id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 const telemetryFor = (cam: LiveCamera) => {
-  const s = seed(cam.id);
   return {
-    fps: cam.status === "online" ? 24 + (s % 8) : 0,
-    latencyMs: cam.status === "online" ? 60 + (s % 90) : null,
-    bitrateKbps: cam.status === "online" ? 1800 + ((s * 13) % 2200) : 0,
-    resolution: (s % 3 === 0 ? "1080p" : s % 3 === 1 ? "4K" : "720p"),
+    fps: cam.status === "online" ? cam.fps ?? null : null,
+    resolution: cam.resolution ?? "Not reported",
   };
 };
 
@@ -80,7 +75,7 @@ const Cameras = () => {
       if (q && !`${c.name} ${c.id} ${c.zone} ${c.type}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [status, zone, search]);
+  }, [cameras, status, zone, search]);
 
   const perPage = layoutConfig[layout].count;
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -307,14 +302,14 @@ const Cameras = () => {
                 {/* Telemetry */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                   <Telemetry label="Resolution" value={telemetryFor(selected).resolution} />
-                  <Telemetry label="FPS" value={telemetryFor(selected).fps || "—"} />
-                  <Telemetry label="Latency" value={telemetryFor(selected).latencyMs ? `${telemetryFor(selected).latencyMs} ms` : "—"} />
-                  <Telemetry label="Bitrate" value={telemetryFor(selected).bitrateKbps ? `${telemetryFor(selected).bitrateKbps} kbps` : "—"} />
+                  <Telemetry label="FPS" value={telemetryFor(selected).fps ?? "Not reported"} />
+                  <Telemetry label="AI status" value={selected.inferenceEnabled ? selected.inferenceStatus ?? "Enabled" : "Disabled"} />
+                  <Telemetry label="Last heartbeat" value={selected.lastSeenAt ? new Date(selected.lastSeenAt).toLocaleTimeString() : "Never"} />
                 </div>
 
                 {/* PTZ + actions */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
+                  {selected.ptzEnabled && <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground mr-1">PTZ</span>
                     <PtzBtn icon={ChevronUp}    onClick={() => toast.info("Tilt up sent")} />
                     <PtzBtn icon={ChevronDown}  onClick={() => toast.info("Tilt down sent")} />
@@ -322,12 +317,9 @@ const Cameras = () => {
                     <PtzBtn icon={ChevronRight} onClick={() => toast.info("Pan right sent")} />
                     <PtzBtn icon={ZoomIn}       onClick={() => toast.info("Zoom in sent")} />
                     <PtzBtn icon={ZoomOut}      onClick={() => toast.info("Zoom out sent")} />
-                  </div>
+                  </div>}
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => toast.success("Snapshot saved to evidence vault")} className="gap-1.5">
-                      <CircleDot className="w-4 h-4" /> Snapshot
-                    </Button>
-                    <Button size="sm" onClick={() => setAnalyzeOpen(true)} className="gap-1.5">
+                    <Button size="sm" onClick={() => setAnalyzeOpen(true)} disabled={!selected.snapshotUrl} className="gap-1.5">
                       <Sparkles className="w-4 h-4" /> Analyze with AI
                     </Button>
                   </div>
@@ -343,7 +335,8 @@ const Cameras = () => {
           open={analyzeOpen}
           onOpenChange={setAnalyzeOpen}
           cameraName={selected.name}
-          zone={selected.zone}
+          cameraId={selected.id}
+          snapshotUrl={selected.snapshotUrl}
         />
       )}
     </div>
@@ -409,7 +402,10 @@ const CameraTile = ({ cam, onOpen, now, focus, audioOn }: { cam: LiveCamera; onO
 const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
-  if (cam.status !== "online") {
+  const showLive = cam.isLive && cam.streamUrl;
+  // A browser-reachable stream can play before a gateway heartbeat arrives.
+  // Maintenance always wins; cameras without playback stay on their status panel.
+  if (cam.status === "maintenance" || !showLive) {
     return (
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="absolute inset-0 grid-bg opacity-10" />
@@ -421,25 +417,15 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
       </div>
     );
   }
-  const showLive = cam.isLive && cam.streamUrl;
   // Only unmute where the operator can actually attend to the audio:
   // the selected-camera dialog (`large`) or the single-camera focused wall (`tileFocus`).
   // Requires the camera itself to be configured with audio_enabled.
   const canPlayAudio = audioOn && !!cam.audioEnabled && (large || tileFocus);
   return (
     <>
-      {showLive ? (
-        <div className="absolute inset-0">
-          <LiveFeed url={cam.streamUrl!} type={cam.streamType ?? "hls"} muted={!canPlayAudio} />
-        </div>
-      ) : (
-        <>
-          <div className="absolute inset-0 grid-bg opacity-20" />
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="w-full h-px bg-primary/40 animate-scan-line" />
-          </div>
-        </>
-      )}
+      <div className="absolute inset-0">
+        <LiveFeed url={cam.streamUrl} type={cam.streamType ?? "hls"} muted={!canPlayAudio} />
+      </div>
 
       {cam.detections > 0 && (
         <>
@@ -455,8 +441,8 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
       )}
 
       {/* Corner HUD */}
-      <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-mono text-primary/90 bg-background/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
-        {tel.resolution} • {tel.fps}fps
+        <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-mono text-primary/90 bg-background/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
+        {tel.resolution}{tel.fps ? ` • ${tel.fps}fps` : ""}
       </div>
       <div className="absolute top-2 right-2 flex items-center gap-1.5">
         {cam.audioEnabled && (
@@ -472,11 +458,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
       <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
         {cam.id} • {now.toLocaleTimeString()}
       </div>
-      {tel.latencyMs != null && (
-        <div className="absolute bottom-2 right-2 text-[9px] font-mono text-muted-foreground">
-          {tel.latencyMs}ms
-        </div>
-      )}
+      {cam.inferenceEnabled && <div className="absolute bottom-2 right-2 text-[9px] font-mono text-muted-foreground">AI {cam.inferenceStatus ?? "enabled"}</div>}
     </>
   );
 };
@@ -489,12 +471,15 @@ const Telemetry = ({ label, value }: { label: string; value: string | number }) 
 );
 
 const PtzBtn = ({ icon: Icon, onClick }: { icon: any; onClick: () => void }) => (
-  <button
+  <Button
+    type="button"
+    size="icon"
+    variant="outline"
     onClick={onClick}
-    className="w-8 h-8 rounded-md border border-border hover:border-primary/40 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+    className="h-8 w-8"
   >
     <Icon className="w-4 h-4" />
-  </button>
+  </Button>
 );
 
 export default Cameras;

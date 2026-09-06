@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { mockCameras, Camera as MockCamera } from "@/data/mockData";
+import { Camera as MockCamera } from "@/data/mockData";
 import { useTenants } from "@/hooks/useTenants";
 
 export interface LiveCamera extends MockCamera {
@@ -9,6 +9,14 @@ export interface LiveCamera extends MockCamera {
   lastSeenAt?: string | null;
   heartbeatSeconds?: number;
   audioEnabled?: boolean;
+  resolution?: string | null;
+  fps?: number | null;
+  ptzEnabled?: boolean;
+  snapshotUrl?: string | null;
+  inferenceEnabled?: boolean;
+  inferenceStatus?: string | null;
+  lastInferenceAt?: string | null;
+  lastInferenceError?: string | null;
   isLive: boolean; // has a real playable stream_url
   isDbBacked: boolean; // came from cameras table (not fallback mock)
 }
@@ -26,8 +34,8 @@ function computeStatus(row: any): MockCamera["status"] {
   const heartbeat = row.heartbeat_interval_seconds ?? 60;
   const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
   const stale = Date.now() - lastSeen > heartbeat * 3 * 1000;
-  if (!lastSeen || stale) return row.status === "online" ? "offline" : (row.status ?? "offline");
-  return row.status ?? "online";
+  if (!lastSeen || stale) return "offline";
+  return row.status === "offline" ? "offline" : "online";
 }
 
 function normalize(row: any, detections: DetectionPing[]): LiveCamera {
@@ -45,6 +53,14 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     lastSeenAt: row.last_seen_at ?? null,
     heartbeatSeconds: row.heartbeat_interval_seconds ?? 60,
     audioEnabled: !!row.audio_enabled,
+    resolution: row.resolution ?? null,
+    fps: row.fps ?? null,
+    ptzEnabled: !!row.ptz_enabled,
+    snapshotUrl: row.snapshot_url ?? null,
+    inferenceEnabled: !!row.inference_enabled,
+    inferenceStatus: row.inference_status ?? null,
+    lastInferenceAt: row.last_inference_at ?? null,
+    lastInferenceError: row.last_inference_error ?? null,
     isLive: !!row.stream_url,
     isDbBacked: true,
   };
@@ -83,7 +99,10 @@ export function useLiveCameras() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      let q = supabase.from("cameras").select("*").order("name");
+      // Never pull camera credentials or ingest tokens into the operator console.
+      let q = supabase.from("cameras").select(
+        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_status, last_inference_at, last_inference_error"
+      ).order("name");
       if (activeTenantId) q = q.eq("tenant_id", activeTenantId);
       const { data, error } = await q;
       if (!cancelled) {
@@ -132,10 +151,6 @@ export function useLiveCameras() {
 
   const cameras = useMemo<LiveCamera[]>(() => {
     void tick;
-    if (rows.length === 0 && !loading) {
-      // Fallback so the wall stays populated pre-provisioning
-      return mockCameras.map((c) => ({ ...c, isLive: false, isDbBacked: false, streamType: "hls", audioEnabled: false }));
-    }
     return rows.map((r) => normalize(r, detections));
   }, [rows, detections, tick, loading]);
 
