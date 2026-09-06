@@ -50,6 +50,8 @@ interface CameraRow {
   inference_interval_seconds?: number;
   last_inference_at?: string | null;
   inference_status?: string;
+  last_inference_error?: string | null;
+  snapshot_url?: string | null;
 }
 
 const AI_MODEL_DEFS = [
@@ -69,6 +71,7 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   resolution: "1920x1080",
   rtsp_url: "",
   stream_url: "",
+  snapshot_url: "",
   stream_type: "hls",
   retention_days: 30,
   heartbeat_interval_seconds: 60,
@@ -224,6 +227,7 @@ const CameraConfig = () => {
       resolution: e.resolution ?? "1920x1080",
       rtsp_url: e.rtsp_url ?? null,
       stream_url: stream || null,
+      snapshot_url: e.snapshot_url?.trim() || null,
       stream_type: e.stream_type ?? "hls",
       retention_days: e.retention_days ?? 30,
       heartbeat_interval_seconds: e.heartbeat_interval_seconds ?? 60,
@@ -544,6 +548,18 @@ const CameraConfig = () => {
                   <div className="space-y-1.5">
                     <Label>Zone</Label>
                     <Input value={editing.zone ?? ""} onChange={(e) => setEditing({ ...editing, zone: e.target.value })} placeholder="Zone B" />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <Label>Snapshot / still-frame URL (used by AI analysis)</Label>
+                    <Input
+                      value={editing.snapshot_url ?? ""}
+                      onChange={(e) => setEditing({ ...editing, snapshot_url: e.target.value })}
+                      placeholder="http://192.168.1.100/cgi-bin/snapshot.cgi"
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      AI analysis pulls a still image from this address every inference cycle. Most IP cameras and NVRs expose a JPEG snapshot endpoint. Leave blank only if the playback address already returns a still image.
+                    </p>
                   </div>
                   <div className="col-span-2 space-y-1.5">
                     <Label>RTSP URL (source)</Label>
