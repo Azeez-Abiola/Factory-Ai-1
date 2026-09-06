@@ -246,10 +246,11 @@ export default function Alerts() {
                 <div><p className="text-muted-foreground text-xs">Acknowledged</p><p className="text-foreground">{selected.acknowledged_at ? new Date(selected.acknowledged_at).toLocaleString() : "No"}</p></div>
               </div>
               <div className="flex gap-2 pt-2">
-                {selected.status === "open" && (
+                {isOpen(selected.status) && (
                   <Button variant="outline" onClick={() => acknowledge(selected)}><Clock className="w-4 h-4 mr-1" /> Acknowledge</Button>
                 )}
-                {selected.status !== "resolved" && (
+                {!isResolved(selected.status) && (
+
                   <Button onClick={() => openResolutionWorkflow(selected)} className="ml-auto">
                     <ShieldCheck className="w-4 h-4 mr-1" /> Open Resolution Workflow
                   </Button>
