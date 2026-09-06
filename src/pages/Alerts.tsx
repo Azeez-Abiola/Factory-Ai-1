@@ -108,7 +108,10 @@ export default function Alerts() {
 
   const filtered = useMemo(() => alerts.filter((a) => {
     if (severity !== "all" && a.severity !== severity) return false;
-    if (status !== "all" && a.status !== status) return false;
+    if (status === "open" && !isOpen(a.status)) return false;
+    if (status === "acknowledged" && !ACK_STATUSES.includes(a.status)) return false;
+    if (status === "resolved" && !isResolved(a.status)) return false;
+
     if (search.trim()) {
       const q = search.toLowerCase();
       if (![a.title, a.zone ?? "", a.type, a.id].some((v) => v.toLowerCase().includes(q))) return false;
