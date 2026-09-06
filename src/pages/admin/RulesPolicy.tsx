@@ -7,7 +7,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { POLICY_TEMPLATES, type PolicyTemplate } from "@/data/policyTemplates";
+import { POLICY_TEMPLATES, STARTER_PACKS, packForIndustry, type PolicyTemplate } from "@/data/policyTemplates";
+import { provisionTenantCompliance } from "@/lib/provisionCompliance";
 import { useTenants } from "@/hooks/useTenants";
 import { auditLog } from "@/lib/audit";
 
@@ -513,7 +514,8 @@ function AlertRuleDialog({
 
 // ── Main Page ──
 const RulesPolicy = () => {
-  const { activeTenantId } = useTenants();
+  const { activeTenantId, tenants } = useTenants();
+  const [provisioning, setProvisioning] = useState(false);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -615,6 +617,31 @@ const RulesPolicy = () => {
     load();
   };
 
+  const activeTenant = tenants.find(t => t.id === activeTenantId) ?? null;
+  const suggestedPack = packForIndustry(activeTenant?.industry);
+
+  const applyStarterPack = async (packId: string) => {
+    if (!activeTenantId) return toast.error("Select a site first.");
+    setProvisioning(true);
+    try {
+      const res = await provisionTenantCompliance(activeTenantId, { packId });
+      if (res.errors.length) {
+        toast.error(res.errors[0]);
+      } else if (!res.policiesCreated && res.policiesSkipped) {
+        toast.info(`${res.pack.label} is already applied — all ${res.policiesSkipped} rules exist.`);
+      } else {
+        toast.success(
+          `${res.pack.label} applied · ${res.policiesCreated} rules, ${res.categoriesCreated} detection categories` +
+            (res.escalationCreated ? ", escalation policy" : "") +
+            (res.notificationsCreated ? ", notification defaults" : ""),
+        );
+      }
+      await load();
+    } finally {
+      setProvisioning(false);
+    }
+  };
+
   const activePolicies = policies.filter(p => p.enabled).length;
   const compiled = policies.filter(p => p.compiled_prompt).length;
   const activeRules = rules.filter(r => r.enabled).length;
@@ -631,6 +658,18 @@ const RulesPolicy = () => {
             <Button variant="outline" onClick={() => { setSeedTemplate(null); setEditingPolicy(null); setTab("templates"); }}>
               <BookOpen className="w-4 h-4 mr-1.5" /> Browse Templates
             </Button>
+            <Select disabled={provisioning} onValueChange={applyStarterPack}>
+              <SelectTrigger className="w-[240px]">
+                <SelectValue placeholder={provisioning ? "Applying starter pack…" : "Apply compliance starter pack"} />
+              </SelectTrigger>
+              <SelectContent>
+                {STARTER_PACKS.map(pack => (
+                  <SelectItem key={pack.id} value={pack.id}>
+                    {pack.label}{pack.id === suggestedPack.id ? " · recommended" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="secondary" onClick={() => { setEditingRule(null); setRuleDialog(true); }}>
               <Bell className="w-4 h-4 mr-1.5" /> New Alert Rule
             </Button>
