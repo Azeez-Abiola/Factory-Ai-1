@@ -233,7 +233,7 @@ const CameraConfig = () => {
 
     const payload = {
       tenant_id: activeTenantId,
-      name: e.name!.trim(),
+      name: e.name.trim(),
       zone: e.zone ?? null,
       type: e.type ?? "Vision",
       status: e.status ?? "configuring",
@@ -455,6 +455,7 @@ const CameraConfig = () => {
             const lastSeen = cam.last_seen_at ? new Date(cam.last_seen_at) : null;
             const secsAgo = lastSeen ? Math.floor((Date.now() - lastSeen.getTime()) / 1000) : null;
             const heartbeatFresh = secsAgo !== null && secsAgo <= cam.heartbeat_interval_seconds * 3;
+            const displayStatus = cam.status === "maintenance" ? "maintenance" : heartbeatFresh ? "online" : "offline";
             return (
               <div key={cam.id} className="glass rounded-xl border border-border p-5 space-y-4">
                 <div className="flex items-start justify-between">
@@ -471,12 +472,12 @@ const CameraConfig = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <Badge variant="outline" className={
-                      cam.status === "online" ? "text-success border-success/40" :
-                      cam.status === "maintenance" ? "text-warning border-warning/40" :
+                       displayStatus === "online" ? "text-success border-success/40" :
+                       displayStatus === "maintenance" ? "text-warning border-warning/40" :
                       "text-muted-foreground"
                     }>
-                      <Radio className={`w-2.5 h-2.5 mr-1 ${cam.status === "online" ? "animate-pulse" : ""}`} />
-                      {cam.status}
+                       <Radio className={`w-2.5 h-2.5 mr-1 ${displayStatus === "online" ? "animate-pulse" : ""}`} />
+                       {displayStatus}
                     </Badge>
                     {cam.stream_url ? (
                       <Badge variant="outline" className="text-[10px] text-primary border-primary/40">
@@ -709,11 +710,20 @@ const CameraConfig = () => {
                       <div><p className="text-sm font-semibold">{connectionTested ? "Connection verified" : "Test before saving"}</p><p className="text-xs text-muted-foreground">Checks browser playback and the AI snapshot using the credentials above.</p></div>
                     </div>
                     <Button type="button" variant="outline" disabled={testing === "draft"} onClick={async () => {
+                       if (editing.rtsp_url && !isLikelyRtsp(editing.rtsp_url)) {
+                         toast.error("RTSP URL must start with rtsp://");
+                         return;
+                       }
+                       if (editing.stream_url && !isLikelyStreamUrl(editing.stream_url, (editing.stream_type as StreamType) ?? "hls")) {
+                         toast.error(`Playback URL doesn't look like a valid ${editing.stream_type?.toUpperCase()} endpoint`);
+                         return;
+                       }
                       setTesting("draft");
                       const result = await runStreamTest({ stream_url: editing.stream_url, stream_type: editing.stream_type as StreamType, rtsp_url: editing.rtsp_url, snapshot_url: editing.snapshot_url, credentials: editing.credentials as CameraRow["credentials"] });
                       setTesting(null);
                       setConnectionTested(result.ok);
-                      result.ok ? toast.success(result.detail ?? "Camera connection verified") : toast.error(result.reason ?? "Camera connection failed");
+                       if (result.ok) toast.success(result.detail ?? "Camera connection verified");
+                       else toast.error(result.reason ?? "Camera connection failed");
                     }} className="shrink-0 gap-2"><Wifi className="h-4 w-4" />{testing === "draft" ? "Testing…" : "Test connection"}</Button>
                   </div>
                   <div className="col-span-2 grid grid-cols-3 gap-3">

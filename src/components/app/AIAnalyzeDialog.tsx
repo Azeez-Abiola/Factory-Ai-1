@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Sparkles, Loader2, AlertTriangle, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -14,7 +12,8 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   cameraName: string;
-  zone: string;
+  cameraId: string;
+  snapshotUrl?: string | null;
 }
 
 interface Analysis {
@@ -27,8 +26,6 @@ interface Analysis {
   recommended_actions: string[];
 }
 
-const sampleImage = "https://images.unsplash.com/photo-1565043666747-69f6646db940?w=1200";
-
 const severityColor: Record<string, string> = {
   low: "text-success border-success/30",
   medium: "text-primary border-primary/30",
@@ -36,31 +33,30 @@ const severityColor: Record<string, string> = {
   critical: "text-destructive border-destructive/30",
 };
 
-const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, zone }: Props) => {
-  const [imageUrl, setImageUrl] = useState(sampleImage);
+const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl }: Props) => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
 
   const analyze = async () => {
-    if (!imageUrl) { toast.error("Provide an image URL"); return; }
     setLoading(true); setAnalysis(null);
     try {
-      const { data, error } = await supabase.functions.invoke("analyze-frame", {
-        body: {
-          imageUrl,
-          cameraName,
-          zone,
-          aiModels: ["ppe", "intrusion", "downtime", "quality", "ergonomics"],
-        },
+      const { data, error } = await supabase.functions.invoke("run-inference", {
+        body: { camera_id: cameraId },
       });
       if (error) throw error;
-      if (data?.analysis) {
-        setAnalysis(data.analysis);
-        toast.success("AI analysis complete");
-      } else {
-        toast.error("AI returned unstructured response");
-        console.log("raw:", data?.raw);
-      }
+      const result = data?.results?.[0];
+      if (!result) throw new Error("No analysis result was returned");
+      if (result.status === "error") throw new Error(result.error ?? "Analysis failed");
+      setAnalysis(result.analysis ?? {
+        summary: result.summary ?? "Live frame analyzed successfully.",
+        risk_score: result.risk_score ?? 0,
+        severity: result.severity ?? "low",
+        detections: result.detections ?? [],
+        safety_violations: result.safety_violations ?? [],
+        productivity_notes: result.productivity_notes ?? [],
+        recommended_actions: result.recommended_actions ?? [],
+      });
+      toast.success(result.alerts_created ? `${result.alerts_created} alert raised from this frame` : "Live frame analysis complete");
     } catch (e) {
       toast.error("Analysis failed: " + (e as Error).message);
     } finally {
@@ -79,25 +75,17 @@ const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, zone }: Props) => {
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Frame URL (https or data:image/…)</Label>
-            <div className="flex gap-2">
-              <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…/frame.jpg" className="font-mono text-xs" />
-              <Button onClick={analyze} disabled={loading} className="gap-2 shrink-0">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
+            <div>
+              <p className="text-sm font-medium">Analyze current live frame</p>
+              <p className="text-xs text-muted-foreground">Uses {cameraName}'s configured AI snapshot and tenant policies.</p>
+            </div>
+              <Button onClick={analyze} disabled={loading || !snapshotUrl} className="gap-2 shrink-0">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {loading ? "Analyzing…" : "Analyze"}
               </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              In production, this pulls a live frame from the RTSP feed. For prototype, paste any factory floor image URL.
-            </p>
+            {!snapshotUrl && <p className="text-xs text-warning">No AI snapshot is configured for this camera.</p>}
           </div>
-
-          {imageUrl && (
-            <div className="rounded-lg overflow-hidden border border-border bg-muted/20 max-h-72 flex items-center justify-center">
-              <img src={imageUrl} alt="Frame to analyze" className="max-h-72 object-contain" />
-            </div>
-          )}
 
           {analysis && (
             <div className="space-y-4">

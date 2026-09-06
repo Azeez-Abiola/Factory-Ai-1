@@ -66,6 +66,7 @@ async function fetchFrame(url: string, credentials: Record<string, any> | null) 
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -77,6 +78,24 @@ Deno.serve(async (req) => {
     const body = await req.json();
     requestedCamera = body?.camera_id ?? null;
   } catch { /* cron invokes with no body */ }
+
+  // On-demand runs must be authenticated and scoped to one of the caller's tenants.
+  // Scheduled no-body runs are invoked internally by the existing database scheduler.
+  if (requestedCamera) {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (!jwt) return json({ error: 'Authentication required' }, 401);
+    const { data: userData } = await supabase.auth.getUser(jwt);
+    const userId = userData?.user?.id;
+    if (!userId) return json({ error: 'Authentication required' }, 401);
+    const { data: requested } = await supabase.from('cameras').select('tenant_id').eq('id', requestedCamera).maybeSingle();
+    if (!requested) return json({ error: 'Camera not found' }, 404);
+    const [{ data: member }, { data: superAdmin }] = await Promise.all([
+      supabase.rpc('is_tenant_member', { _tenant_id: requested.tenant_id, _user_id: userId }),
+      supabase.rpc('has_role', { _user_id: userId, _role: 'super_admin' }),
+    ]);
+    if (!member && !superAdmin) return json({ error: 'You do not have access to this camera' }, 403);
+  }
 
   let query = supabase
     .from('cameras')
@@ -244,6 +263,7 @@ Deno.serve(async (req) => {
       alerts_created: rows.length,
       suppressed: violations.length - rows.length,
       summary: analysis.summary,
+      analysis,
     });
   }
 
