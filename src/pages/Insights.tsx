@@ -4,7 +4,10 @@ import { Brain, TrendingUp, TrendingDown, Minus, Shield, Zap, Eye, DollarSign, S
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockInsights, AIInsight } from "@/data/extendedMockData";
+import { useInsights } from "@/hooks/useInsights";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/app/PageHeader";
 
@@ -32,15 +35,22 @@ const Insights = () => {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterImpact, setFilterImpact] = useState("all");
-  const [timeRange, setTimeRange] = useState("7d");
+  const [timeRange, setTimeRange] = useState("90d");
+  const { insights, loading, generating, generate } = useInsights();
 
   const latestGeneratedAt = useMemo(
-    () => mockInsights.reduce((max, i) => (i.generatedAt > max ? i.generatedAt : max), mockInsights[0]?.generatedAt ?? ""),
-    []
+    () => insights.reduce((max, i) => (i.generatedAt > max ? i.generatedAt : max), insights[0]?.generatedAt ?? ""),
+    [insights]
   );
 
+  const handleGenerate = async () => {
+    const res = await generate();
+    if (res.ok) toast.success(res.message);
+    else toast.error(res.message);
+  };
+
   const filtered = useMemo(() => {
-    let result = [...mockInsights];
+    let result = [...insights];
     if (filterCategory !== "all") result = result.filter((i) => i.category === filterCategory);
     if (filterImpact !== "all") result = result.filter((i) => i.impact === filterImpact);
     // Time range is measured backwards from the latest insight so seed/live data both filter meaningfully.
@@ -59,7 +69,7 @@ const Insights = () => {
       );
     }
     return result;
-  }, [search, filterCategory, filterImpact, timeRange, latestGeneratedAt]);
+  }, [insights, search, filterCategory, filterImpact, timeRange, latestGeneratedAt]);
 
   const clearFilters = () => {
     setSearch(""); setFilterCategory("all"); setFilterImpact("all"); setTimeRange("90d");
@@ -73,11 +83,17 @@ const Insights = () => {
         title="AI Insights"
         description={`${filtered.length} insight${filtered.length !== 1 ? "s" : ""} · ${timeRange === "7d" ? "Last 7 days" : timeRange === "30d" ? "Last 30 days" : "Last 90 days"} — patterns detected across the factory.`}
         actions={
-          latestGeneratedAt ? (
-            <Badge variant="outline" className="text-xs gap-1">
-              <Brain className="w-3 h-3" /> Updated {new Date(latestGeneratedAt).toLocaleDateString()}
-            </Badge>
-          ) : null
+          <div className="flex items-center gap-2">
+            {latestGeneratedAt && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Brain className="w-3 h-3" /> Updated {new Date(latestGeneratedAt).toLocaleDateString()}
+              </Badge>
+            )}
+            <Button size="sm" onClick={handleGenerate} disabled={generating}>
+              {generating ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+              {generating ? "Analysing…" : "Generate insights"}
+            </Button>
+          </div>
         }
       />
 
@@ -131,7 +147,25 @@ const Insights = () => {
         </div>
       </div>
 
-      {filtered.length === 0 && (
+      {loading && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin opacity-70" />
+          <p className="text-sm">Loading insights…</p>
+        </div>
+      )}
+
+      {!loading && insights.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
+          <p className="font-medium">No insights generated yet</p>
+          <p className="text-sm mb-4">Insights are written from your real alert and incident history. Generate the first set once cameras have been running.</p>
+          <Button size="sm" onClick={handleGenerate} disabled={generating}>
+            {generating ? "Analysing…" : "Generate insights"}
+          </Button>
+        </div>
+      )}
+
+      {!loading && insights.length > 0 && filtered.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           <Brain className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p className="font-medium">No insights match your filters</p>
