@@ -13,7 +13,7 @@ interface Props {
 }
 
 interface AlertHit { id: string; title: string; severity: string; zone: string | null }
-interface CameraHit { id: string; name: string; location: string | null }
+interface CameraHit { id: string; name: string; zone: string | null }
 
 const pages = [
   { label: "Dashboard", to: "/app", icon: LayoutDashboard },
@@ -49,8 +49,8 @@ const GlobalSearch = ({ open, onOpenChange }: Props) => {
         supabase.from("alerts").select("id,title,severity,zone").eq("tenant_id", activeTenantId)
           .or(`title.ilike.${like},zone.ilike.${like},type.ilike.${like}`)
           .order("detected_at", { ascending: false }).limit(6),
-        supabase.from("cameras").select("id,name,location").eq("tenant_id", activeTenantId)
-          .or(`name.ilike.${like},location.ilike.${like}`).limit(6),
+        supabase.from("cameras").select("id,name,zone").eq("tenant_id", activeTenantId)
+          .or(`name.ilike.${like},zone.ilike.${like}`).limit(6),
       ]);
       if (cancelled) return;
       setAlerts((a.data as AlertHit[]) ?? []);
@@ -111,7 +111,7 @@ const GlobalSearch = ({ open, onOpenChange }: Props) => {
                 <CommandItem key={c.id} value={`camera ${c.name} ${c.id}`} onSelect={() => go(`/app/cameras?camera=${c.id}`)}>
                   <Camera className="w-4 h-4 mr-2 text-primary" />
                   <span className="truncate">{c.name}</span>
-                  {c.location && <span className="ml-auto text-xs text-muted-foreground">{c.location}</span>}
+                  {c.zone && <span className="ml-auto text-xs text-muted-foreground">{c.zone}</span>}
                 </CommandItem>
               ))}
             </CommandGroup>
