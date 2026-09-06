@@ -153,3 +153,83 @@ export const POLICY_TEMPLATES: PolicyTemplate[] = [
     standard: "NIOSH Lifting Equation",
   },
 ];
+
+/**
+ * Industry starter packs — the set of templates a new tenant is provisioned
+ * with so they are compliant from day one.
+ */
+export interface StarterPack {
+  id: string;
+  industry: string;
+  label: string;
+  description: string;
+  templateIds: string[];
+  categories: string[];
+  escalationMinutes: number;
+  minSeverity: "low" | "medium" | "high" | "critical";
+}
+
+export const STARTER_PACKS: StarterPack[] = [
+  {
+    id: "pack-fmcg",
+    industry: "FMCG",
+    label: "FMCG / Food & Beverage",
+    description: "Hygiene, line uptime and packaging quality controls for high-throughput consumer goods lines.",
+    templateIds: ["ppe-full-kit", "spill-detection", "fire-exit-blocked", "machine-guard", "line-idle-downtime", "quality-defect-visual", "smoking-vaping"],
+    categories: ["ppe_compliance", "hygiene", "spill_hazard", "line_downtime", "packaging_defect", "fire_safety"],
+    escalationMinutes: 15,
+    minSeverity: "medium",
+  },
+  {
+    id: "pack-pharma",
+    industry: "Pharmaceutical",
+    label: "Pharmaceutical / GMP",
+    description: "GMP-aligned gowning, restricted-area and documentation controls for regulated production suites.",
+    templateIds: ["ppe-full-kit", "restricted-zone-access", "machine-guard", "quality-defect-visual", "spill-detection", "fire-exit-blocked"],
+    categories: ["gowning_compliance", "restricted_area", "contamination_risk", "batch_deviation", "equipment_guarding"],
+    escalationMinutes: 10,
+    minSeverity: "medium",
+  },
+  {
+    id: "pack-heavy",
+    industry: "Heavy Manufacturing",
+    label: "Heavy / Discrete Manufacturing",
+    description: "Vehicle-pedestrian separation, machine guarding and lifting safety for heavy plant environments.",
+    templateIds: ["ppe-hardhat-zone-a", "forklift-pedestrian-2m", "mobile-phone-driving", "machine-guard", "ergonomic-lifting", "fire-exit-blocked", "restricted-zone-access"],
+    categories: ["ppe_compliance", "vehicle_pedestrian", "machine_guarding", "manual_handling", "restricted_area"],
+    escalationMinutes: 10,
+    minSeverity: "medium",
+  },
+  {
+    id: "pack-warehouse",
+    industry: "Logistics & Warehousing",
+    label: "Logistics & Warehousing",
+    description: "Forklift traffic, aisle obstruction and manual handling controls for distribution centres.",
+    templateIds: ["ppe-hardhat-zone-a", "forklift-pedestrian-2m", "mobile-phone-driving", "fire-exit-blocked", "ergonomic-lifting", "spill-detection"],
+    categories: ["vehicle_pedestrian", "aisle_obstruction", "manual_handling", "ppe_compliance", "spill_hazard"],
+    escalationMinutes: 20,
+    minSeverity: "medium",
+  },
+  {
+    id: "pack-baseline",
+    industry: "General",
+    label: "Universal Safety Baseline",
+    description: "Core OSHA-aligned safety controls suitable for any production or processing site.",
+    templateIds: ["ppe-hardhat-zone-a", "fire-exit-blocked", "machine-guard", "spill-detection", "restricted-zone-access"],
+    categories: ["ppe_compliance", "fire_safety", "machine_guarding", "spill_hazard", "restricted_area"],
+    escalationMinutes: 20,
+    minSeverity: "high",
+  },
+];
+
+export function packForIndustry(industry?: string | null): StarterPack {
+  if (!industry) return STARTER_PACKS[STARTER_PACKS.length - 1];
+  const needle = industry.toLowerCase();
+  return (
+    STARTER_PACKS.find((p) =>
+      p.industry.toLowerCase() === needle ||
+      needle.includes(p.industry.toLowerCase().split(" ")[0]) ||
+      p.label.toLowerCase().includes(needle),
+    ) ?? STARTER_PACKS[STARTER_PACKS.length - 1]
+  );
+}
