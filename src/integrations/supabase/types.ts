@@ -845,6 +845,80 @@ export type Database = {
           },
         ]
       }
+      shifts: {
+        Row: {
+          acceptance_notes: string | null
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          ended_at: string | null
+          handover_notes: string | null
+          id: string
+          incoming_supervisor_id: string | null
+          key_events: Json
+          metrics: Json
+          name: string
+          opening_notes: string | null
+          recommendations: Json
+          started_at: string
+          status: string
+          supervisor_id: string
+          tenant_id: string
+          unresolved_issues: Json
+          updated_at: string
+        }
+        Insert: {
+          acceptance_notes?: string | null
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          ended_at?: string | null
+          handover_notes?: string | null
+          id?: string
+          incoming_supervisor_id?: string | null
+          key_events?: Json
+          metrics?: Json
+          name: string
+          opening_notes?: string | null
+          recommendations?: Json
+          started_at?: string
+          status?: string
+          supervisor_id: string
+          tenant_id: string
+          unresolved_issues?: Json
+          updated_at?: string
+        }
+        Update: {
+          acceptance_notes?: string | null
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          ended_at?: string | null
+          handover_notes?: string | null
+          id?: string
+          incoming_supervisor_id?: string | null
+          key_events?: Json
+          metrics?: Json
+          name?: string
+          opening_notes?: string | null
+          recommendations?: Json
+          started_at?: string
+          status?: string
+          supervisor_id?: string
+          tenant_id?: string
+          unresolved_issues?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_invitations: {
         Row: {
           accepted_at: string | null
