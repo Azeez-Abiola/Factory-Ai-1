@@ -63,11 +63,17 @@ export default function Incidents() {
     setLoading(true);
     const [{ data, error }, mem] = await Promise.all([
       supabase.from("incidents").select("*").eq("tenant_id", activeTenantId).order("opened_at", { ascending: false }).limit(200),
-      supabase.from("tenant_members").select("user_id, profiles(display_name)").eq("tenant_id", activeTenantId),
+      supabase.from("tenant_members").select("user_id").eq("tenant_id", activeTenantId),
     ]);
     if (error) toast.error(error.message);
     setIncidents((data ?? []) as Incident[]);
-    setMembers(((mem.data ?? []) as any[]).map((m) => ({ user_id: m.user_id, display_name: m.profiles?.display_name ?? null })));
+    const memberIds = ((mem.data ?? []) as any[]).map((m) => m.user_id);
+    let nameMap: Record<string, string | null> = {};
+    if (memberIds.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", memberIds);
+      nameMap = Object.fromEntries(((profs ?? []) as any[]).map((p) => [p.id, p.display_name]));
+    }
+    setMembers(memberIds.map((id) => ({ user_id: id, display_name: nameMap[id] ?? null })));
     setLoading(false);
   };
 
