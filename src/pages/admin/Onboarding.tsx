@@ -12,6 +12,7 @@ import PageHeader from "@/components/app/PageHeader";
 import FieldLabel from "@/components/forms/FieldLabel";
 import AddressFields from "@/components/forms/AddressFields";
 import { supabase } from "@/integrations/supabase/client";
+import { provisionTenantCompliance } from "@/lib/provisionCompliance";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenants } from "@/hooks/useTenants";
 import { auditLog } from "@/lib/audit";
@@ -100,21 +101,50 @@ const Onboarding = () => {
         })));
       }
 
-      // 4. Invitations
+      // 4. Invitations — persist, then actually email each invitee.
+      let invitesEmailed = 0;
       if (pendingInvites.length) {
-        await supabase.from("tenant_invitations").insert(pendingInvites.map((i) => ({
-          tenant_id: tenant.id, email: i.email, role: i.role, invited_by: user.id,
-        })));
+        const { data: created } = await supabase.from("tenant_invitations").insert(
+          pendingInvites.map((i) => ({
+            tenant_id: tenant.id, email: i.email, role: i.role, invited_by: user.id,
+          })),
+        ).select("id");
+        for (const inv of created ?? []) {
+          const { data: sent } = await supabase.functions.invoke("send-invite", {
+            body: { invitation_id: inv.id, app_url: window.location.origin },
+          });
+          if ((sent as any)?.ok) invitesEmailed += 1;
+        }
+      }
+
+      // 5. Compliance starter pack for the tenant's industry.
+      const provision = await provisionTenantCompliance(tenant.id, {
+        industry,
+        adminEmail: user.email ?? null,
+      });
+      if (provision.errors.length) {
+        console.error("Compliance provisioning issues:", provision.errors);
       }
 
       await auditLog({
         tenantId: tenant.id, action: "tenant.onboarded", entityType: "tenant", entityId: tenant.id,
-        metadata: { cameras: cameras.length, invites: pendingInvites.length, plan, industry },
+        metadata: {
+          cameras: cameras.length,
+          invites: pendingInvites.length,
+          invites_emailed: invitesEmailed,
+          starter_pack: provision.pack.label,
+          policies_created: provision.policiesCreated,
+          plan,
+          industry,
+        },
       });
 
       await reloadTenants();
       setActiveTenantId(tenant.id);
-      toast.success(`${tenant.name} is live · ${cameras.length} cameras · ${pendingInvites.length} invites sent`, { duration: 4500 });
+      toast.success(
+        `${tenant.name} is live · ${cameras.length} cameras · ${invitesEmailed}/${pendingInvites.length} invites emailed · ${provision.policiesCreated} ${provision.pack.label} rules applied`,
+        { duration: 5500 },
+      );
       setCurrentStep(0);
       setCompanyName(""); setIndustry(""); setPlan(""); setAddress("");
       setCameras(defaultCameras); setPendingInvites([]);
