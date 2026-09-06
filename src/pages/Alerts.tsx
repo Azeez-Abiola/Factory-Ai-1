@@ -106,6 +106,19 @@ export default function Alerts() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenantId]);
 
+  // Deep link support: /app/alerts?alert=<id> opens that alert directly.
+  useEffect(() => {
+    const id = searchParams.get("alert");
+    if (!id || alerts.length === 0) return;
+    const match = alerts.find((a) => a.id === id);
+    if (match) {
+      setSelected(match);
+      searchParams.delete("alert");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [alerts, searchParams, setSearchParams]);
+
+
   const filtered = useMemo(() => alerts.filter((a) => {
     if (severity !== "all" && a.severity !== severity) return false;
     if (status === "open" && !isOpen(a.status)) return false;
