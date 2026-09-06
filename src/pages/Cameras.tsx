@@ -145,7 +145,7 @@ const Cameras = () => {
                 <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping", hasLiveStreams ? "bg-success" : "bg-muted-foreground")} />
                 <span className={cn("relative inline-flex h-2 w-2 rounded-full", hasLiveStreams ? "bg-success" : "bg-muted-foreground")} />
               </span>
-              {hasLiveStreams ? "LIVE" : "SIMULATED"} • {now.toLocaleTimeString()}
+              {hasLiveStreams ? "STREAMS CONFIGURED" : "NO LIVE STREAMS"} • {now.toLocaleTimeString()}
             </Badge>
           </div>
         }
