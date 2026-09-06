@@ -10,7 +10,7 @@ const Dashboard = () => {
   const recentAlerts = mockAlerts.slice(0, 4);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
         eyebrow="Live"
         icon={LayoutDashboard}
@@ -20,7 +20,7 @@ const Dashboard = () => {
       />
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-5">
         <StatCard
           title="Total Alerts"
           value={dashboardStats.openAlerts + dashboardStats.resolvedToday}
@@ -55,17 +55,17 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Alerts by Hour */}
-        <div className="glass rounded-xl p-5 border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Alerts by Hour</h3>
+        <div className="app-panel p-5 lg:p-6">
+          <h3 className="app-section-title mb-5">Alerts by Hour</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={hourlyAlerts} barGap={2}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 16%)" />
-              <XAxis dataKey="hour" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="hour" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: "hsl(220 18% 8%)", border: "1px solid hsl(220 14% 16%)", borderRadius: 8, color: "hsl(210 20% 92%)" }}
+                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", boxShadow: "0 12px 24px hsl(var(--foreground) / 0.12)" }}
               />
               <Bar dataKey="safety" fill="hsl(0 72% 51%)" radius={[3, 3, 0, 0]} name="Safety" />
               <Bar dataKey="quality" fill="hsl(38 92% 50%)" radius={[3, 3, 0, 0]} name="Quality" />
@@ -76,15 +76,15 @@ const Dashboard = () => {
         </div>
 
         {/* Defect Trend */}
-        <div className="glass rounded-xl p-5 border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Weekly Defect Trend</h3>
+        <div className="app-panel p-5 lg:p-6">
+          <h3 className="app-section-title mb-5">Weekly Defect Trend</h3>
           <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={weeklyDefects}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 16%)" />
-              <XAxis dataKey="day" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: "hsl(220 18% 8%)", border: "1px solid hsl(220 14% 16%)", borderRadius: 8, color: "hsl(210 20% 92%)" }}
+                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", boxShadow: "0 12px 24px hsl(var(--foreground) / 0.12)" }}
               />
               <Area type="monotone" dataKey="defects" stroke="hsl(0 72% 51%)" fill="hsl(0 72% 51% / 0.1)" strokeWidth={2} name="Defects" />
               <Line type="monotone" dataKey="target" stroke="hsl(172 66% 50%)" strokeDasharray="5 5" strokeWidth={1.5} dot={false} name="Target" />
@@ -96,14 +96,14 @@ const Dashboard = () => {
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Downtime by Zone */}
-        <div className="glass rounded-xl p-5 border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Downtime by Zone (min)</h3>
+        <div className="app-panel p-5 lg:p-6">
+          <h3 className="app-section-title mb-5">Downtime by Zone (min)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={downtimeByZone} layout="vertical">
-              <XAxis type="number" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="zone" type="category" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} width={50} />
+              <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="zone" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={50} />
               <Tooltip
-                contentStyle={{ background: "hsl(220 18% 8%)", border: "1px solid hsl(220 14% 16%)", borderRadius: 8, color: "hsl(210 20% 92%)" }}
+                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", boxShadow: "0 12px 24px hsl(var(--foreground) / 0.12)" }}
               />
               <Bar dataKey="minutes" fill="hsl(172 66% 50%)" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -111,15 +111,15 @@ const Dashboard = () => {
         </div>
 
         {/* Productivity */}
-        <div className="glass rounded-xl p-5 border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Productivity Efficiency</h3>
+        <div className="app-panel p-5 lg:p-6">
+          <h3 className="app-section-title mb-5">Productivity Efficiency</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={productivityData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 14% 16%)" />
-              <XAxis dataKey="hour" tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[50, 100]} tick={{ fill: "hsl(215 12% 50%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="hour" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[50, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: "hsl(220 18% 8%)", border: "1px solid hsl(220 14% 16%)", borderRadius: 8, color: "hsl(210 20% 92%)" }}
+                contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))", boxShadow: "0 12px 24px hsl(var(--foreground) / 0.12)" }}
               />
               <Line type="monotone" dataKey="efficiency" stroke="hsl(142 71% 45%)" strokeWidth={2} dot={{ fill: "hsl(142 71% 45%)", r: 3 }} name="Efficiency %" />
             </LineChart>
@@ -127,8 +127,8 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Alerts */}
-        <div className="glass rounded-xl p-5 border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Recent Alerts</h3>
+        <div className="app-panel p-5 lg:p-6">
+          <h3 className="app-section-title mb-5">Recent Alerts</h3>
           <div className="space-y-3">
             {recentAlerts.map((alert) => (
               <div key={alert.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
