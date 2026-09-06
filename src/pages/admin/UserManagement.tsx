@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2 } from "lucide-react";
+import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, UserRound, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/app/PageHeader";
 import { auditLog } from "@/lib/audit";
@@ -32,6 +35,9 @@ interface MemberRow {
   created_at: string;
   display_name: string | null;
   avatar_url: string | null;
+  job_title: string | null;
+  phone: string | null;
+  updated_at: string | null;
 }
 
 interface InvitationRow {
@@ -56,6 +62,9 @@ const UserManagement = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("viewer");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
+  const [detailRole, setDetailRole] = useState<MemberRole>("viewer");
+  const [savingRole, setSavingRole] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeTenantId) {
@@ -79,11 +88,11 @@ const UserManagement = () => {
 
     // Attach profile info
     const userIds = (mRows ?? []).map((r) => r.user_id);
-    let profiles: Record<string, { display_name: string | null; avatar_url: string | null }> = {};
+    let profiles: Record<string, { display_name: string | null; avatar_url: string | null; job_title: string | null; phone: string | null; updated_at: string | null }> = {};
     if (userIds.length) {
       const { data: pRows } = await supabase
         .from("profiles")
-        .select("id,display_name,avatar_url")
+        .select("id,display_name,avatar_url,job_title,phone,updated_at")
         .in("id", userIds);
       profiles = Object.fromEntries((pRows ?? []).map((p) => [p.id, p]));
     }
@@ -94,6 +103,9 @@ const UserManagement = () => {
         role: r.role as MemberRole,
         display_name: profiles[r.user_id]?.display_name ?? null,
         avatar_url: profiles[r.user_id]?.avatar_url ?? null,
+        job_title: profiles[r.user_id]?.job_title ?? null,
+        phone: profiles[r.user_id]?.phone ?? null,
+        updated_at: profiles[r.user_id]?.updated_at ?? null,
       })),
     );
     setInvitations((iRows ?? []) as InvitationRow[]);
@@ -114,6 +126,11 @@ const UserManagement = () => {
   }, [members, search, roleFilter]);
 
   const pendingInvites = invitations.filter((i) => i.status === "pending");
+
+  const openMember = (member: MemberRow) => {
+    setSelectedMember(member);
+    setDetailRole(member.role);
+  };
 
   const handleInvite = async () => {
     if (!activeTenantId || !inviteEmail.trim()) return;
@@ -167,6 +184,22 @@ const UserManagement = () => {
     load();
   };
 
+  const saveMemberRole = async () => {
+    if (!selectedMember || detailRole === selectedMember.role) return;
+    setSavingRole(true);
+    const { error } = await supabase.from("tenant_members").update({ role: detailRole }).eq("id", selectedMember.id);
+    if (error) {
+      toast.error(error.message);
+      setSavingRole(false);
+      return;
+    }
+    await auditLog({ tenantId: activeTenantId, action: "member.role_changed", entityType: "tenant_member", entityId: selectedMember.id, metadata: { previous_role: selectedMember.role, role: detailRole } });
+    setMembers((current) => current.map((member) => member.id === selectedMember.id ? { ...member, role: detailRole } : member));
+    setSelectedMember((current) => current ? { ...current, role: detailRole } : null);
+    setSavingRole(false);
+    toast.success("Member access updated");
+  };
+
   const removeMember = async (memberId: string, userId: string) => {
     if (!confirm("Remove this member from the tenant?")) return;
     const { error } = await supabase.from("tenant_members").delete().eq("id", memberId);
@@ -218,38 +251,37 @@ const UserManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
         eyebrow={activeTenant.name}
         icon={Users}
-        title="Members & Invitations"
-        description="Invite teammates, assign roles, and control access to this tenant."
+        title="People & access"
+        description="Review team membership, responsibilities, and access across this organization."
         actions={
           <Button onClick={() => setInviteOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Invite Member
+              <Plus className="w-4 h-4" /> Invite member
           </Button>
         }
       />
 
-      {/* Role Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 border border-border rounded-lg overflow-hidden bg-card">
         {(["owner", "admin", "operator", "viewer"] as MemberRole[]).map((role) => {
           const config = ROLE_META[role];
           const count = members.filter((m) => m.role === role).length;
           return (
-            <div key={role} className="glass rounded-xl p-4 border border-border">
-              <div className="flex items-center gap-2 mb-2">
-                <config.icon className="w-4 h-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">{config.label}s</p>
+            <div key={role} className="p-4 md:p-5 border-b border-r border-border last:border-r-0 lg:border-b-0">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-medium text-muted-foreground">{config.label}s</p>
+                <config.icon className="w-4 h-4 text-primary" />
               </div>
-              <p className="text-2xl font-bold text-foreground">{count}</p>
+              <p className="font-display text-2xl font-semibold text-foreground">{count}</p>
             </div>
           );
         })}
       </div>
 
       <Tabs defaultValue="members" className="space-y-4">
-        <TabsList>
+        <TabsList className="h-11 bg-muted/60 p-1">
           <TabsTrigger value="members">Members ({members.length})</TabsTrigger>
           <TabsTrigger value="pending">
             Pending Invites {pendingInvites.length > 0 && <Badge className="ml-2" variant="secondary">{pendingInvites.length}</Badge>}
@@ -258,13 +290,13 @@ const UserManagement = () => {
         </TabsList>
 
         <TabsContent value="members" className="space-y-4">
-          <div className="flex gap-3">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search members…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+             <Select value={roleFilter} onValueChange={setRoleFilter}>
+               <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All roles</SelectItem>
                 {(Object.keys(ROLE_META) as MemberRole[]).map((r) => (
@@ -274,7 +306,7 @@ const UserManagement = () => {
             </Select>
           </div>
 
-          <div className="glass rounded-xl border border-border overflow-hidden">
+          <div className="rounded-lg border border-border overflow-x-auto bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -286,22 +318,30 @@ const UserManagement = () => {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">Loading members…</TableCell></TableRow>
                 ) : filteredMembers.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No members match your filters.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-12">No members match your filters.</TableCell></TableRow>
                 ) : (
                   filteredMembers.map((m) => {
                     const meta = ROLE_META[m.role];
                     return (
-                      <TableRow key={m.id}>
+                      <TableRow
+                        key={m.id}
+                        className="group cursor-pointer"
+                        tabIndex={0}
+                        onClick={() => openMember(m)}
+                        onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openMember(m); }}
+                        aria-label={`View ${m.display_name ?? "member"}`}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                              {(m.display_name ?? "?").slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">{m.display_name ?? "Unnamed user"}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{m.user_id.slice(0, 8)}…</p>
+                            <Avatar className="h-10 w-10 border border-border">
+                              <AvatarImage src={m.avatar_url ?? undefined} alt="" />
+                              <AvatarFallback className="text-xs font-semibold text-primary bg-primary/10">{(m.display_name ?? "?").slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground truncate">{m.display_name ?? "Unnamed user"}</p>
+                              <p className="text-xs text-muted-foreground truncate">{m.job_title ?? `Member ID ${m.user_id.slice(0, 8)}`}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -315,24 +355,20 @@ const UserManagement = () => {
                           {new Date(m.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="inline-flex gap-2">
-                            <Select value={m.role} onValueChange={(v) => changeRole(m.id, v as MemberRole)}>
-                              <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {(Object.keys(ROLE_META) as MemberRole[]).map((r) => (
-                                  <SelectItem key={r} value={r}>{ROLE_META[r].label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              disabled={m.user_id === user?.id}
-                              onClick={() => removeMember(m.id, m.user_id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                          <div className="inline-flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${m.display_name ?? "member"}`}>
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem onClick={() => openMember(m)}><Eye className="mr-2 h-4 w-4" /> View details</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem disabled={m.user_id === user?.id} className="text-destructive focus:text-destructive" onClick={() => removeMember(m.id, m.user_id)}><Trash2 className="mr-2 h-4 w-4" /> Remove member</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -345,7 +381,7 @@ const UserManagement = () => {
         </TabsContent>
 
         <TabsContent value="pending" className="space-y-4">
-          <div className="glass rounded-xl border border-border overflow-hidden">
+          <div className="rounded-lg border border-border overflow-x-auto bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -398,7 +434,7 @@ const UserManagement = () => {
         </TabsContent>
 
         <TabsContent value="history">
-          <div className="glass rounded-xl border border-border overflow-hidden">
+          <div className="rounded-lg border border-border overflow-x-auto bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -431,6 +467,62 @@ const UserManagement = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Sheet open={Boolean(selectedMember)} onOpenChange={(open) => { if (!open) setSelectedMember(null); }}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg p-0">
+          {selectedMember && (() => {
+            const meta = ROLE_META[selectedMember.role];
+            return (
+              <div className="flex min-h-full flex-col">
+                <SheetHeader className="border-b border-border p-6 pr-12">
+                  <div className="flex items-center gap-4 text-left">
+                    <Avatar className="h-14 w-14 border border-border">
+                      <AvatarImage src={selectedMember.avatar_url ?? undefined} alt="" />
+                      <AvatarFallback className="font-display font-semibold text-primary bg-primary/10">{(selectedMember.display_name ?? "?").slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <SheetTitle className="font-display text-xl">{selectedMember.display_name ?? "Unnamed user"}</SheetTitle>
+                      <SheetDescription>{selectedMember.job_title ?? "Team member"}</SheetDescription>
+                      <Badge variant="outline" className={cn("mt-2 gap-1", meta.color)}><meta.icon className="h-3 w-3" />{meta.label}</Badge>
+                    </div>
+                  </div>
+                </SheetHeader>
+
+                <div className="flex-1 space-y-7 p-6">
+                  <section>
+                    <h3 className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Member details</h3>
+                    <dl className="divide-y divide-border rounded-lg border border-border bg-card">
+                      <div className="flex items-center gap-3 p-4"><BriefcaseBusiness className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Position</dt><dd className="text-sm font-medium">{selectedMember.job_title ?? "Not provided"}</dd></div></div>
+                      <div className="flex items-center gap-3 p-4"><Phone className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Phone</dt><dd className="text-sm font-medium">{selectedMember.phone ?? "Not provided"}</dd></div></div>
+                      <div className="flex items-center gap-3 p-4"><CalendarDays className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Joined organization</dt><dd className="text-sm font-medium">{new Date(selectedMember.created_at).toLocaleDateString(undefined, { dateStyle: "long" })}</dd></div></div>
+                      <div className="flex items-center gap-3 p-4"><Fingerprint className="h-4 w-4 text-muted-foreground" /><div className="min-w-0"><dt className="text-xs text-muted-foreground">Member ID</dt><dd className="truncate font-mono text-xs text-foreground">{selectedMember.user_id}</dd></div></div>
+                    </dl>
+                  </section>
+
+                  <section className="space-y-3">
+                    <div>
+                      <Label htmlFor="member-access" className="text-sm font-semibold">Access role</Label>
+                      <p className="mt-1 text-xs text-muted-foreground">Choose what this member can view and manage.</p>
+                    </div>
+                    <Select value={detailRole} onValueChange={(value) => setDetailRole(value as MemberRole)} disabled={selectedMember.user_id === user?.id}>
+                      <SelectTrigger id="member-access"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(ROLE_META) as MemberRole[]).map((role) => <SelectItem key={role} value={role}>{ROLE_META[role].label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {selectedMember.user_id === user?.id && <p className="text-xs text-muted-foreground">You cannot change your own access from this page.</p>}
+                  </section>
+                </div>
+
+                <SheetFooter className="border-t border-border bg-muted/30 p-6">
+                  <Button variant="outline" onClick={() => setSelectedMember(null)}>Close</Button>
+                  <Button onClick={saveMemberRole} disabled={savingRole || detailRole === selectedMember.role || selectedMember.user_id === user?.id}>{savingRole ? "Saving…" : "Save access"}</Button>
+                </SheetFooter>
+              </div>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>
