@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { mockInsights, AIInsight } from "@/data/extendedMockData";
+import { useInsights } from "@/hooks/useInsights";
 import { alertsForInsight, timeAgo } from "@/lib/insightLinks";
 import { cn } from "@/lib/utils";
 import {
@@ -95,14 +96,26 @@ const InsightDetail = () => {
   const { insightId } = useParams<{ insightId: string }>();
   const navigate = useNavigate();
 
+  const { insights, loading } = useInsights();
+
+  // Real tenant insights first; seed/demo records remain resolvable by id.
   const insight = useMemo(() => {
-    return mockInsights.find((i) => i.id === insightId) || null;
-  }, [insightId]);
+    return insights.find((i) => i.id === insightId) || mockInsights.find((i) => i.id === insightId) || null;
+  }, [insights, insightId]);
 
   const trendData = useMemo(() => (insight ? generateTrendData(insight) : []), [insight]);
   const impactProjection = useMemo(() => generateImpactProjection(), []);
   const zoneBreakdown = useMemo(() => generateZoneBreakdown(), []);
   const relatedAlerts = useMemo(() => (insight ? alertsForInsight(insight) : []), [insight]);
+
+  if (!insight && loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+        <Brain className="w-10 h-10 mb-3 animate-pulse opacity-60" />
+        <p className="text-sm">Loading insight…</p>
+      </div>
+    );
+  }
 
   if (!insight) {
     return (
