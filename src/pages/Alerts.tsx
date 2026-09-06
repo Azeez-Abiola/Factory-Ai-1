@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenants } from "@/hooks/useTenants";
@@ -63,7 +65,9 @@ export default function Alerts() {
   const { activeTenantId, activeTenant } = useTenants();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<AlertRow | null>(null);
+
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
@@ -105,6 +109,19 @@ export default function Alerts() {
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenantId]);
+
+  // Deep link support: /app/alerts?alert=<id> opens that alert directly.
+  useEffect(() => {
+    const id = searchParams.get("alert");
+    if (!id || alerts.length === 0) return;
+    const match = alerts.find((a) => a.id === id);
+    if (match) {
+      setSelected(match);
+      searchParams.delete("alert");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [alerts, searchParams, setSearchParams]);
+
 
   const filtered = useMemo(() => alerts.filter((a) => {
     if (severity !== "all" && a.severity !== severity) return false;
