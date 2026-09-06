@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Camera, Plus, Trash2, Wifi, Edit2, Save, X, RefreshCw, Copy, CheckCircle2,
-  AlertCircle, Radio, Terminal, Settings2, Loader2,
+  AlertCircle, Radio, Terminal, Settings2, Loader2, Router, KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,6 +111,7 @@ const CameraConfig = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
+  const [connectionTested, setConnectionTested] = useState(false);
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -177,12 +178,16 @@ const CameraConfig = () => {
     stream_url?: string | null;
     stream_type?: StreamType;
     rtsp_url?: string | null;
+    snapshot_url?: string | null;
+    credentials?: CameraRow["credentials"];
   }): Promise<{ ok: boolean; reason?: string; detail?: string }> => {
     const { data, error } = await supabase.functions.invoke("test-stream", {
       body: {
         stream_url: opts.stream_url ?? null,
         stream_type: opts.stream_type ?? "hls",
         rtsp_url: opts.rtsp_url ?? null,
+        snapshot_url: opts.snapshot_url ?? null,
+        credentials: opts.credentials ?? null,
         gateway_base_url: gatewayBase || null,
       },
     });
@@ -211,12 +216,15 @@ const CameraConfig = () => {
         stream_url: stream || null,
         stream_type: (e.stream_type as StreamType) ?? "hls",
         rtsp_url: e.rtsp_url ?? null,
+        snapshot_url: e.snapshot_url ?? null,
+        credentials: e.credentials,
       });
       toast.dismiss("stream-test");
       if (!result.ok) {
         return toast.error(`Stream test failed — ${result.reason ?? "unreachable"}`);
       }
       toast.success(`Stream verified · ${result.detail ?? "reachable"}`);
+      setConnectionTested(true);
     }
 
     const payload = {
@@ -304,6 +312,8 @@ const CameraConfig = () => {
         stream_url: row.stream_url,
         stream_type: row.stream_type as StreamType,
         rtsp_url: row.rtsp_url,
+        snapshot_url: row.snapshot_url,
+        credentials: row.credentials,
       });
       if (result.ok) {
         toast.success(`Reachable · ${result.detail ?? row.stream_type.toUpperCase()}`);
@@ -366,7 +376,7 @@ const CameraConfig = () => {
             <Button variant="outline" onClick={load} className="gap-2">
               <RefreshCw className="w-4 h-4" /> Refresh
             </Button>
-            <Button onClick={() => setEditing(emptyCam(activeTenantId))} className="gap-2">
+            <Button onClick={() => { setConnectionTested(false); setEditing(emptyCam(activeTenantId)); }} className="gap-2">
               <Plus className="w-4 h-4" /> Add Camera
             </Button>
           </div>
@@ -430,7 +440,7 @@ const CameraConfig = () => {
           <p className="text-sm text-muted-foreground mb-4">
             No cameras yet. Add your first IP camera to activate live monitoring.
           </p>
-          <Button onClick={() => setEditing(emptyCam(activeTenantId))} className="gap-2">
+          <Button onClick={() => { setConnectionTested(false); setEditing(emptyCam(activeTenantId)); }} className="gap-2">
             <Plus className="w-4 h-4" /> Add Camera
           </Button>
         </div>
@@ -540,7 +550,7 @@ const CameraConfig = () => {
                   <Button size="sm" variant="outline" onClick={() => setHeartbeatFor(cam)} className="gap-1.5">
                     <Terminal className="w-3.5 h-3.5" /> Heartbeat
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditing(cam)} className="gap-1.5">
+                  <Button size="sm" variant="outline" onClick={() => { setConnectionTested(false); setEditing(cam); }} className="gap-1.5">
                     <Edit2 className="w-3.5 h-3.5" /> Edit
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => remove(cam)} className="gap-1.5 text-destructive hover:text-destructive ml-auto">
@@ -564,7 +574,7 @@ const CameraConfig = () => {
             <DialogDescription>
               {editing?.id
                 ? "Update stream, credentials, and AI model configuration."
-                : "Provision a new camera. An ingest token is generated automatically for gateway heartbeats."}
+                : "Connect a camera source, verify playback and AI access, then save it to the live monitoring wall."}
             </DialogDescription>
           </DialogHeader>
           {editing && (
@@ -576,6 +586,11 @@ const CameraConfig = () => {
               </TabsList>
 
               <TabsContent value="stream" className="space-y-4 pt-4">
+                <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-card text-xs">
+                  <div className="flex items-center gap-2 border-r border-border p-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">1</span><span>Camera details</span></div>
+                  <div className="flex items-center gap-2 border-r border-border p-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">2</span><span>Connect & test</span></div>
+                  <div className="flex items-center gap-2 p-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">3</span><span>Enable AI</span></div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Camera Name *</Label>
@@ -585,23 +600,30 @@ const CameraConfig = () => {
                     <Label>Zone</Label>
                     <Input value={editing.zone ?? ""} onChange={(e) => setEditing({ ...editing, zone: e.target.value })} placeholder="Zone B" />
                   </div>
+                  <div className="col-span-2 rounded-lg border border-border p-4 space-y-4">
+                    <div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">Camera sign-in</p></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5"><Label>Username</Label><Input autoComplete="username" value={editing.credentials?.username ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), username: e.target.value } }); }} placeholder="admin" /></div>
+                      <div className="space-y-1.5"><Label>Password</Label><Input type="password" autoComplete="current-password" value={editing.credentials?.password ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), password: e.target.value } }); }} placeholder="Camera password" /></div>
+                    </div>
+                  </div>
                   <div className="col-span-2 space-y-1.5">
-                    <Label>Snapshot / still-frame URL (used by AI analysis)</Label>
+                    <Label>AI snapshot address</Label>
                     <Input
                       value={editing.snapshot_url ?? ""}
-                      onChange={(e) => setEditing({ ...editing, snapshot_url: e.target.value })}
+                      onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, snapshot_url: e.target.value }); }}
                       placeholder="http://192.168.1.100/cgi-bin/snapshot.cgi"
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      AI analysis pulls a still image from this address every inference cycle. Most IP cameras and NVRs expose a JPEG snapshot endpoint. Leave blank only if the playback address already returns a still image.
+                      Required for scheduled AI unless the playback address itself returns an image. Use the camera or gateway JPEG snapshot address.
                     </p>
                   </div>
                   <div className="col-span-2 space-y-1.5">
                     <Label>RTSP URL (source)</Label>
                     <Input
                       value={editing.rtsp_url ?? ""}
-                      onChange={(e) => setEditing({ ...editing, rtsp_url: e.target.value })}
+                      onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, rtsp_url: e.target.value }); }}
                       placeholder="rtsp://user:pass@192.168.1.100:554/stream1"
                       className="font-mono text-sm"
                     />
@@ -615,7 +637,7 @@ const CameraConfig = () => {
                     <Label>Stream Type</Label>
                     <Select
                       value={(editing.stream_type as StreamType) ?? "hls"}
-                      onValueChange={(v: StreamType) => setEditing({ ...editing, stream_type: v })}
+                      onValueChange={(v: StreamType) => { setConnectionTested(false); setEditing({ ...editing, stream_type: v }); }}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -644,21 +666,24 @@ const CameraConfig = () => {
                     <div className="flex items-center justify-between">
                       <Label>Playback URL (browser)</Label>
                       {!editing.stream_url && gatewayBase && (
-                        <button
+                        <Button
                           type="button"
-                          className="text-xs text-primary hover:underline"
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
                           onClick={() => {
                             const id = editing.id ?? "<camera-id>";
+                            setConnectionTested(false);
                             setEditing({ ...editing, stream_url: autoStreamUrl(id, (editing.stream_type as StreamType) ?? "hls") });
                           }}
                         >
                           Auto-generate from gateway
-                        </button>
+                        </Button>
                       )}
                     </div>
                     <Input
                       value={editing.stream_url ?? ""}
-                      onChange={(e) => setEditing({ ...editing, stream_url: e.target.value })}
+                      onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, stream_url: e.target.value }); }}
                       placeholder={
                         editing.stream_type === "webrtc"
                           ? "https://gateway/cam-1/whep"
@@ -673,6 +698,19 @@ const CameraConfig = () => {
                         <AlertCircle className="w-3 h-3" /> No stream URL. Configure a gateway base URL above to auto-generate on save.
                       </p>
                     )}
+                  </div>
+                  <div className="col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
+                    <div className="flex items-start gap-2">
+                      {connectionTested ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> : <Router className="mt-0.5 h-4 w-4 text-primary" />}
+                      <div><p className="text-sm font-semibold">{connectionTested ? "Connection verified" : "Test before saving"}</p><p className="text-xs text-muted-foreground">Checks browser playback and the AI snapshot using the credentials above.</p></div>
+                    </div>
+                    <Button type="button" variant="outline" disabled={testing === "draft"} onClick={async () => {
+                      setTesting("draft");
+                      const result = await runStreamTest({ stream_url: editing.stream_url, stream_type: editing.stream_type as StreamType, rtsp_url: editing.rtsp_url, snapshot_url: editing.snapshot_url, credentials: editing.credentials as CameraRow["credentials"] });
+                      setTesting(null);
+                      setConnectionTested(result.ok);
+                      result.ok ? toast.success(result.detail ?? "Camera connection verified") : toast.error(result.reason ?? "Camera connection failed");
+                    }} className="shrink-0 gap-2"><Wifi className="h-4 w-4" />{testing === "draft" ? "Testing…" : "Test connection"}</Button>
                   </div>
                   <div className="col-span-2 grid grid-cols-3 gap-3">
                     <div className="space-y-1.5">
@@ -746,22 +784,7 @@ const CameraConfig = () => {
               </TabsContent>
 
               <TabsContent value="ops" className="space-y-3 pt-4">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Username</Label>
-                    <Input
-                      value={editing.credentials?.username ?? ""}
-                      onChange={(e) => setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), username: e.target.value } })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Password</Label>
-                    <Input
-                      type="password"
-                      value={editing.credentials?.password ?? ""}
-                      onChange={(e) => setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), password: e.target.value } })}
-                    />
-                  </div>
+                <div className="grid grid-cols-1 gap-3">
                   <div className="space-y-1.5">
                     <Label>ONVIF Port</Label>
                     <Input
@@ -796,7 +819,7 @@ const CameraConfig = () => {
                   <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Ingest Token</Label>
-                      <Button size="sm" variant="ghost" onClick={() => copy(editing.ingest_token!, "Token copied")} className="h-6 gap-1 text-xs">
+                      <Button size="sm" variant="ghost" onClick={() => editing.ingest_token && copy(editing.ingest_token, "Token copied")} className="h-6 gap-1 text-xs">
                         <Copy className="w-3 h-3" /> Copy
                       </Button>
                     </div>

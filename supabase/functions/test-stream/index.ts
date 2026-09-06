@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /**
  * test-stream: validates a stream URL before a camera is persisted.
@@ -21,22 +22,38 @@ function validateUrl(url: string): { ok: boolean; reason?: string } {
   }
 }
 
-async function probeHls(url: string) {
-  const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/vnd.apple.mpegurl' } });
+function requestHeaders(credentials?: { username?: string; password?: string } | null, accept = '*/*') {
+  const headers: Record<string, string> = { Accept: accept };
+  if (credentials?.username) headers.Authorization = `Basic ${btoa(`${credentials.username}:${credentials.password ?? ''}`)}`;
+  return headers;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function probeHls(url: string, credentials?: { username?: string; password?: string } | null) {
+  const res = await fetchWithTimeout(url, { method: 'GET', headers: requestHeaders(credentials, 'application/vnd.apple.mpegurl') });
   if (!res.ok) return { ok: false, reason: `HLS playlist returned HTTP ${res.status}` };
   const text = (await res.text()).slice(0, 512);
   if (!text.includes('#EXTM3U')) return { ok: false, reason: 'Response is not a valid HLS playlist (#EXTM3U missing)' };
   return { ok: true, detail: text.split('\n').slice(0, 3).join(' | ') };
 }
 
-async function probeWhep(url: string) {
-  const res = await fetch(url, { method: 'OPTIONS' });
+async function probeWhep(url: string, credentials?: { username?: string; password?: string } | null) {
+  const res = await fetchWithTimeout(url, { method: 'OPTIONS', headers: requestHeaders(credentials) });
   if (res.status === 404) return { ok: false, reason: 'WHEP endpoint returned 404' };
   return { ok: true, detail: `WHEP endpoint reachable (HTTP ${res.status})` };
 }
 
-async function probeMjpeg(url: string) {
-  const res = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-1023' } });
+async function probeMjpeg(url: string, credentials?: { username?: string; password?: string } | null) {
+  const res = await fetchWithTimeout(url, { method: 'GET', headers: { ...requestHeaders(credentials, 'image/*'), Range: 'bytes=0-1023' } });
   if (!res.ok) return { ok: false, reason: `MJPEG returned HTTP ${res.status}` };
   const ct = res.headers.get('content-type') ?? '';
   if (!ct.startsWith('image/') && !ct.startsWith('multipart/')) {
@@ -49,7 +66,17 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { stream_url, stream_type, rtsp_url, gateway_base_url } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) return new Response(JSON.stringify({ ok: false, reason: 'Authentication required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const client = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } },
+    );
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return new Response(JSON.stringify({ ok: false, reason: 'Authentication required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    const { stream_url, stream_type, rtsp_url, gateway_base_url, snapshot_url, credentials } = await req.json();
     const url = stream_url || rtsp_url;
     if (!url) {
       return new Response(JSON.stringify({ ok: false, reason: 'stream_url or rtsp_url required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -66,18 +93,28 @@ Deno.serve(async (req) => {
           reason: 'RTSP source needs a streaming gateway (set Gateway Base URL in Tenant Settings) so the browser can play HLS/WebRTC.',
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      if (snapshot_url) {
+        const snapshot = await probeMjpeg(snapshot_url, credentials);
+        if (!snapshot.ok) return new Response(JSON.stringify({ ok: false, reason: `RTSP format is valid, but snapshot test failed: ${snapshot.reason}` }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
       return new Response(JSON.stringify({
         ok: true,
-        detail: 'RTSP URL shape is valid — playback will go through your configured gateway.',
+        detail: snapshot_url ? 'RTSP format and AI snapshot verified; playback will use the configured gateway.' : 'RTSP format verified; playback will use the configured gateway.',
         stream_type: 'hls',
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     let result;
     const t = (stream_type ?? '').toLowerCase();
-    if (t === 'webrtc' || t === 'whep' || url.includes('/whep')) result = await probeWhep(url);
-    else if (t === 'mjpeg' || url.includes('mjpeg')) result = await probeMjpeg(url);
-    else result = await probeHls(url); // default HLS
+    if (t === 'webrtc' || t === 'whep' || url.includes('/whep')) result = await probeWhep(url, credentials);
+    else if (t === 'mjpeg' || url.includes('mjpeg')) result = await probeMjpeg(url, credentials);
+    else result = await probeHls(url, credentials); // default HLS
+
+    if (result.ok && snapshot_url) {
+      const snapshot = await probeMjpeg(snapshot_url, credentials);
+      if (!snapshot.ok) result = { ok: false, reason: `Playback is reachable, but AI snapshot failed: ${snapshot.reason}` };
+      else result = { ok: true, detail: `${result.detail ?? 'Playback reachable'} · AI snapshot reachable` };
+    }
 
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {

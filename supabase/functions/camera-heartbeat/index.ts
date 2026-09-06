@@ -75,13 +75,14 @@ Deno.serve(async (req) => {
       await supabase.from("alerts").insert({
         tenant_id: cam.tenant_id,
         camera_id,
+        type: String(detection.type ?? "camera_ai"),
         title: String(detection.title ?? "Detection"),
+        description: String(detection.description ?? "Live camera detection"),
         severity: String(detection.severity ?? "medium"),
         status: "active",
-        source: "camera_ai",
-        confidence: Number(detection.confidence ?? 0),
-        location: cam.zone ?? cam.name,
-        metadata: detection.metadata ?? {},
+        zone: cam.zone ?? cam.name,
+        risk_score: Math.round(Number(detection.confidence ?? 0) * 100),
+        metadata: { ...(detection.metadata ?? {}), confidence: Number(detection.confidence ?? 0), source: "camera_ai" },
       });
     }
   }
