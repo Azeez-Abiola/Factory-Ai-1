@@ -205,6 +205,10 @@ const CameraConfig = () => {
     if (stream && !isLikelyStreamUrl(stream, (e.stream_type as StreamType) ?? "hls")) {
       return toast.error(`Stream URL doesn't look like a valid ${e.stream_type?.toUpperCase()} endpoint`);
     }
+    const playbackIsStillImage = /\.(jpe?g|png)(\?.*)?$|mjpeg|snapshot|still/i.test(stream);
+    if (e.inference_enabled && !e.snapshot_url?.trim() && !playbackIsStillImage) {
+      return toast.error("Add an AI snapshot address before enabling continuous analysis.");
+    }
 
     // New cameras must pass a stream test before we persist them.
     if (!e.id) {

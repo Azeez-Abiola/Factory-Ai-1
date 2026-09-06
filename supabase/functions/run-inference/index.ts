@@ -147,6 +147,11 @@ Deno.serve(async (req) => {
 
     let analysis: any = null;
     try {
+      const selectedCategories = cam.ai_models && typeof cam.ai_models === 'object' && !Array.isArray(cam.ai_models)
+        ? Object.entries(cam.ai_models)
+            .filter(([, enabled]) => enabled === true)
+            .map(([category]) => category)
+        : Array.isArray(cam.ai_models) ? cam.ai_models : undefined;
       const res = await fetch(analyzeUrl, {
         method: 'POST',
         headers: {
@@ -158,7 +163,7 @@ Deno.serve(async (req) => {
           tenantId: cam.tenant_id,
           cameraName: cam.name,
           zone: cam.zone,
-          categories: Array.isArray(cam.ai_models) ? cam.ai_models : undefined,
+          categories: selectedCategories,
           context,
         }),
       });
