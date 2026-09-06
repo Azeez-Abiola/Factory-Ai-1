@@ -55,6 +55,71 @@ export type Database = {
           },
         ]
       }
+      ai_insights: {
+        Row: {
+          category: string
+          confidence: number
+          created_at: string
+          description: string
+          evidence: Json
+          generated_at: string
+          id: string
+          impact: string
+          metric_label: string | null
+          metric_value: string | null
+          period_end: string | null
+          period_start: string | null
+          recommendation: string
+          tenant_id: string
+          title: string
+          trend: string
+        }
+        Insert: {
+          category?: string
+          confidence?: number
+          created_at?: string
+          description?: string
+          evidence?: Json
+          generated_at?: string
+          id?: string
+          impact?: string
+          metric_label?: string | null
+          metric_value?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          recommendation?: string
+          tenant_id: string
+          title: string
+          trend?: string
+        }
+        Update: {
+          category?: string
+          confidence?: number
+          created_at?: string
+          description?: string
+          evidence?: Json
+          generated_at?: string
+          id?: string
+          impact?: string
+          metric_label?: string | null
+          metric_value?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          recommendation?: string
+          tenant_id?: string
+          title?: string
+          trend?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_insights_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_rules: {
         Row: {
           auto_assign_role: string | null
@@ -267,6 +332,7 @@ export type Database = {
           inference_status: string
           ingest_token: string | null
           last_inference_at: string | null
+          last_inference_error: string | null
           last_seen_at: string | null
           metadata: Json | null
           name: string
@@ -275,6 +341,7 @@ export type Database = {
           resolution: string | null
           retention_days: number
           rtsp_url: string | null
+          snapshot_url: string | null
           status: string
           stream_type: string
           stream_url: string | null
@@ -297,6 +364,7 @@ export type Database = {
           inference_status?: string
           ingest_token?: string | null
           last_inference_at?: string | null
+          last_inference_error?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           name: string
@@ -305,6 +373,7 @@ export type Database = {
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
+          snapshot_url?: string | null
           status?: string
           stream_type?: string
           stream_url?: string | null
@@ -327,6 +396,7 @@ export type Database = {
           inference_status?: string
           ingest_token?: string | null
           last_inference_at?: string | null
+          last_inference_error?: string | null
           last_seen_at?: string | null
           metadata?: Json | null
           name?: string
@@ -335,6 +405,7 @@ export type Database = {
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
+          snapshot_url?: string | null
           status?: string
           stream_type?: string
           stream_url?: string | null
