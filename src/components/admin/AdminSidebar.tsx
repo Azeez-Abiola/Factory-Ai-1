@@ -45,20 +45,19 @@ const AdminSidebar = () => {
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border transition-all duration-300 z-30",
+        "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 z-30",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-destructive to-[hsl(20_90%_55%)] flex items-center justify-center shrink-0 shadow-[0_0_20px_-4px_hsl(var(--destructive)/0.6)]">
-          <Factory className="w-5 h-5 text-destructive-foreground" />
-          <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" />
+        <div className="relative w-9 h-9 rounded-md bg-primary flex items-center justify-center shrink-0 shadow-sm">
+          <Factory className="w-5 h-5 text-primary-foreground" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
             <div className="font-display font-bold text-foreground text-[15px] tracking-tight leading-tight">
-              Factory<span className="text-destructive">AI</span>
+              Factory<span className="text-primary">AI</span>
             </div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Platform Admin</div>
           </div>
@@ -87,14 +86,14 @@ const AdminSidebar = () => {
                     className={cn(
                       "group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-destructive/10 text-destructive"
+                        ? "bg-primary/10 text-primary"
                         : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     )}
                   >
                     {isActive && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-gradient-to-b from-destructive to-[hsl(20_90%_55%)]" />
+                      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-primary" />
                     )}
-                    <item.icon className={cn("w-5 h-5 shrink-0 transition-transform group-hover:scale-110", isActive && "text-destructive")} />
+                    <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive && "text-primary")} />
                     {!collapsed && <span className="truncate">{item.label}</span>}
                   </NavLink>
                 );
