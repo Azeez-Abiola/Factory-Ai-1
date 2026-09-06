@@ -107,6 +107,7 @@ const CameraConfig = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<CameraRow> | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [analysing, setAnalysing] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
@@ -257,6 +258,31 @@ const CameraConfig = () => {
     }
     setEditing(null);
     load();
+  };
+
+  /** Runs one live AI inference cycle on this camera and reports what it found. */
+  const runInference = async (row: CameraRow) => {
+    setAnalysing(row.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("run-inference", { body: { camera_id: row.id } });
+      if (error) {
+        toast.error(`AI run failed: ${error.message}`);
+        return;
+      }
+      const result = (data as any)?.results?.[0];
+      if (!result) {
+        toast.info("No analysis was returned for this camera.");
+      } else if (result.status === "error") {
+        toast.error(`AI run failed: ${result.error}`);
+      } else if (result.alerts_created) {
+        toast.warning(`${result.alerts_created} new alert${result.alerts_created > 1 ? "s" : ""} raised from the live frame.`);
+      } else {
+        toast.success(result.summary ? `No violations detected — ${result.summary}` : "No violations detected in the live frame.");
+      }
+    } finally {
+      setAnalysing(null);
+      load();
+    }
   };
 
   const remove = async (row: CameraRow) => {
@@ -496,7 +522,17 @@ const CameraConfig = () => {
                   </div>
                 </div>
 
+                {cam.last_inference_error && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2.5 text-xs text-destructive">
+                    <span className="font-medium">Last AI run failed:</span> {cam.last_inference_error}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  <Button size="sm" variant="outline" onClick={() => runInference(cam)} disabled={analysing === cam.id} className="gap-1.5">
+                    <Radio className="w-3.5 h-3.5" />
+                    {analysing === cam.id ? "Analysing…" : "Run AI now"}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => testStream(cam)} disabled={testing === cam.id} className="gap-1.5">
                     <Wifi className="w-3.5 h-3.5" />
                     {testing === cam.id ? "Testing…" : "Test stream"}
