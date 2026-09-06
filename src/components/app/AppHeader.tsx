@@ -10,7 +10,7 @@ const AppHeader = () => {
 
   return (
     <header className="h-20 border-b border-border bg-card/95 backdrop-blur-md flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-8 sticky top-0 z-20">
-      <div className="relative w-full max-w-lg group">
+      <div className="relative hidden sm:block w-full max-w-lg group">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
         <Input
           aria-label="Search alerts, cameras, reports"
@@ -21,7 +21,7 @@ const AppHeader = () => {
           <Command className="w-3 h-3" />K
         </kbd>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 ml-auto">
         <div className="hidden lg:flex items-center gap-2 mr-2 px-2.5 py-1 rounded-md border border-success/25 bg-success/10">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-70" />

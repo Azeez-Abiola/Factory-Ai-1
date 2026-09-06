@@ -42,7 +42,7 @@ const AppSidebar = () => {
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 z-30",
+        "h-screen sticky top-0 flex flex-col bg-sidebar border-r border-sidebar-border transition-[width] duration-200 z-30 max-md:w-[68px]",
         collapsed ? "w-[68px]" : "w-[272px]"
       )}
     >
@@ -52,7 +52,7 @@ const AppSidebar = () => {
           <Factory className="w-5 h-5 text-primary-foreground" />
         </div>
         {!collapsed && (
-          <div className="min-w-0">
+          <div className="min-w-0 max-md:hidden">
             <div className="font-display font-bold text-foreground text-base leading-tight">
               Factory<span className="text-primary">AI</span>
             </div>
@@ -66,7 +66,7 @@ const AppSidebar = () => {
         {navGroups.map((group) => (
           <div key={group.label} className="mb-4 last:mb-0">
             {!collapsed && (
-              <div className="px-3 mb-2 text-[10px] font-bold uppercase text-muted-foreground/70">
+              <div className="px-3 mb-2 text-[10px] font-bold uppercase text-muted-foreground/70 max-md:hidden">
                 {group.label}
               </div>
             )}
@@ -88,7 +88,7 @@ const AppSidebar = () => {
                     )}
                   >
                     <item.icon className={cn("w-[18px] h-[18px] shrink-0", isActive && "text-primary")} />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
+                    {!collapsed && <span className="truncate max-md:hidden">{item.label}</span>}
                   </NavLink>
                 );
               })}
@@ -104,7 +104,7 @@ const AppSidebar = () => {
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
           <Shield className="w-5 h-5 shrink-0" />
-          {!collapsed && <span>Admin Panel</span>}
+          {!collapsed && <span className="max-md:hidden">Admin Panel</span>}
         </NavLink>
         <Button
           type="button"
@@ -114,7 +114,7 @@ const AppSidebar = () => {
           className="justify-start gap-3 px-3 h-10 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent w-full"
         >
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          {!collapsed && <span>Collapse</span>}
+          {!collapsed && <span className="max-md:hidden">Collapse</span>}
         </Button>
       </div>
     </aside>

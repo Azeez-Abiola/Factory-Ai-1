@@ -32,7 +32,7 @@ const PageHeader = ({ eyebrow, icon: Icon, title, description, actions, classNam
             <p className="text-sm text-muted-foreground mt-1.5 max-w-3xl leading-relaxed">{description}</p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
       </div>
     </div>
   );
