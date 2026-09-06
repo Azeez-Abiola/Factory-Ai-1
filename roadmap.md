@@ -1,5 +1,6 @@
 # Roadmap
 
-- [x] Upgrade member directory with clickable detail and editing
-- [x] Polish shared admin shell and global admin presentation
-- [x] Validate desktop and mobile behavior
+- [ ] Secure camera inference authorization.
+- [ ] Replace simulated camera telemetry and placeholder actions.
+- [ ] Harden live feed protocol and failure handling.
+- [ ] Run authenticated admin-to-operator smoke testing.
