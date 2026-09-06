@@ -63,7 +63,9 @@ export default function Alerts() {
   const { activeTenantId, activeTenant } = useTenants();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<AlertRow | null>(null);
+
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
