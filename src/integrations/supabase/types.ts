@@ -895,6 +895,71 @@ export type Database = {
           },
         ]
       }
+      tenant_kpis: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          critical_threshold: number
+          current_value: number
+          description: string
+          direction: string
+          enabled: boolean
+          formula: string | null
+          id: string
+          name: string
+          target: number
+          tenant_id: string
+          unit: string
+          updated_at: string
+          warning_threshold: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          critical_threshold?: number
+          current_value?: number
+          description?: string
+          direction?: string
+          enabled?: boolean
+          formula?: string | null
+          id?: string
+          name: string
+          target?: number
+          tenant_id: string
+          unit?: string
+          updated_at?: string
+          warning_threshold?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          critical_threshold?: number
+          current_value?: number
+          description?: string
+          direction?: string
+          enabled?: boolean
+          formula?: string | null
+          id?: string
+          name?: string
+          target?: number
+          tenant_id?: string
+          unit?: string
+          updated_at?: string
+          warning_threshold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_kpis_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_members: {
         Row: {
           created_at: string
@@ -969,6 +1034,56 @@ export type Database = {
             foreignKeyName: "tenant_notification_prefs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_webhooks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          events: string[]
+          id: string
+          last_triggered_at: string | null
+          name: string
+          status: string
+          success_rate: number
+          tenant_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          events?: string[]
+          id?: string
+          last_triggered_at?: string | null
+          name: string
+          status?: string
+          success_rate?: number
+          tenant_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          events?: string[]
+          id?: string
+          last_triggered_at?: string | null
+          name?: string
+          status?: string
+          success_rate?: number
+          tenant_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_webhooks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
