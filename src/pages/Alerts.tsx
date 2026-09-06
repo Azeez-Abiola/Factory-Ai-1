@@ -44,11 +44,19 @@ const severityColors: Record<string, string> = {
   low: "bg-muted text-muted-foreground border-border",
 };
 
+// Alerts may arrive from inference, camera gateways or manual entry with
+// slightly different status vocabularies — normalise them for the UI.
+const OPEN_STATUSES = ["open", "new", "active"];
+const ACK_STATUSES = ["acknowledged", "assigned", "investigating"];
+const isOpen = (s: string) => OPEN_STATUSES.includes(s);
+const isResolved = (s: string) => s === "resolved" || s === "closed";
+
 const statusIcon = (status: string) => {
-  if (status === "resolved") return <CheckCircle className="w-4 h-4 text-success" />;
-  if (status === "acknowledged" || status === "assigned") return <Clock className="w-4 h-4 text-primary" />;
+  if (isResolved(status)) return <CheckCircle className="w-4 h-4 text-success" />;
+  if (ACK_STATUSES.includes(status)) return <Clock className="w-4 h-4 text-primary" />;
   return <AlertTriangle className="w-4 h-4 text-warning" />;
 };
+
 
 export default function Alerts() {
   const { user } = useAuth();
@@ -100,7 +108,10 @@ export default function Alerts() {
 
   const filtered = useMemo(() => alerts.filter((a) => {
     if (severity !== "all" && a.severity !== severity) return false;
-    if (status !== "all" && a.status !== status) return false;
+    if (status === "open" && !isOpen(a.status)) return false;
+    if (status === "acknowledged" && !ACK_STATUSES.includes(a.status)) return false;
+    if (status === "resolved" && !isResolved(a.status)) return false;
+
     if (search.trim()) {
       const q = search.toLowerCase();
       if (![a.title, a.zone ?? "", a.type, a.id].some((v) => v.toLowerCase().includes(q))) return false;
@@ -110,13 +121,20 @@ export default function Alerts() {
 
   const acknowledge = async (a: AlertRow) => {
     if (!user || !activeTenantId) return;
-    const { error } = await supabase.from("alerts").update({
-      status: "acknowledged", acknowledged_by: user.id, acknowledged_at: new Date().toISOString(),
-    }).eq("id", a.id);
+    const patch = {
+      status: "acknowledged",
+      acknowledged_by: user.id,
+      acknowledged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("alerts").update(patch).eq("id", a.id);
     if (error) return toast.error(error.message);
+    // Keep local + dialog state in sync even if realtime is delayed.
+    setAlerts((prev) => prev.map((x) => (x.id === a.id ? { ...x, ...patch } : x)));
+    setSelected((prev) => (prev && prev.id === a.id ? { ...prev, ...patch } : prev));
     await auditLog({ tenantId: activeTenantId, action: "alert.acknowledge", entityType: "alert", entityId: a.id, metadata: { title: a.title } });
     toast.success("Alert acknowledged");
   };
+
 
   const openResolutionWorkflow = async (a: AlertRow) => {
     if (!user || !activeTenantId) return;
@@ -235,10 +253,11 @@ export default function Alerts() {
                 <div><p className="text-muted-foreground text-xs">Acknowledged</p><p className="text-foreground">{selected.acknowledged_at ? new Date(selected.acknowledged_at).toLocaleString() : "No"}</p></div>
               </div>
               <div className="flex gap-2 pt-2">
-                {selected.status === "open" && (
+                {isOpen(selected.status) && (
                   <Button variant="outline" onClick={() => acknowledge(selected)}><Clock className="w-4 h-4 mr-1" /> Acknowledge</Button>
                 )}
-                {selected.status !== "resolved" && (
+                {!isResolved(selected.status) && (
+
                   <Button onClick={() => openResolutionWorkflow(selected)} className="ml-auto">
                     <ShieldCheck className="w-4 h-4 mr-1" /> Open Resolution Workflow
                   </Button>

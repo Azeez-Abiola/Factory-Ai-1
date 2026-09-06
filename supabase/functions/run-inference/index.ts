@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
           severity: ['low', 'medium', 'high', 'critical'].includes(v.severity) ? v.severity : 'medium',
           title: String(v.type ?? 'Detected violation').slice(0, 140),
           description: String(v.description ?? analysis.summary ?? '').slice(0, 1000),
-          status: 'new',
+          status: 'open',
           zone: cam.zone,
           risk_score: typeof analysis.risk_score === 'number'
             ? Math.round(analysis.risk_score)
