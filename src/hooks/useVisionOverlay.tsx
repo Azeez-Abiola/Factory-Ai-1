@@ -126,8 +126,10 @@ interface Options {
 
 export function useVisionOverlay({
   cameraId, cameraName, zone, tenantId, enabled,
-  intervalSeconds = 15, startDelayMs = 0, capture, hasSnapshot,
+  intervalSeconds = 15, startDelayMs = 0, capture, record, hasSnapshot,
   sceneGating = true, changeThreshold = 0.012, maxSkippedTicks = 10,
+  regions, referenceMatchEnabled = false, referenceMatchThreshold = 0.06,
+  referenceSamples, clipAnalysisEnabled = false, clipSeconds = 5,
 }: Options) {
   const [boxes, setBoxes] = useState<VisionBox[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
@@ -137,9 +139,13 @@ export function useVisionOverlay({
   const [idle, setIdle] = useState(false);
   const [skippedRuns, setSkippedRuns] = useState(0);
   const [budgetBlocked, setBudgetBlocked] = useState(false);
+  const [referenceVerdict, setReferenceVerdict] = useState<ReferenceVerdict | null>(null);
+  const [localChecks, setLocalChecks] = useState(0);
   const busy = useRef(false);
   const captureRef = useRef(capture);
   captureRef.current = capture;
+  const recordRef = useRef(record);
+  recordRef.current = record;
   const lastSignature = useRef<Float32Array | null>(null);
   const skippedTicks = useRef(0);
   const budgetBlockedRef = useRef(false);
@@ -155,8 +161,10 @@ export function useVisionOverlay({
 
       if (frame) {
         // Scene-change gating: only pay for inference when the picture moved.
+        // Signatures are cropped to the inspection areas, so background
+        // traffic outside them never triggers a paid analysis.
         if (sceneGating && !force) {
-          const signature = await frameSignature(frame);
+          const signature = await frameSignature(frame, regions);
           if (signature) {
             const previous = lastSignature.current;
             lastSignature.current = signature;
@@ -171,18 +179,47 @@ export function useVisionOverlay({
             }
           }
         } else if (sceneGating && force) {
-          lastSignature.current = await frameSignature(frame);
+          lastSignature.current = await frameSignature(frame, regions);
         }
         skippedTicks.current = 0;
         setIdle(false);
 
+        // Local reference check — decided on this machine, costs nothing.
+        if (referenceMatchEnabled && referenceSamples?.length) {
+          const signature = lastSignature.current ?? (await frameSignature(frame, regions));
+          const verdict = signature ? matchReference(signature, referenceSamples, referenceMatchThreshold) : null;
+          setReferenceVerdict(verdict);
+          if (verdict?.confident) {
+            setLocalChecks((n) => n + 1);
+            setLastRunAt(new Date());
+            setError(null);
+            if (verdict.label === "good") {
+              // A clear match against a known-good sample: nothing to escalate.
+              setBoxes([]);
+              setSummary(`Matches known-good sample${verdict.sample.note ? ` (${verdict.sample.note})` : ""} — no AI check needed`);
+              return;
+            }
+            // A clear match against a known-faulty sample still goes to the AI
+            // so the alert carries a description and evidence.
+          }
+        }
+
+        let clipUrl: string | null = null;
+        if (clipAnalysisEnabled && recordRef.current) {
+          clipUrl = await recordRef.current(clipSeconds);
+        }
+
         const { data, error: fnError } = await supabase.functions.invoke("analyze-frame", {
           body: {
-            imageUrl: frame,
+            ...(clipUrl ? { videoUrl: clipUrl } : { imageUrl: frame }),
             cameraName,
             zone,
             tenantId,
             cameraId,
+            regions,
+            referenceVerdict: referenceVerdict
+              ? { label: referenceVerdict.label, note: referenceVerdict.sample.note ?? null }
+              : undefined,
             source: "overlay",
             sceneChanged: true,
             sceneDelta,
@@ -203,6 +240,9 @@ export function useVisionOverlay({
         setError("Waiting for a readable frame");
         return;
       }
+
+      setBoxes(insideRegions(detectionsToBoxes(analysis), regions));
+
 
       setBoxes(detectionsToBoxes(analysis));
       setSummary(typeof analysis?.summary === "string" ? analysis.summary : null);
