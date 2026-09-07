@@ -103,7 +103,7 @@ export function useLiveCameras() {
       setLoading(true);
       // Never pull camera credentials or ingest tokens into the operator console.
       let q = supabase.from("cameras").select(
-        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_status, last_inference_at, last_inference_error"
+        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error"
       ).order("name");
       if (activeTenantId) q = q.eq("tenant_id", activeTenantId);
       const { data, error } = await q;
