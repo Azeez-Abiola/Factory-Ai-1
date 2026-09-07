@@ -51,6 +51,9 @@ Draw one box per distinct person, vehicle, machine or hazard you flag — boxes 
 Return ONLY the JSON object — no markdown, no prose.`;
 
 
+const SITE_PPE_MODEL_ID = "site/ppe-reference";
+const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
+
 const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the image as fractions between 0 and 1 (x/y = top-left corner). One tight box per distinct subject you flag.`;
 
 function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
@@ -181,6 +184,13 @@ Deno.serve(async (req) => {
         model,
         messages: [
           { role: "system", content: finalSystemPrompt },
+          ...exemplars.map((ex) => ({
+            role: "user" as const,
+            content: [
+              { type: "text", text: `Site PPE reference — ${ex.caption}` },
+              { type: "image_url", image_url: { url: ex.url } },
+            ],
+          })),
           { role: "user", content: [
             { type: "text", text: userText },
             body.videoUrl
@@ -225,7 +235,7 @@ Deno.serve(async (req) => {
       }, budget ?? undefined);
     }
 
-    return new Response(JSON.stringify({ analysis, raw, model, media, categories: categories.map((c) => c.id) }), {
+    return new Response(JSON.stringify({ analysis, raw, model, media, site_model: siteModel, reference_images_used: exemplars.length, categories: categories.map((c) => c.id) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
