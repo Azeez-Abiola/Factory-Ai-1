@@ -21,6 +21,9 @@ import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
+import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
+import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
 
 type StreamType = "hls" | "webrtc" | "mjpeg";
 
