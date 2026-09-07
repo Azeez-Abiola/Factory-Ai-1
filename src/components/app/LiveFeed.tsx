@@ -28,7 +28,7 @@ interface LiveFeedProps {
  * AWS KVS, Frigate, Ant Media, etc.) that exposes HLS/WHEP URLs per camera.
  * Store that URL in `cameras.stream_url` and this component plays it.
  */
-export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, overlay }: LiveFeedProps) {
+export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, recordRef, overlay }: LiveFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"loading" | "playing" | "error">("loading");
