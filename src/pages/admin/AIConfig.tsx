@@ -47,11 +47,20 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "forklift",     label: "Forklift / Pedestrian",  description: "pedestrian in forklift zone, no spotter, unsafe speed",                     severity_hint: "critical", enabled: true },
 ];
 
+interface CustomModel {
+  id: string;
+  label: string;
+  notes?: string;
+}
+
 const MODELS = [
   { id: "google/gemini-2.5-pro",   label: "Gemini 2.5 Pro (best vision, default)" },
   { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (faster, cheaper)" },
+  { id: "google/gemini-3-pro-image", label: "Gemini 3 Pro (next-gen vision)" },
   { id: "openai/gpt-5.5",          label: "GPT-5.5 (reasoning-heavy)" },
+  { id: "openai/gpt-6-astra",      label: "GPT-6 Astra (most capable)" },
 ];
+
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
@@ -74,6 +83,15 @@ const AIConfig = () => {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [newCatLabel, setNewCatLabel] = useState("");
+  const [customModels, setCustomModels] = useState<CustomModel[]>([]);
+  const [newModelId, setNewModelId] = useState("");
+  const [newModelLabel, setNewModelLabel] = useState("");
+  const [newModelNotes, setNewModelNotes] = useState("");
+
+  const allModels = useMemo(
+    () => [...MODELS, ...customModels.filter((m) => m.id && !MODELS.some((b) => b.id === m.id))],
+    [customModels],
+  );
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -89,10 +107,13 @@ const AIConfig = () => {
         setModel(data.model || "google/gemini-2.5-pro");
         const cats = Array.isArray(data.categories) ? (data.categories as unknown as Category[]) : [];
         setCategories(cats.length ? cats : DEFAULT_CATEGORIES);
+        const models = Array.isArray((data as any).custom_models) ? ((data as any).custom_models as CustomModel[]) : [];
+        setCustomModels(models);
       } else {
         setSystemPrompt(DEFAULT_PROMPT);
         setModel("google/gemini-2.5-pro");
         setCategories(DEFAULT_CATEGORIES);
+        setCustomModels([]);
       }
       setLoading(false);
     })();
@@ -107,6 +128,7 @@ const AIConfig = () => {
       system_prompt: systemPrompt,
       model,
       categories: categories as unknown as never,
+      custom_models: customModels as unknown as never,
       updated_by: userRes.user?.id,
     };
     const { error } = await supabase
@@ -118,15 +140,31 @@ const AIConfig = () => {
       tenantId: activeTenantId,
       action: "ai_config.updated",
       entityType: "ai_analysis_config",
-      metadata: { model, category_count: categories.length, enabled_count: categories.filter((c) => c.enabled !== false).length },
+      metadata: { model, category_count: categories.length, custom_model_count: customModels.length, enabled_count: categories.filter((c) => c.enabled !== false).length },
     });
     toast.success("AI configuration saved");
+  };
+
+  const addCustomModel = () => {
+    const id = newModelId.trim();
+    if (!id) { toast.error("Enter the model identifier"); return; }
+    if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) { toast.error("Use the vendor/model format, e.g. google/gemini-3.7-flash"); return; }
+    if (allModels.some((m) => m.id === id)) { toast.error("That model is already in the list"); return; }
+    setCustomModels((m) => [...m, { id, label: newModelLabel.trim() || id, notes: newModelNotes.trim() || undefined }]);
+    setNewModelId(""); setNewModelLabel(""); setNewModelNotes("");
+    toast.success("Model added — click Save to apply");
+  };
+
+  const removeCustomModel = (id: string) => {
+    setCustomModels((m) => m.filter((x) => x.id !== id));
+    if (model === id) setModel("google/gemini-2.5-pro");
   };
 
   const resetDefaults = () => {
     setSystemPrompt(DEFAULT_PROMPT);
     setModel("google/gemini-2.5-pro");
     setCategories(DEFAULT_CATEGORIES);
+
     toast.info("Reset to platform defaults — click Save to apply");
   };
 
@@ -319,13 +357,64 @@ const AIConfig = () => {
               <Select value={model} onValueChange={setModel}>
                 <SelectTrigger className="max-w-lg"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {MODELS.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
+                  {allModels.map((m) => <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
                 All calls route through Lovable AI Gateway. Gemini 2.5 Pro is the default for best vision accuracy; switch to Flash to reduce cost when running high-cadence inference.
               </p>
             </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div>
+                <h4 className="font-semibold text-foreground text-sm">Additional vision models</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Register another model for this site and it appears in the selector above. Use the vendor/model identifier, e.g. <code className="text-xs bg-muted/40 px-1 rounded">google/gemini-3.7-flash</code>.
+                </p>
+              </div>
+
+              {customModels.length > 0 && (
+                <div className="space-y-2">
+                  {customModels.map((m) => (
+                    <div key={m.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-foreground">{m.label}</span>
+                          {model === m.id && <Badge variant="secondary" className="text-[10px]">In use</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{m.id}</p>
+                        {m.notes && <p className="text-xs text-muted-foreground mt-1">{m.notes}</p>}
+                      </div>
+                      <Button variant="ghost" size="icon" aria-label={`Remove ${m.label}`} onClick={() => removeCustomModel(m.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid gap-3 md:grid-cols-2 max-w-3xl">
+                <div>
+                  <Label className="text-xs">Model identifier</Label>
+                  <Input value={newModelId} onChange={(e) => setNewModelId(e.target.value)} placeholder="vendor/model-name" />
+                </div>
+                <div>
+                  <Label className="text-xs">Display name</Label>
+                  <Input value={newModelLabel} onChange={(e) => setNewModelLabel(e.target.value)} placeholder="e.g. Gemini 3.7 Flash (fast)" />
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Notes (optional)</Label>
+                  <Input value={newModelNotes} onChange={(e) => setNewModelNotes(e.target.value)} placeholder="When should operators pick this model?" />
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={addCustomModel}>
+                <Plus className="w-4 h-4 mr-1.5" /> Add model
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Added models must be supported by the AI gateway. Use <strong>Test on frame</strong> after saving to confirm the model returns usable detections.
+              </p>
+            </div>
+
           </div>
         </TabsContent>
 

@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           categories: Json
           created_at: string
+          custom_models: Json
           id: string
           model: string
           system_prompt: string
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           categories?: Json
           created_at?: string
+          custom_models?: Json
           id?: string
           model?: string
           system_prompt?: string
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           categories?: Json
           created_at?: string
+          custom_models?: Json
           id?: string
           model?: string
           system_prompt?: string
