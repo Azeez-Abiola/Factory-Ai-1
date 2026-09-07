@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Bell, Camera, FileText,
   Shield, Factory, ChevronLeft, ChevronRight,
-  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck
+  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck, Map
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
       { to: "/app/alerts", icon: Bell, label: "Alerts" },
       { to: "/app/incidents", icon: ShieldCheck, label: "Incidents" },
       { to: "/app/cameras", icon: Camera, label: "Camera Feeds" },
+      { to: "/app/floor-plan", icon: Map, label: "Floor Plan" },
     ],
   },
   {
