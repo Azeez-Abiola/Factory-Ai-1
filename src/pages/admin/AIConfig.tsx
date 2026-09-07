@@ -47,11 +47,20 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "forklift",     label: "Forklift / Pedestrian",  description: "pedestrian in forklift zone, no spotter, unsafe speed",                     severity_hint: "critical", enabled: true },
 ];
 
+interface CustomModel {
+  id: string;
+  label: string;
+  notes?: string;
+}
+
 const MODELS = [
   { id: "google/gemini-2.5-pro",   label: "Gemini 2.5 Pro (best vision, default)" },
   { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (faster, cheaper)" },
+  { id: "google/gemini-3-pro-image", label: "Gemini 3 Pro (next-gen vision)" },
   { id: "openai/gpt-5.5",          label: "GPT-5.5 (reasoning-heavy)" },
+  { id: "openai/gpt-6-astra",      label: "GPT-6 Astra (most capable)" },
 ];
+
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
