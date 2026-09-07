@@ -69,6 +69,8 @@ const App = () => (
               <Route path="alerts" element={<Alerts />} />
               <Route path="incidents" element={<Incidents />} />
               <Route path="cameras" element={<Cameras />} />
+              <Route path="floor-plan" element={<FloorPlan />} />
+
               <Route path="reports" element={<Reports />} />
               <Route path="reports/:reportId" element={<ReportDetail />} />
               <Route path="shift-reports" element={<ShiftReports />} />
