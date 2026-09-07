@@ -85,6 +85,17 @@
     --warning: 38 92% 50%;
     --success: 142 71% 45%;
 
+    /* Live vision overlay categories (dark) */
+    --vision-ppe: 38 95% 55%;
+    --vision-intrusion: 0 84% 62%;
+    --vision-forklift: 22 92% 58%;
+    --vision-quality: 189 94% 55%;
+    --vision-housekeeping: 217 91% 62%;
+    --vision-ergonomics: 271 85% 68%;
+    --vision-downtime: 215 16% 65%;
+    --vision-other: 172 66% 50%;
+
+
     --sidebar-background: 182 48% 7%;
     --sidebar-foreground: 210 20% 82%;
     --sidebar-primary: 172 66% 50%;
