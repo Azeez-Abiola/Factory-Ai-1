@@ -259,7 +259,9 @@ export function useVisionOverlay({
       busy.current = false;
       setRunning(false);
     }
-  }, [cameraId, cameraName, zone, tenantId, hasSnapshot, sceneGating, changeThreshold, maxSkippedTicks]);
+  }, [cameraId, cameraName, zone, tenantId, hasSnapshot, sceneGating, changeThreshold, maxSkippedTicks,
+      regions, referenceMatchEnabled, referenceMatchThreshold, referenceSamples, clipAnalysisEnabled, clipSeconds, referenceVerdict]);
+
 
   /** Manual trigger always analyses, bypassing the change gate. */
   const runOnce = useCallback(() => run(true), [run]);
