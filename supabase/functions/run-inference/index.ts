@@ -56,13 +56,59 @@ async function fetchFrame(url: string, credentials: Record<string, any> | null) 
     const buf = new Uint8Array(await res.arrayBuffer());
     if (!buf.length) return { ok: false as const, reason: 'snapshot_empty' };
     const mime = ct.startsWith('image/') ? ct.split(';')[0] : 'image/jpeg';
-    return { ok: true as const, dataUrl: `data:${mime};base64,${toBase64(buf)}`, bytes: buf.length };
+    return { ok: true as const, dataUrl: `data:${mime};base64,${toBase64(buf)}`, bytes: buf.length, raw: buf, mime };
   } catch (e) {
     return { ok: false as const, reason: `snapshot_error_${(e as Error).name}` };
   } finally {
     clearTimeout(timer);
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Scene-change gating
+ * A 32x32 grayscale fingerprint of every polled frame is stored on the
+ * camera row. The (expensive) vision model only sees a frame when its
+ * fingerprint drifts past the camera's sensitivity threshold, so a static
+ * scene costs one cheap snapshot fetch instead of one LLM call.
+ * ------------------------------------------------------------------ */
+const SIG_SIZE = 32;
+
+/** 32x32 luma fingerprint from a JPEG buffer, base64 encoded. Null when undecodable. */
+async function frameSignature(bytes: Uint8Array, mime: string): Promise<string | null> {
+  if (!/jpe?g/i.test(mime)) return null;
+  try {
+    const { default: jpeg } = await import('npm:jpeg-js@0.4.4');
+    const img = jpeg.decode(bytes, { useTArray: true, maxMemoryUsageInMB: 128 });
+    if (!img?.width || !img?.height) return null;
+    const out = new Uint8Array(SIG_SIZE * SIG_SIZE);
+    for (let y = 0; y < SIG_SIZE; y++) {
+      const sy = Math.min(img.height - 1, Math.floor((y + 0.5) * img.height / SIG_SIZE));
+      for (let x = 0; x < SIG_SIZE; x++) {
+        const sx = Math.min(img.width - 1, Math.floor((x + 0.5) * img.width / SIG_SIZE));
+        const p = (sy * img.width + sx) * 4;
+        out[y * SIG_SIZE + x] = (0.299 * img.data[p] + 0.587 * img.data[p + 1] + 0.114 * img.data[p + 2]) | 0;
+      }
+    }
+    return toBase64(out);
+  } catch {
+    return null;
+  }
+}
+
+/** Mean absolute luma difference, expressed as a percentage (0..100). */
+function signatureDelta(a: string, b: string): number | null {
+  try {
+    const decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    const x = decode(a), y = decode(b);
+    if (x.length !== y.length || !x.length) return null;
+    let sum = 0;
+    for (let i = 0; i < x.length; i++) sum += Math.abs(x[i] - y[i]);
+    return (sum / x.length) / 255 * 100;
+  } catch {
+    return null;
+  }
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
