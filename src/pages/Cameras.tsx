@@ -16,6 +16,8 @@ import LiveFeed from "@/components/app/LiveFeed";
 import { toast } from "sonner";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
 import PageHeader from "@/components/app/PageHeader";
+import { useTenants } from "@/hooks/useTenants";
+import { useVisionOverlay, VISION_CATEGORIES, categoryColor, VisionBox } from "@/hooks/useVisionOverlay";
 
 type LayoutKey = "1" | "4" | "9" | "12" | "16";
 
@@ -42,6 +44,8 @@ const telemetryFor = (cam: LiveCamera) => {
 
 const Cameras = () => {
   const { cameras, hasLiveStreams } = useLiveCameras();
+  const { activeTenantId } = useTenants();
+  const [visionOn, setVisionOn] = useState(true);
   const [selected, setSelected] = useState<LiveCamera | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [status, setStatus] = useState<string>("all");
@@ -230,10 +234,35 @@ const Cameras = () => {
           <span className="hidden sm:inline">{audioOn ? "Audio on" : "Audio"}</span>
         </Button>
 
+        <Button
+          size="sm" variant="outline" onClick={() => setVisionOn((v) => !v)}
+          className={cn("h-9 gap-1.5", visionOn && "border-primary/40 text-primary")}
+          title="Continuously analyse every visible live stream and draw colour-coded detection boxes"
+          aria-pressed={visionOn}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{visionOn ? "AI overlay on" : "AI overlay off"}</span>
+        </Button>
+
         <Button size="sm" variant="outline" onClick={toggleFullscreen} className="h-9 gap-1.5" title="Toggle wall fullscreen (F)">
           {wallFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </Button>
       </div>
+
+      {/* Detection legend */}
+      {visionOn && (
+        <div className="glass flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border px-3 py-2">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Detection colours</span>
+          {VISION_CATEGORIES.map((c) => (
+            <span key={c.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: categoryColor(c.id) }} />
+              {c.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+
 
       {/* Wall */}
       <div ref={wallRef} className={cn("space-y-3", wallFullscreen && "bg-background p-4")}>
@@ -246,8 +275,8 @@ const Cameras = () => {
         ) : (
           <>
             <div className={cn("grid gap-3", layoutConfig[layout].cols)}>
-              {visible.map((cam) => (
-                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} audioOn={audioOn} />
+              {visible.map((cam, idx) => (
+                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} audioOn={audioOn} visionOn={visionOn} tenantId={activeTenantId} stagger={idx} />
               ))}
               {/* Fill empty slots so grid keeps its shape */}
               {Array.from({ length: Math.max(0, perPage - visible.length) }).map((_, i) => (
@@ -296,7 +325,7 @@ const Cameras = () => {
 
               <div className="space-y-4">
                 <div className="relative h-80 bg-muted/30 rounded-lg overflow-hidden border border-border">
-                  <FeedInner cam={selected} now={now} large audioOn={audioOn} />
+                  <FeedInner cam={selected} now={now} large audioOn={audioOn} visionOn={visionOn} tenantId={activeTenantId} stagger={0} />
                 </div>
 
                 {/* Telemetry */}
@@ -365,7 +394,7 @@ const HealthTile = ({ icon: Icon, label, value, tone }: { icon: any; label: stri
   );
 };
 
-const CameraTile = ({ cam, onOpen, now, focus, audioOn }: { cam: LiveCamera; onOpen: () => void; now: Date; focus: boolean; audioOn: boolean }) => {
+const CameraTile = ({ cam, onOpen, now, focus, audioOn, visionOn, tenantId, stagger }: { cam: LiveCamera; onOpen: () => void; now: Date; focus: boolean; audioOn: boolean; visionOn: boolean; tenantId: string | null; stagger: number }) => {
   const config = statusConfig[cam.status];
   return (
     <div
@@ -379,7 +408,7 @@ const CameraTile = ({ cam, onOpen, now, focus, audioOn }: { cam: LiveCamera; onO
       )}
     >
       <div className={cn("relative bg-muted/30 overflow-hidden", focus ? "h-[420px]" : "h-40")}>
-        <FeedInner cam={cam} now={now} large={focus} audioOn={audioOn} tileFocus={focus} />
+        <FeedInner cam={cam} now={now} large={focus} audioOn={audioOn} tileFocus={focus} visionOn={visionOn} tenantId={tenantId} stagger={stagger} />
       </div>
       <div className="p-2.5">
         <div className="flex items-center justify-between mb-0.5">
@@ -399,10 +428,58 @@ const CameraTile = ({ cam, onOpen, now, focus, audioOn }: { cam: LiveCamera; onO
   );
 };
 
-const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean }) => {
+/** Colour-coded AI detection boxes drawn over the live picture. */
+const DetectionBoxes = ({ boxes, large }: { boxes: VisionBox[]; large: boolean }) => (
+  <div className="pointer-events-none absolute inset-0">
+    {boxes.map((box) => {
+      const color = categoryColor(box.category);
+      return (
+        <div
+          key={box.id}
+          className="absolute rounded-[3px] transition-all duration-500"
+          style={{
+            left: `${box.x * 100}%`,
+            top: `${box.y * 100}%`,
+            width: `${box.w * 100}%`,
+            height: `${box.h * 100}%`,
+            border: `${large ? 2 : 1.5}px solid ${color}`,
+            boxShadow: `0 0 0 1px hsl(var(--background) / 0.35), 0 0 12px ${color}55`,
+          }}
+        >
+          <span
+            className={cn(
+              "absolute -top-[15px] left-0 whitespace-nowrap rounded-sm px-1 font-mono leading-[14px]",
+              large ? "text-[10px]" : "text-[9px]"
+            )}
+            style={{ background: color, color: "hsl(var(--background))" }}
+          >
+            {box.label}
+            {box.confidence ? ` ${Math.round(box.confidence * 100)}%` : ""}
+          </span>
+        </div>
+      );
+    })}
+  </div>
+);
+
+const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false, visionOn = true, tenantId = null, stagger = 0 }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean; visionOn?: boolean; tenantId?: string | null; stagger?: number }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
   const showLive = cam.isLive && cam.streamUrl;
+  const captureRef = useRef<(() => string | null) | null>(null);
+
+  const vision = useVisionOverlay({
+    cameraId: cam.id,
+    cameraName: cam.name,
+    zone: cam.zone,
+    tenantId,
+    enabled: visionOn && !!showLive && cam.status !== "maintenance" && cam.inferenceEnabled !== false,
+    intervalSeconds: large ? 10 : 20,
+    startDelayMs: (stagger % 6) * 1200,
+    capture: () => captureRef.current?.() ?? null,
+    hasSnapshot: !!cam.snapshotUrl,
+  });
+
   // A browser-reachable stream can play before a gateway heartbeat arrives.
   // Maintenance always wins; cameras without playback stay on their status panel.
   if (cam.status === "maintenance" || !showLive) {
@@ -424,21 +501,14 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
   return (
     <>
       <div className="absolute inset-0">
-        <LiveFeed url={cam.streamUrl} type={cam.streamType ?? "hls"} muted={!canPlayAudio} />
+        <LiveFeed
+          url={cam.streamUrl}
+          type={cam.streamType ?? "hls"}
+          muted={!canPlayAudio}
+          captureRef={captureRef}
+          overlay={<DetectionBoxes boxes={vision.boxes} large={large} />}
+        />
       </div>
-
-      {cam.detections > 0 && (
-        <>
-          <div className={cn("absolute border rounded", large ? "top-14 left-20 w-28 h-24 border-2 border-primary/60" : "top-6 left-8 w-14 h-12 border-primary/60")}>
-            <div className="absolute -top-4 left-0 bg-primary/85 text-primary-foreground text-[9px] px-1 py-0.5 rounded font-mono whitespace-nowrap">
-              {cam.lastDetection}
-            </div>
-          </div>
-          {cam.detections > 1 && (
-            <div className={cn("absolute border rounded", large ? "bottom-20 right-24 w-24 h-20 border-2 border-warning/60" : "bottom-12 right-10 w-12 h-10 border-warning/60")} />
-          )}
-        </>
-      )}
 
       {/* Corner HUD */}
         <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-mono text-primary/90 bg-background/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
@@ -458,10 +528,22 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
       <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
         {cam.id} • {now.toLocaleTimeString()}
       </div>
-      {cam.inferenceEnabled && <div className="absolute bottom-2 right-2 text-[9px] font-mono text-muted-foreground">AI {cam.inferenceStatus ?? "enabled"}</div>}
+      {visionOn && (
+        <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-background/50 px-1.5 py-0.5 text-[9px] font-mono backdrop-blur-sm">
+          <span className={cn("h-1.5 w-1.5 rounded-full", vision.running ? "bg-primary animate-pulse" : vision.error ? "bg-destructive" : "bg-success")} />
+          <span className="text-muted-foreground">
+            {vision.running
+              ? "AI scanning"
+              : vision.error
+                ? "AI unavailable"
+                : `AI ${vision.boxes.length} flagged`}
+          </span>
+        </div>
+      )}
     </>
   );
 };
+
 
 const Telemetry = ({ label, value }: { label: string; value: string | number }) => (
   <div className="glass rounded-lg p-3 border border-border">

@@ -28,18 +28,33 @@ Analyze the provided camera frame and return a STRICT JSON object with this sche
   "summary": string,
   "risk_score": number,
   "severity": "low"|"medium"|"high"|"critical",
-  "detections": [ { "label": string, "confidence": number, "bbox_hint": string } ],
+  "detections": [ {
+      "label": string,
+      "category": "ppe"|"intrusion"|"downtime"|"ergonomics"|"quality"|"housekeeping"|"forklift"|"other",
+      "severity": "low"|"medium"|"high"|"critical",
+      "confidence": number,
+      "bbox": [x, y, width, height],
+      "bbox_hint": string
+  } ],
   "safety_violations": [ { "type": string, "description": string, "severity": "low"|"medium"|"high"|"critical" } ],
   "productivity_notes": string[],
   "recommended_actions": string[]
 }
+"bbox" is REQUIRED for every detection and must be normalised to the image size as fractions between 0 and 1:
+x = left edge, y = top edge, width and height are the box size (x + width <= 1, y + height <= 1).
+Draw one box per distinct person, vehicle, machine or hazard you flag — boxes must tightly enclose the subject.
 Return ONLY the JSON object — no markdown, no prose.`;
 
+
+const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the image as fractions between 0 and 1 (x/y = top-left corner). One tight box per distinct subject you flag.`;
+
 function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
-  if (!categories.length) return base;
-  const focus = categories.map((c) => `• ${c.label}: ${c.description}`).join("\n");
-  return `${base}\n\nActive detection categories (focus your attention here):\n${focus}`;
+  const focus = categories.length
+    ? `\n\nActive detection categories (focus your attention here):\n${categories.map((c) => `• ${c.label}: ${c.description}`).join("\n")}`
+    : "";
+  return `${base}${focus}\n\n${BBOX_CONTRACT}`;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

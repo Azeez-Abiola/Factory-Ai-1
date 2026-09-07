@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { MutableRefObject, ReactNode, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,10 @@ interface LiveFeedProps {
   muted?: boolean;
   className?: string;
   poster?: string;
+  /** Filled with a function that grabs the current frame as a JPEG data URL. */
+  captureRef?: MutableRefObject<(() => string | null) | null>;
+  /** Rendered above the video (detection boxes, HUD). */
+  overlay?: ReactNode;
 }
 
 /**
@@ -21,11 +25,41 @@ interface LiveFeedProps {
  * AWS KVS, Frigate, Ant Media, etc.) that exposes HLS/WHEP URLs per camera.
  * Store that URL in `cameras.stream_url` and this component plays it.
  */
-export default function LiveFeed({ url, type = "hls", muted = true, className, poster }: LiveFeedProps) {
+export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, overlay }: LiveFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"loading" | "playing" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [attempt, setAttempt] = useState(0);
+
+  // Expose a frame grabber so the AI vision loop can read the live picture.
+  useEffect(() => {
+    if (!captureRef) return;
+    captureRef.current = () => {
+      const source: HTMLVideoElement | HTMLImageElement | null =
+        type === "mjpeg" ? imgRef.current : videoRef.current;
+      if (!source) return null;
+      const width = source instanceof HTMLVideoElement ? source.videoWidth : source.naturalWidth;
+      const height = source instanceof HTMLVideoElement ? source.videoHeight : source.naturalHeight;
+      if (!width || !height) return null;
+      try {
+        const canvas = document.createElement("canvas");
+        const maxW = 960;
+        const scale = Math.min(1, maxW / width);
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(source as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.7);
+      } catch {
+        // Cross-origin stream — pixels are not readable in the browser.
+        return null;
+      }
+    };
+    return () => { if (captureRef) captureRef.current = null; };
+  }, [captureRef, type, attempt]);
+
 
   useEffect(() => {
     setState("loading");
@@ -114,13 +148,16 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     return (
       <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
         <img
+          ref={imgRef}
           key={attempt}
           src={url}
           alt="Live camera feed"
+          crossOrigin="anonymous"
           className="h-full w-full object-cover"
           onLoad={() => setState("playing")}
           onError={() => { setErrorMsg("MJPEG stream could not be loaded by this browser"); setState("error"); }}
         />
+        {state === "playing" && overlay}
         {state === "loading" && <FeedLoading />}
         {state === "error" && <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />}
       </div>
@@ -134,9 +171,11 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         muted={muted}
         autoPlay
         playsInline
+        crossOrigin="anonymous"
         poster={poster}
         style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000" }}
       />
+      {state === "playing" && overlay}
       {state === "loading" && (
         <FeedLoading />
       )}
@@ -146,6 +185,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     </div>
   );
 }
+
 
 const FeedLoading = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm">

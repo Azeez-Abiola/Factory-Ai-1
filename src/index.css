@@ -40,6 +40,17 @@
     --warning: 39 71% 50%;
     --success: 151 58% 32%;
 
+    /* Live vision overlay categories (light) */
+    --vision-ppe: 35 92% 42%;
+    --vision-intrusion: 0 72% 45%;
+    --vision-forklift: 22 88% 45%;
+    --vision-quality: 189 90% 34%;
+    --vision-housekeeping: 217 85% 48%;
+    --vision-ergonomics: 271 70% 50%;
+    --vision-downtime: 215 14% 42%;
+    --vision-other: 174 88% 26%;
+
+
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 198 17% 30%;
     --sidebar-primary: 174 88% 26%;
@@ -84,6 +95,17 @@
     --surface-hover: 220 16% 14%;
     --warning: 38 92% 50%;
     --success: 142 71% 45%;
+
+    /* Live vision overlay categories (dark) */
+    --vision-ppe: 38 95% 55%;
+    --vision-intrusion: 0 84% 62%;
+    --vision-forklift: 22 92% 58%;
+    --vision-quality: 189 94% 55%;
+    --vision-housekeeping: 217 91% 62%;
+    --vision-ergonomics: 271 85% 68%;
+    --vision-downtime: 215 16% 65%;
+    --vision-other: 172 66% 50%;
+
 
     --sidebar-background: 182 48% 7%;
     --sidebar-foreground: 210 20% 82%;
