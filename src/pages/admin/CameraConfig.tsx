@@ -316,10 +316,16 @@ const CameraConfig = () => {
     } else {
       const { data, error } = await supabase.from("cameras").insert(payload).select("*").maybeSingle();
       if (error) return toast.error(error.message);
-      if (data && !data.stream_url && gatewayBase) {
-        const generated = autoStreamUrl(data.id, payload.stream_type as StreamType);
-        await supabase.from("cameras").update({ stream_url: generated }).eq("id", data.id);
+      if (data && gatewayBase) {
+        const patch: Record<string, string> = {};
+        if (!data.stream_url) patch.stream_url = autoStreamUrl(data.id, payload.stream_type as StreamType);
+        if (!data.snapshot_url) {
+          const snap = suggestSnapshotUrl(data.id, data.rtsp_url);
+          if (snap) patch.snapshot_url = snap;
+        }
+        if (Object.keys(patch).length) await supabase.from("cameras").update(patch).eq("id", data.id);
       }
+
       toast.success(`${payload.name} provisioned · ingest token generated`);
     }
     setEditing(null);
