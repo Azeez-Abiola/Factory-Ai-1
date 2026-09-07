@@ -18,7 +18,7 @@ interface CameraHit { id: string; name: string; zone: string | null }
 const pages = [
   { label: "Dashboard", to: "/app", icon: LayoutDashboard },
   { label: "Alerts", to: "/app/alerts", icon: AlertTriangle },
-  { label: "Incidents", to: "/app/incidents", icon: ShieldAlert },
+  { label: "Investigations", to: "/app/investigations", icon: ShieldAlert },
   { label: "Camera Feeds", to: "/app/cameras", icon: Camera },
   { label: "Reports", to: "/app/reports", icon: FileText },
   { label: "Shift Handover", to: "/app/shift-reports", icon: FileText },
