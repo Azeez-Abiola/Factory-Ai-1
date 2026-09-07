@@ -515,8 +515,23 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           type={cam.streamType ?? "hls"}
           muted={!canPlayAudio}
           captureRef={captureRef}
-          overlay={<DetectionBoxes boxes={vision.boxes} large={large} />}
+          recordRef={recordRef}
+          overlay={
+            <>
+              {visionOn && (cam.regions ?? []).map((r) => (
+                <div
+                  key={r.id}
+                  className="pointer-events-none absolute rounded-sm border border-dashed border-primary/50"
+                  style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
+                >
+                  <span className="absolute -top-3.5 left-0 rounded-sm bg-primary/80 px-1 text-[8px] font-mono text-primary-foreground">{r.name}</span>
+                </div>
+              ))}
+              <DetectionBoxes boxes={vision.boxes} large={large} />
+            </>
+          }
         />
+
       </div>
 
       {/* Corner HUD */}
