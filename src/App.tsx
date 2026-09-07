@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
 import Incidents from "./pages/Incidents.tsx";
 import Cameras from "./pages/Cameras.tsx";
+import FloorPlan from "./pages/FloorPlan.tsx";
 import Reports from "./pages/Reports.tsx";
 import ShiftReports from "./pages/ShiftReports.tsx";
 import Insights from "./pages/Insights.tsx";
