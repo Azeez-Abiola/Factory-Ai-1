@@ -557,15 +557,19 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           <span className={cn("h-1.5 w-1.5 rounded-full", vision.running ? "bg-primary animate-pulse" : vision.error ? "bg-destructive" : vision.idle ? "bg-muted-foreground" : "bg-success")} />
           <span className="text-muted-foreground">
             {vision.running
-              ? "AI scanning"
+              ? cam.clipAnalysisEnabled ? `AI reading ${cam.clipSeconds ?? 5}s clip` : "AI scanning"
               : vision.error
                 ? "AI unavailable"
                 : vision.idle
                   ? "AI idle · scene unchanged"
                   : `AI ${vision.boxes.length} flagged`}
           </span>
+          {vision.alertsRaised > 0 && (
+            <span className="text-destructive">• {vision.alertsRaised} alert{vision.alertsRaised === 1 ? "" : "s"}</span>
+          )}
         </div>
       )}
+
       {visionOn && cam.referenceMatchEnabled && vision.referenceVerdict && (
         <div
           className={cn(

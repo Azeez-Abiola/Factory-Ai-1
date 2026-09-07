@@ -146,6 +146,9 @@ export function useVisionOverlay({
   const [budgetBlocked, setBudgetBlocked] = useState(false);
   const [referenceVerdict, setReferenceVerdict] = useState<ReferenceVerdict | null>(null);
   const [localChecks, setLocalChecks] = useState(0);
+  const [alertsRaised, setAlertsRaised] = useState(0);
+  const [lastAlertAt, setLastAlertAt] = useState<Date | null>(null);
+
   const busy = useRef(false);
   const captureRef = useRef(capture);
   captureRef.current = capture;
@@ -216,7 +219,7 @@ export function useVisionOverlay({
 
         const { data, error: fnError } = await supabase.functions.invoke("analyze-frame", {
           body: {
-            ...(clipUrl ? { videoUrl: clipUrl } : { imageUrl: frame }),
+            ...(clipUrl ? { videoUrl: clipUrl, evidenceImage: frame } : { imageUrl: frame }),
             cameraName,
             zone,
             tenantId,
@@ -225,7 +228,10 @@ export function useVisionOverlay({
             referenceVerdict: referenceVerdict
               ? { label: referenceVerdict.label, note: referenceVerdict.sample.note ?? null }
               : undefined,
-            source: "overlay",
+            source: clipUrl ? "overlay_clip" : "overlay",
+            // Rolling analysis raises alerts by itself — quality defects seen in
+            // motion no longer need a scheduled still-frame pass to be flagged.
+            raiseAlerts: true,
             sceneChanged: true,
             sceneDelta,
           },
@@ -233,7 +239,13 @@ export function useVisionOverlay({
         if (fnError) throw fnError;
         if ((data as any)?.error === "ai_budget_exceeded") throw new Error((data as any).message);
         analysis = (data as any)?.analysis;
+        const created = Number((data as any)?.alerts_created ?? 0);
+        if (created > 0) {
+          setAlertsRaised((n) => n + created);
+          setLastAlertAt(new Date());
+        }
         setBudgetBlocked(false);
+
       } else if (hasSnapshot) {
         setIdle(false);
         const { data, error: fnError } = await supabase.functions.invoke("run-inference", {
@@ -280,21 +292,26 @@ export function useVisionOverlay({
       return;
     }
     let interval: ReturnType<typeof setInterval> | null = null;
+    // A rolling clip needs longer than the recording itself, plus upload time.
+    const tick = clipAnalysisEnabled
+      ? Math.max(intervalSeconds, clipSeconds + 5)
+      : Math.max(5, intervalSeconds);
     const start = setTimeout(() => {
       run(true);
-      interval = setInterval(() => run(false), Math.max(5, intervalSeconds) * 1000);
+      interval = setInterval(() => run(false), tick * 1000);
     }, startDelayMs);
+
     return () => {
       clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [enabled, intervalSeconds, startDelayMs, run]);
+  }, [enabled, intervalSeconds, startDelayMs, clipAnalysisEnabled, clipSeconds, run]);
 
   budgetBlockedRef.current = budgetBlocked;
 
   return {
     boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked,
-    referenceVerdict, localChecks,
+    referenceVerdict, localChecks, alertsRaised, lastAlertAt,
   };
 
 }
