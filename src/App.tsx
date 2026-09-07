@@ -42,6 +42,12 @@ import NotificationSettings from "./pages/admin/NotificationSettings.tsx";
 import AIConfig from "./pages/admin/AIConfig.tsx";
 import AIBudget from "./pages/admin/AIBudget.tsx";
 import SiteOverview from "./pages/admin/SiteOverview.tsx";
+import SiteRequests from "./pages/admin/SiteRequests.tsx";
+import PortalLayout from "./components/portal/PortalLayout.tsx";
+import PortalOverview from "./pages/portal/PortalOverview.tsx";
+import PortalAlerts from "./pages/portal/PortalAlerts.tsx";
+import PortalBudget from "./pages/portal/PortalBudget.tsx";
+import PortalSiteRequests from "./pages/portal/PortalSiteRequests.tsx";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +87,19 @@ const App = () => (
               <Route path="help" element={<Help />} />
             </Route>
             <Route
+              path="/portal"
+              element={
+                <ProtectedRoute>
+                  <PortalLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<PortalOverview />} />
+              <Route path="alerts" element={<PortalAlerts />} />
+              <Route path="budget" element={<PortalBudget />} />
+              <Route path="requests" element={<PortalSiteRequests />} />
+            </Route>
+            <Route
               path="/admin"
               element={
                 <ProtectedRoute requireRoles={["super_admin", "tenant_admin"]}>
@@ -98,6 +117,7 @@ const App = () => (
               <Route path="kpi-config" element={<KpiConfig />} />
               <Route path="ai-budget" element={<AIBudget />} />
               <Route path="sites" element={<SiteOverview />} />
+              <Route path="site-requests" element={<SiteRequests />} />
               <Route path="tenants/:tenantId" element={<TenantDetail />} />
               <Route path="audit-log/:auditId" element={<AuditDetail />} />
               <Route path="cameras" element={<CameraConfig />} />

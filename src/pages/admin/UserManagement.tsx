@@ -19,11 +19,12 @@ import { cn } from "@/lib/utils";
 import PageHeader from "@/components/app/PageHeader";
 import { auditLog } from "@/lib/audit";
 
-type MemberRole = "owner" | "admin" | "operator" | "viewer";
+type MemberRole = "owner" | "admin" | "manager" | "operator" | "viewer";
 
 const ROLE_META: Record<MemberRole, { label: string; icon: React.ElementType; color: string }> = {
   owner: { label: "Owner", icon: Shield, color: "bg-destructive/10 text-destructive border-destructive/20" },
   admin: { label: "Admin", icon: Shield, color: "bg-primary/10 text-primary border-primary/20" },
+  manager: { label: "Factory Manager", icon: Gauge, color: "bg-success/10 text-success border-success/20" },
   operator: { label: "Operator", icon: Wrench, color: "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/20" },
   viewer: { label: "Viewer", icon: Eye, color: "bg-muted text-muted-foreground border-border" },
 };
@@ -256,8 +257,8 @@ const UserManagement = () => {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 border border-border rounded-lg overflow-hidden bg-card">
-        {(["owner", "admin", "operator", "viewer"] as MemberRole[]).map((role) => {
+      <div className="grid grid-cols-2 lg:grid-cols-5 border border-border rounded-lg overflow-hidden bg-card">
+        {(["owner", "admin", "manager", "operator", "viewer"] as MemberRole[]).map((role) => {
           const config = ROLE_META[role];
           const count = members.filter((m) => m.role === role).length;
           return (
@@ -560,6 +561,7 @@ const UserManagement = () => {
               <p className="text-xs text-muted-foreground">
                 {inviteRole === "owner" && "Full control including billing and destructive actions."}
                 {inviteRole === "admin" && "Manage cameras, policies, and members."}
+                {inviteRole === "manager" && "Factory manager portal only: their site's scores, alerts, budget and site requests. No admin tools."}
                 {inviteRole === "operator" && "Monitor feeds, triage alerts, and resolve incidents."}
                 {inviteRole === "viewer" && "Read-only access to dashboards and reports."}
               </p>
