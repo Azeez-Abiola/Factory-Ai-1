@@ -2,9 +2,10 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Bell, Camera, FileText,
   Shield, Factory, ChevronLeft, ChevronRight,
-  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck, Map
+  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck, Map, Gauge
 } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +40,8 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
 const AppSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { roles } = useAuth();
+  const canAdmin = roles.includes("super_admin") || roles.includes("tenant_admin");
 
   return (
     <aside
@@ -101,12 +104,21 @@ const AppSidebar = () => {
       {/* Bottom */}
       <div className="p-2 border-t border-sidebar-border space-y-1">
         <NavLink
-          to="/admin"
+          to="/portal"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
-          <Shield className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="max-md:hidden">Admin Panel</span>}
+          <Gauge className="w-5 h-5 shrink-0" />
+          {!collapsed && <span className="max-md:hidden">Manager Portal</span>}
         </NavLink>
+        {canAdmin && (
+          <NavLink
+            to="/admin"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
+          >
+            <Shield className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="max-md:hidden">Admin Panel</span>}
+          </NavLink>
+        )}
         <Button
           type="button"
           variant="ghost"
