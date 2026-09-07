@@ -374,7 +374,8 @@ export default function Alerts() {
                 </div>
                 {a.description && <p className="text-xs text-muted-foreground line-clamp-1">{a.description}</p>}
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> {cameraName(a.camera_id) ?? a.zone ?? "—"}</span>
+                  <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> {cameraName(a.camera_id) ?? "—"}</span>
+                  {a.zone && <span className="flex items-center gap-1">Zone {a.zone}</span>}
                   <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> {timeAgo(a.detected_at)}</span>
                   {a.risk_score != null && <span>Risk {a.risk_score}</span>}
                 </div>
