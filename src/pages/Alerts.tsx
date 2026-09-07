@@ -272,18 +272,23 @@ export default function Alerts() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Live Feed"
+        eyebrow="Triage Queue"
         icon={Bell}
-        title="Alerts & Incidents"
+        title="Alerts"
         description={
           activeTenant
-            ? `${filtered.length} of ${alerts.length} live incidents · ${activeTenant.name}`
+            ? `${filtered.length} of ${alerts.length} detections · escalate anything real into an investigation · ${activeTenant.name}`
             : "Select a tenant to view alerts"
         }
         actions={
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV} disabled={filtered.length === 0}>
-            <Download className="h-4 w-4" /> Export
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("/app/investigations")}>
+              <ShieldCheck className="h-4 w-4" /> Investigations
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV} disabled={filtered.length === 0}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </div>
         }
       />
 
