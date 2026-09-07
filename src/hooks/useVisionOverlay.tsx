@@ -306,7 +306,7 @@ export function useVisionOverlay({
 
   return {
     boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked,
-    referenceVerdict, localChecks,
+    referenceVerdict, localChecks, alertsRaised, lastAlertAt,
   };
 
 }
