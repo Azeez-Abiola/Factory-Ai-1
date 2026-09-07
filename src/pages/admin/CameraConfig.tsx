@@ -681,7 +681,27 @@ const CameraConfig = () => {
                     </div>
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <Label>AI snapshot address</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>AI snapshot address</Label>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => {
+                          const suggestion = suggestSnapshotUrl(editing.id, editing.rtsp_url);
+                          if (!suggestion) {
+                            toast.error("No pattern matched — add a gateway that serves snapshots, or paste the camera's JPEG address (see IT setup guide).");
+                            return;
+                          }
+                          setConnectionTested(false);
+                          setEditing({ ...editing, snapshot_url: suggestion });
+                          toast.success("Suggested address filled in — test it before saving");
+                        }}
+                      >
+                        Suggest address
+                      </Button>
+                    </div>
                     <Input
                       value={editing.snapshot_url ?? ""}
                       onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, snapshot_url: e.target.value }); }}
@@ -689,9 +709,11 @@ const CameraConfig = () => {
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Required for scheduled AI unless the playback address itself returns an image. Use the camera or gateway JPEG snapshot address.
+                      Required for scheduled AI unless the playback address itself returns an image. Suggestions use your
+                      gateway's convention first, then the camera brand detected from the RTSP address.
                     </p>
                   </div>
+
                   <div className="col-span-2 space-y-1.5">
                     <Label>RTSP URL (source)</Label>
                     <Input
