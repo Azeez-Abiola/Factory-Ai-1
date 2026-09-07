@@ -351,12 +351,31 @@ Deno.serve(async (req) => {
       .filter((r) => !recentTypes.has(r.type));
 
     if (rows.length) {
+      // Persist the exact frame that triggered the alert so operators can
+      // review the visual evidence with detection boxes later.
+      let evidencePath: string | null = null;
+      try {
+        const ext = frame.mime === 'image/png' ? 'png' : 'jpg';
+        const path = `${cam.tenant_id}/${cam.id}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('alert-evidence')
+          .upload(path, frame.raw, { contentType: frame.mime, upsert: false });
+        if (!upErr) evidencePath = path;
+      } catch (_e) {
+        evidencePath = null;
+      }
+      if (evidencePath) {
+        for (const r of rows) {
+          (r.metadata as Record<string, unknown>).evidence_path = evidencePath;
+        }
+      }
       const { error: insErr } = await supabase.from('alerts').insert(rows);
       if (insErr) {
         await finish('error', `alert_insert_failed: ${insErr.message}`, { violations: violations.length });
         continue;
       }
     }
+
 
     await finish('ok', null, {
       violations: violations.length,
