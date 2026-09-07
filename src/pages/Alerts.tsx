@@ -89,8 +89,11 @@ const StatTile = ({ label, value, tone }: { label: string; value: string | numbe
 export default function Alerts() {
   const { user } = useAuth();
   const { activeTenantId, activeTenant } = useTenants();
+  const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [cameras, setCameras] = useState<{ id: string; name: string }[]>([]);
+  // Alerts escalated into an investigation case — used for the cross-link badge.
+  const [caseByAlert, setCaseByAlert] = useState<Record<string, { id: string; status: string }>>({});
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<AlertRow | null>(null);
@@ -108,14 +111,20 @@ export default function Alerts() {
   const load = async () => {
     if (!activeTenantId) { setAlerts([]); setLoading(false); return; }
     setLoading(true);
-    const [{ data, error }, { data: cams }] = await Promise.all([
+    const [{ data, error }, { data: cams }, { data: cases }] = await Promise.all([
       supabase.from("alerts").select("*").eq("tenant_id", activeTenantId)
         .order("detected_at", { ascending: false }).limit(300),
       supabase.from("cameras").select("id, name").eq("tenant_id", activeTenantId).order("name"),
+      supabase.from("incidents").select("id, alert_id, status").eq("tenant_id", activeTenantId).limit(500),
     ]);
     if (error) toast.error(error.message);
     setAlerts((data ?? []) as AlertRow[]);
     setCameras((cams ?? []) as { id: string; name: string }[]);
+    setCaseByAlert(Object.fromEntries(
+      ((cases ?? []) as { id: string; alert_id: string | null; status: string }[])
+        .filter((c) => c.alert_id)
+        .map((c) => [c.alert_id as string, { id: c.id, status: c.status }])
+    ));
     setLoading(false);
   };
 
