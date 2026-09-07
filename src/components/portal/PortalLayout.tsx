@@ -3,6 +3,7 @@ import { Factory, LayoutDashboard, Bell, Wallet, MapPinPlus, ArrowLeftRight } fr
 import ThemeToggle from "@/components/ThemeToggle";
 import UserMenu from "@/components/app/UserMenu";
 import { useTenants } from "@/hooks/useTenants";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -21,6 +22,8 @@ const navItems = [
  */
 const PortalLayout = () => {
   const { tenants, activeTenantId, setActiveTenantId } = useTenants();
+  const { roles } = useAuth();
+  const canOperate = roles.some((r) => ["super_admin", "tenant_admin", "operator", "viewer"].includes(r));
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -53,6 +56,7 @@ const PortalLayout = () => {
                 </SelectContent>
               </Select>
             )}
+            {canOperate && (
             <NavLink
               to="/app"
               className="hidden md:inline-flex items-center gap-2 h-10 px-3 rounded-md text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
@@ -60,6 +64,7 @@ const PortalLayout = () => {
               <ArrowLeftRight className="w-4 h-4" />
               Operator console
             </NavLink>
+            )}
             <ThemeToggle />
             <UserMenu />
           </div>
