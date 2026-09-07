@@ -83,6 +83,8 @@ Deno.serve(async (req) => {
     let systemPrompt = DEFAULT_SYSTEM_PROMPT;
     let model = "google/gemini-2.5-pro";
     let categories = DEFAULT_CATEGORIES;
+    let referenceImages: { path: string; label?: string; kind?: string; note?: string }[] = [];
+    let siteModel = false;
 
     const supabase = body.tenantId
       ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
@@ -92,7 +94,7 @@ Deno.serve(async (req) => {
       try {
         const { data } = await supabase
           .from("ai_analysis_config")
-          .select("system_prompt, model, categories")
+          .select("system_prompt, model, categories, reference_images")
           .eq("tenant_id", body.tenantId)
           .maybeSingle();
         if (data) {
@@ -101,10 +103,20 @@ Deno.serve(async (req) => {
           if (Array.isArray(data.categories) && data.categories.length) {
             categories = data.categories.filter((c: any) => c?.enabled !== false);
           }
+          if (Array.isArray((data as any).reference_images)) {
+            referenceImages = (data as any).reference_images.filter((r: any) => r?.path);
+          }
         }
       } catch (e) {
         console.warn("failed to load tenant ai_analysis_config", (e as Error).message);
       }
+    }
+
+    // "Site PPE model" = the tenant's own labelled PPE photos used as visual
+    // exemplars on top of the base vision model.
+    if (model === SITE_PPE_MODEL_ID) {
+      siteModel = true;
+      model = SITE_PPE_BASE_MODEL;
     }
 
     // Category filter from request (subset of active ids)
@@ -113,7 +125,28 @@ Deno.serve(async (req) => {
       categories = categories.filter((c) => filter.includes(c.id));
     }
 
-    const finalSystemPrompt = buildSystemPrompt(systemPrompt, categories);
+    // Sign the tenant's reference photos so the model can see them.
+    const exemplars: { url: string; caption: string }[] = [];
+    if (siteModel && supabase && referenceImages.length) {
+      for (const ref of referenceImages.slice(0, 8)) {
+        const { data: signed } = await supabase.storage
+          .from("ppe-reference")
+          .createSignedUrl(ref.path, 600);
+        if (signed?.signedUrl) {
+          const kind = ref.kind === "violation" ? "NON-COMPLIANT example" : "COMPLIANT example";
+          exemplars.push({
+            url: signed.signedUrl,
+            caption: `${kind}: ${ref.label ?? "site PPE reference"}${ref.note ? ` — ${ref.note}` : ""}`,
+          });
+        }
+      }
+    }
+
+    let finalSystemPrompt = buildSystemPrompt(systemPrompt, categories);
+    if (exemplars.length) {
+      finalSystemPrompt += `\n\nThis site has provided ${exemplars.length} of its OWN labelled PPE reference photos, supplied before the live frame. Treat them as the ground truth for what correct and incorrect PPE looks like at this factory (uniform colour, helmet style, vest type, local rules). Judge the live frame against these examples rather than generic PPE assumptions, and never report the reference photos themselves as detections.`;
+    }
+
 
     const userText = [
       `Camera: ${body.cameraName ?? "Unknown"}`,
