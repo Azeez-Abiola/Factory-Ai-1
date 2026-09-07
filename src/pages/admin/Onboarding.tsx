@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail, Loader2 } from "lucide-react";
+import { Building2, Camera, MapPin, Wallet, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { onboardingSteps } from "@/data/extendedMockData";
 import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import FieldLabel from "@/components/forms/FieldLabel";
@@ -18,21 +17,38 @@ import { useTenants } from "@/hooks/useTenants";
 import { auditLog } from "@/lib/audit";
 import { useNavigate } from "react-router-dom";
 
-const stepIcons = [Building2, Camera, MapPin, Bell, Users];
+const ONBOARDING_STEPS = [
+  { id: 1, title: "Organization Details", description: "Company name, industry, and plan" },
+  { id: 2, title: "Add Cameras", description: "Connect IP cameras and assign them to areas" },
+  { id: 3, title: "Define Zones", description: "Map the factory areas used by the floor plan" },
+  { id: 4, title: "AI Budget", description: "Cap what this site can spend on analysis" },
+  { id: 5, title: "Invite Users", description: "Add team members and assign roles" },
+];
+
+const stepIcons = [Building2, Camera, MapPin, Wallet, Users];
+
+const DEFAULT_ZONES = [
+  { name: "Zone A - Production", zone_type: "production" },
+  { name: "Zone B - Assembly", zone_type: "assembly" },
+  { name: "Zone C - Storage", zone_type: "storage" },
+];
+
+const ZONE_TYPES = ["production", "assembly", "storage", "loading", "quality", "hazard", "office"];
 
 interface CameraEntry {
   id: string;
   name: string;
   rtspUrl: string;
+  zone: string;
   status: "connected" | "pending";
 }
 
-const defaultCameras: CameraEntry[] = [
-  { id: "cam-1", name: "Main Entrance", rtspUrl: "rtsp://192.168.1.10/stream", status: "connected" },
-  { id: "cam-2", name: "Assembly Line 1", rtspUrl: "rtsp://192.168.1.11/stream", status: "connected" },
-  { id: "cam-3", name: "Packaging Hall", rtspUrl: "rtsp://192.168.1.12/stream", status: "connected" },
-  { id: "cam-4", name: "QC Station", rtspUrl: "rtsp://192.168.1.13/stream", status: "connected" },
-];
+interface ZoneEntry {
+  name: string;
+  zone_type: string;
+}
+
+const defaultCameras: CameraEntry[] = [];
 
 const RTSP_RE = /^rtsp:\/\/[^\s]+$/i;
 
@@ -45,6 +61,13 @@ const Onboarding = () => {
   const [addCameraOpen, setAddCameraOpen] = useState(false);
   const [newCameraName, setNewCameraName] = useState("");
   const [newCameraUrl, setNewCameraUrl] = useState("");
+  const [newCameraZone, setNewCameraZone] = useState("");
+  const [zones, setZones] = useState<ZoneEntry[]>(DEFAULT_ZONES);
+  const [newZoneName, setNewZoneName] = useState("");
+  const [newZoneType, setNewZoneType] = useState("production");
+  const [budgetLimit, setBudgetLimit] = useState("50");
+  const [budgetThreshold, setBudgetThreshold] = useState("80");
+  const [budgetHardStop, setBudgetHardStop] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<{ email: string; role: string }[]>([]);
 
@@ -95,11 +118,35 @@ const Onboarding = () => {
         await supabase.from("cameras").insert(cameras.map((c) => ({
           tenant_id: tenant.id,
           name: c.name,
+          zone: c.zone || null,
           stream_url: c.rtspUrl,
           stream_type: "rtsp",
           status: "offline",
         })));
       }
+
+      // 3b. Factory zones — these drive the operator floor plan.
+      if (zones.length) {
+        await supabase.from("site_zones").insert(zones.map((z, i) => ({
+          tenant_id: tenant.id,
+          name: z.name,
+          zone_type: z.zone_type,
+          x: Number((0.05 + (i % 3) * 0.31).toFixed(4)),
+          y: Number((0.06 + Math.floor(i / 3) * 0.31).toFixed(4)),
+          width: 0.28,
+          height: 0.26,
+          created_by: user.id,
+        })));
+      }
+
+      // 3c. AI budget — analysis is capped from day one.
+      await supabase.from("tenant_ai_budgets").upsert({
+        tenant_id: tenant.id,
+        monthly_limit_usd: Math.max(1, Number(budgetLimit) || 50),
+        alert_threshold_pct: Math.min(100, Math.max(10, Number(budgetThreshold) || 80)),
+        hard_stop: budgetHardStop,
+        enabled: true,
+      });
 
       // 4. Invitations — persist, then actually email each invitee.
       let invitesEmailed = 0;
@@ -130,6 +177,8 @@ const Onboarding = () => {
         tenantId: tenant.id, action: "tenant.onboarded", entityType: "tenant", entityId: tenant.id,
         metadata: {
           cameras: cameras.length,
+          zones: zones.length,
+          ai_budget_usd: Number(budgetLimit) || 50,
           invites: pendingInvites.length,
           invites_emailed: invitesEmailed,
           starter_pack: provision.pack.label,
@@ -147,7 +196,7 @@ const Onboarding = () => {
       );
       setCurrentStep(0);
       setCompanyName(""); setIndustry(""); setPlan(""); setAddress("");
-      setCameras(defaultCameras); setPendingInvites([]);
+      setCameras(defaultCameras); setPendingInvites([]); setZones(DEFAULT_ZONES);
       navigate(`/admin/tenants/${tenant.id}`);
     } catch (e: any) {
       toast.error("Onboarding failed: " + (e?.message ?? "unknown error"));
@@ -169,11 +218,13 @@ const Onboarding = () => {
       id: `cam-${Date.now()}`,
       name: newCameraName.trim(),
       rtspUrl: newCameraUrl.trim(),
+      zone: newCameraZone,
       status: "pending",
     };
     setCameras((prev) => [...prev, cam]);
     setNewCameraName("");
     setNewCameraUrl("");
+    setNewCameraZone("");
     setAddCameraOpen(false);
     toast.success(`Camera "${cam.name}" added successfully`);
   };
@@ -212,7 +263,7 @@ const Onboarding = () => {
 
       {/* Progress */}
       <div className="flex items-center gap-2">
-        {onboardingSteps.map((step, i) => {
+        {ONBOARDING_STEPS.map((step, i) => {
           const Icon = stepIcons[i];
           const isActive = i === currentStep;
           const isDone = i < currentStep;
@@ -232,7 +283,7 @@ const Onboarding = () => {
                 {isDone ? <CheckCircle className="w-4 h-4 shrink-0" /> : <Icon className="w-4 h-4 shrink-0" />}
                 <span className="hidden lg:inline truncate">{step.title}</span>
               </button>
-              {i < onboardingSteps.length - 1 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+              {i < ONBOARDING_STEPS.length - 1 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
             </div>
           );
         })}
@@ -498,7 +549,7 @@ const Onboarding = () => {
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </Button>
-        {currentStep < onboardingSteps.length - 1 ? (
+        {currentStep < ONBOARDING_STEPS.length - 1 ? (
           <Button onClick={() => setCurrentStep(currentStep + 1)} className="gap-2 bg-destructive hover:bg-destructive/90">
             Next <ArrowRight className="w-4 h-4" />
           </Button>
