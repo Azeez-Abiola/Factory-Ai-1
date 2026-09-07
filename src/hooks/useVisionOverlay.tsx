@@ -146,6 +146,9 @@ export function useVisionOverlay({
   const [budgetBlocked, setBudgetBlocked] = useState(false);
   const [referenceVerdict, setReferenceVerdict] = useState<ReferenceVerdict | null>(null);
   const [localChecks, setLocalChecks] = useState(0);
+  const [alertsRaised, setAlertsRaised] = useState(0);
+  const [lastAlertAt, setLastAlertAt] = useState<Date | null>(null);
+
   const busy = useRef(false);
   const captureRef = useRef(capture);
   captureRef.current = capture;
