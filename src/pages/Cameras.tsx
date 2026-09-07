@@ -550,7 +550,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
         <span className="text-[9px] text-destructive font-mono">{large ? "LIVE" : "REC"}</span>
       </div>
       <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
-        {cam.id} • {now.toLocaleTimeString()}
+        {cam.name} • {now.toLocaleTimeString()}
       </div>
       {visionOn && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-background/50 px-1.5 py-0.5 text-[9px] font-mono backdrop-blur-sm">
