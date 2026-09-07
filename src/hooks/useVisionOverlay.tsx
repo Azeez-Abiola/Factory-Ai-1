@@ -102,6 +102,8 @@ interface Options {
   startDelayMs?: number;
   /** Returns a data URL frame grabbed from the playing stream, or null. */
   capture: () => string | null;
+  /** Records a short clip of the playing stream as a data URL, or null. */
+  record?: ((seconds: number) => Promise<string | null>) | null;
   /** Server-side snapshot fallback when the browser cannot read the pixels. */
   hasSnapshot?: boolean;
   /** Skip inference while the scene is visually unchanged (cost gating). */
@@ -110,44 +112,17 @@ interface Options {
   changeThreshold?: number;
   /** Force a full analysis after this many consecutive skipped ticks. */
   maxSkippedTicks?: number;
+  /** Only these areas of the picture are inspected. */
+  regions?: Region[];
+  /** Compare the frame with uploaded samples locally before paying for AI. */
+  referenceMatchEnabled?: boolean;
+  referenceMatchThreshold?: number;
+  referenceSamples?: ReferenceSample[];
+  /** Analyse a few seconds of motion instead of a single still frame. */
+  clipAnalysisEnabled?: boolean;
+  clipSeconds?: number;
 }
 
-const SIGNATURE_SIZE = 32;
-
-/** Downscaled grayscale fingerprint of a frame, used for cheap change detection. */
-function frameSignature(dataUrl: string): Promise<Float32Array | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = SIGNATURE_SIZE;
-        canvas.height = SIGNATURE_SIZE;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return resolve(null);
-        ctx.drawImage(img, 0, 0, SIGNATURE_SIZE, SIGNATURE_SIZE);
-        const { data } = ctx.getImageData(0, 0, SIGNATURE_SIZE, SIGNATURE_SIZE);
-        const out = new Float32Array(SIGNATURE_SIZE * SIGNATURE_SIZE);
-        for (let i = 0; i < out.length; i++) {
-          const p = i * 4;
-          out[i] = (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) / 255;
-        }
-        resolve(out);
-      } catch {
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = dataUrl;
-  });
-}
-
-function signatureDelta(a: Float32Array, b: Float32Array): number {
-  if (a.length !== b.length) return 1;
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
-  return sum / a.length;
-}
 
 export function useVisionOverlay({
   cameraId, cameraName, zone, tenantId, enabled,
