@@ -234,10 +234,35 @@ const Cameras = () => {
           <span className="hidden sm:inline">{audioOn ? "Audio on" : "Audio"}</span>
         </Button>
 
+        <Button
+          size="sm" variant="outline" onClick={() => setVisionOn((v) => !v)}
+          className={cn("h-9 gap-1.5", visionOn && "border-primary/40 text-primary")}
+          title="Continuously analyse every visible live stream and draw colour-coded detection boxes"
+          aria-pressed={visionOn}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{visionOn ? "AI overlay on" : "AI overlay off"}</span>
+        </Button>
+
         <Button size="sm" variant="outline" onClick={toggleFullscreen} className="h-9 gap-1.5" title="Toggle wall fullscreen (F)">
           {wallFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </Button>
       </div>
+
+      {/* Detection legend */}
+      {visionOn && (
+        <div className="glass flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border px-3 py-2">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Detection colours</span>
+          {VISION_CATEGORIES.map((c) => (
+            <span key={c.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: categoryColor(c.id) }} />
+              {c.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+
 
       {/* Wall */}
       <div ref={wallRef} className={cn("space-y-3", wallFullscreen && "bg-background p-4")}>
