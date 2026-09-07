@@ -292,6 +292,10 @@ export function useVisionOverlay({
 
   budgetBlockedRef.current = budgetBlocked;
 
-  return { boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked };
+  return {
+    boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked,
+    referenceVerdict, localChecks,
+  };
+
 }
 
