@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Camera as MockCamera } from "@/data/mockData";
 import { useTenants } from "@/hooks/useTenants";
+import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
 
 export interface LiveCamera extends MockCamera {
   streamUrl?: string | null;
