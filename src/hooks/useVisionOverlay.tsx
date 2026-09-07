@@ -243,8 +243,6 @@ export function useVisionOverlay({
 
       setBoxes(insideRegions(detectionsToBoxes(analysis), regions));
 
-
-      setBoxes(detectionsToBoxes(analysis));
       setSummary(typeof analysis?.summary === "string" ? analysis.summary : null);
       setLastRunAt(new Date());
       setError(null);
