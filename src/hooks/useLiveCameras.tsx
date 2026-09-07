@@ -14,6 +14,7 @@ export interface LiveCamera extends MockCamera {
   ptzEnabled?: boolean;
   snapshotUrl?: string | null;
   inferenceEnabled?: boolean;
+  inferenceIntervalSeconds?: number;
   inferenceStatus?: string | null;
   lastInferenceAt?: string | null;
   lastInferenceError?: string | null;
@@ -58,6 +59,7 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     ptzEnabled: !!row.ptz_enabled,
     snapshotUrl: row.snapshot_url ?? null,
     inferenceEnabled: !!row.inference_enabled,
+    inferenceIntervalSeconds: row.inference_interval_seconds ?? 30,
     inferenceStatus: row.inference_status ?? null,
     lastInferenceAt: row.last_inference_at ?? null,
     lastInferenceError: row.last_inference_error ?? null,
@@ -101,7 +103,7 @@ export function useLiveCameras() {
       setLoading(true);
       // Never pull camera credentials or ingest tokens into the operator console.
       let q = supabase.from("cameras").select(
-        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_status, last_inference_at, last_inference_error"
+        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error"
       ).order("name");
       if (activeTenantId) q = q.eq("tenant_id", activeTenantId);
       const { data, error } = await q;
