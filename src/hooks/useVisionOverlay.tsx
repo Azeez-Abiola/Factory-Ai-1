@@ -292,10 +292,15 @@ export function useVisionOverlay({
       return;
     }
     let interval: ReturnType<typeof setInterval> | null = null;
+    // A rolling clip needs longer than the recording itself, plus upload time.
+    const tick = clipAnalysisEnabled
+      ? Math.max(intervalSeconds, clipSeconds + 5)
+      : Math.max(5, intervalSeconds);
     const start = setTimeout(() => {
       run(true);
-      interval = setInterval(() => run(false), Math.max(5, intervalSeconds) * 1000);
+      interval = setInterval(() => run(false), tick * 1000);
     }, startDelayMs);
+
     return () => {
       clearTimeout(start);
       if (interval) clearInterval(interval);
