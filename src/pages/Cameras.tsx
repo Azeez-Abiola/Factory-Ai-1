@@ -319,7 +319,7 @@ const Cameras = () => {
                   <Badge variant="outline" className={cn("text-xs", statusConfig[selected.status].text)}>
                     {statusConfig[selected.status].label}
                   </Badge>
-                  <span className="text-xs text-muted-foreground font-mono ml-1">{selected.id} • {selected.zone}</span>
+                  <span className="text-xs text-muted-foreground font-mono ml-1">{selected.id.slice(0, 8)} • {selected.zone?.trim() || "Unassigned zone"}</span>
                 </DialogTitle>
               </DialogHeader>
 
@@ -416,7 +416,7 @@ const CameraTile = ({ cam, onOpen, now, focus, audioOn, visionOn, tenantId, stag
           <div className={cn("w-2 h-2 rounded-full", config.color)} />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{cam.zone} • {cam.type}</span>
+          <span className="text-xs text-muted-foreground">{cam.zone?.trim() || "Unassigned zone"} • {cam.type}</span>
           {cam.detections > 0 && (
             <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
               {cam.detections} det.
@@ -498,7 +498,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
         <div className="text-center relative">
           <config.icon className={cn(large ? "w-10 h-10" : "w-6 h-6", "mx-auto mb-1", config.text)} />
           <p className={cn("font-mono", large ? "text-sm" : "text-xs", config.text)}>{config.label}</p>
-          <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.id}</p>
+          <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.name}</p>
         </div>
       </div>
     );
@@ -550,7 +550,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
         <span className="text-[9px] text-destructive font-mono">{large ? "LIVE" : "REC"}</span>
       </div>
       <div className="absolute bottom-2 left-2 text-[10px] text-muted-foreground font-mono">
-        {cam.id} • {now.toLocaleTimeString()}
+        {cam.name} • {now.toLocaleTimeString()}
       </div>
       {visionOn && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-background/50 px-1.5 py-0.5 text-[9px] font-mono backdrop-blur-sm">
