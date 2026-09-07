@@ -7,6 +7,7 @@ import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
+import { complianceScore, fetchAnalyzedFrames, isRealChangeAlert } from "@/lib/gatedMetrics";
 import { cn } from "@/lib/utils";
 
 interface AlertRow {
@@ -43,6 +44,7 @@ const Dashboard = () => {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [cameras, setCameras] = useState<CameraRow[]>([]);
   const [openIncidents, setOpenIncidents] = useState(0);
+  const [analyzedFrames, setAnalyzedFrames] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -54,7 +56,7 @@ const Dashboard = () => {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const [a, c, i] = await Promise.all([
       supabase.from("alerts")
-        .select("id,type,severity,title,status,zone,camera_id,detected_at,resolved_at")
+        .select("id,type,severity,title,status,zone,camera_id,detected_at,resolved_at,metadata")
         .eq("tenant_id", activeTenantId)
         .gte("detected_at", since)
         .order("detected_at", { ascending: false })
@@ -70,6 +72,7 @@ const Dashboard = () => {
     setAlerts((a.data ?? []) as AlertRow[]);
     setCameras((c.data ?? []) as CameraRow[]);
     setOpenIncidents(i.count ?? 0);
+    setAnalyzedFrames(await fetchAnalyzedFrames(activeTenantId, since));
     setLoading(false);
   }, [activeTenantId]);
 
@@ -95,13 +98,14 @@ const Dashboard = () => {
       (a) => a.resolved_at && new Date(a.resolved_at) >= startOfToday
     ).length;
     const online = cameras.filter((c) => c.status === "online").length;
-    const safetyAlerts = alerts.filter((a) => categoryOf(a.type) === "safety").length;
-    const compliance = alerts.length === 0
-      ? 100
-      : Math.max(0, Math.round(100 - (safetyAlerts / Math.max(alerts.length, 1)) * 100 * 0.5));
+    // Only frames the model actually analysed (real scene changes) count as
+    // observations, so a static camera cannot inflate the compliance score.
+    const realAlerts = alerts.filter((a) => isRealChangeAlert((a as any).metadata));
+    const safetyAlerts = realAlerts.filter((a) => categoryOf(a.type) === "safety").length;
+    const compliance = complianceScore(analyzedFrames, safetyAlerts, realAlerts.length);
     const uptime = cameras.length === 0 ? 0 : Math.round((online / cameras.length) * 1000) / 10;
     return { open, resolvedToday, online, compliance, uptime };
-  }, [alerts, cameras]);
+  }, [alerts, cameras, analyzedFrames]);
 
   const hourlyAlerts = useMemo(() => {
     const buckets: Record<string, { hour: string; safety: number; quality: number; downtime: number; productivity: number }> = {};
