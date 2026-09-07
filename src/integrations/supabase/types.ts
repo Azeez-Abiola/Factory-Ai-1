@@ -1003,6 +1003,81 @@ export type Database = {
           },
         ]
       }
+      site_requests: {
+        Row: {
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          created_tenant_id: string | null
+          estimated_cameras: number
+          expected_go_live: string | null
+          id: string
+          justification: string | null
+          location: string | null
+          requested_by: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          site_name: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_tenant_id?: string | null
+          estimated_cameras?: number
+          expected_go_live?: string | null
+          id?: string
+          justification?: string | null
+          location?: string | null
+          requested_by?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          site_name: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_tenant_id?: string | null
+          estimated_cameras?: number
+          expected_go_live?: string | null
+          id?: string
+          justification?: string | null
+          location?: string | null
+          requested_by?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          site_name?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_requests_created_tenant_id_fkey"
+            columns: ["created_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_zones: {
         Row: {
           color: string
@@ -1467,7 +1542,12 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "super_admin" | "tenant_admin" | "operator" | "viewer"
+      app_role:
+        | "super_admin"
+        | "tenant_admin"
+        | "operator"
+        | "viewer"
+        | "manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1595,7 +1675,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "tenant_admin", "operator", "viewer"],
+      app_role: [
+        "super_admin",
+        "tenant_admin",
+        "operator",
+        "viewer",
+        "manager",
+      ],
     },
   },
 } as const
