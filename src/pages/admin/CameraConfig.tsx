@@ -21,6 +21,9 @@ import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
+import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
+import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
 
 type StreamType = "hls" | "webrtc" | "mjpeg";
 
@@ -58,7 +61,14 @@ interface CameraRow {
   inference_status?: string;
   last_inference_error?: string | null;
   snapshot_url?: string | null;
+  regions_of_interest?: Region[];
+  reference_match_enabled?: boolean;
+  reference_match_threshold?: number;
+  reference_samples?: ReferenceSample[];
+  clip_analysis_enabled?: boolean;
+  clip_seconds?: number;
 }
+
 
 const AI_MODEL_DEFS = [
   { key: "ppe", label: "PPE Compliance", desc: "Hard hats, vests, gloves, goggles" },
@@ -93,6 +103,13 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   scene_gating_enabled: true,
   scene_change_threshold: 1.2,
   max_idle_seconds: 900,
+  regions_of_interest: [],
+  reference_match_enabled: false,
+  reference_match_threshold: 0.06,
+  reference_samples: [],
+  clip_analysis_enabled: false,
+  clip_seconds: 5,
+
 });
 
 const isLikelyStreamUrl = (u: string, t: StreamType) => {
@@ -265,7 +282,14 @@ const CameraConfig = () => {
       scene_gating_enabled: e.scene_gating_enabled !== false,
       scene_change_threshold: e.scene_change_threshold ?? 1.2,
       max_idle_seconds: e.max_idle_seconds ?? 900,
+      regions_of_interest: (e.regions_of_interest ?? []) as unknown as any,
+      reference_match_enabled: !!e.reference_match_enabled,
+      reference_match_threshold: e.reference_match_threshold ?? 0.06,
+      reference_samples: (e.reference_samples ?? []) as unknown as any,
+      clip_analysis_enabled: !!e.clip_analysis_enabled,
+      clip_seconds: e.clip_seconds ?? 5,
     };
+
 
     if (e.id) {
       const { error } = await supabase.from("cameras").update(payload).eq("id", e.id);
@@ -598,11 +622,13 @@ const CameraConfig = () => {
           </DialogHeader>
           {editing && (
             <Tabs defaultValue="stream" className="w-full">
-              <TabsList className="grid grid-cols-3 w-full">
+              <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="stream">Stream</TabsTrigger>
                 <TabsTrigger value="ai">AI Models</TabsTrigger>
+                <TabsTrigger value="inspect">Inspection</TabsTrigger>
                 <TabsTrigger value="ops">Operations</TabsTrigger>
               </TabsList>
+
 
               <TabsContent value="stream" className="space-y-4 pt-4">
                 <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-card text-xs">
@@ -856,6 +882,28 @@ const CameraConfig = () => {
                   </div>
                 )}
               </TabsContent>
+
+              <TabsContent value="inspect">
+                <CameraInspectionTab
+                  tenantId={activeTenantId}
+                  cameraId={editing.id}
+                  snapshotUrl={editing.snapshot_url}
+                  regions={editing.regions_of_interest ?? []}
+                  onRegionsChange={(regions_of_interest) => setEditing({ ...editing, regions_of_interest })}
+                  samples={editing.reference_samples ?? []}
+                  onSamplesChange={(reference_samples) => setEditing({ ...editing, reference_samples })}
+                  referenceEnabled={!!editing.reference_match_enabled}
+                  onReferenceEnabledChange={(reference_match_enabled) => setEditing({ ...editing, reference_match_enabled })}
+                  tolerance={editing.reference_match_threshold ?? 0.06}
+                  onToleranceChange={(reference_match_threshold) => setEditing({ ...editing, reference_match_threshold })}
+                  clipEnabled={!!editing.clip_analysis_enabled}
+                  onClipEnabledChange={(clip_analysis_enabled) => setEditing({ ...editing, clip_analysis_enabled })}
+                  clipSeconds={editing.clip_seconds ?? 5}
+                  onClipSecondsChange={(clip_seconds) => setEditing({ ...editing, clip_seconds })}
+                />
+              </TabsContent>
+
+
 
               <TabsContent value="ops" className="space-y-3 pt-4">
                 <div className="grid grid-cols-1 gap-3">

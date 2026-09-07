@@ -15,6 +15,11 @@ interface Body {
   source?: string;        // live_inference | overlay | manual | insights
   sceneChanged?: boolean; // false when the caller's frame gating saw no change
   sceneDelta?: number;
+  /** Inspection areas — normalised 0..1 boxes the model must restrict itself to. */
+  regions?: { id?: string; name?: string; x: number; y: number; w: number; h: number; categories?: string[] }[];
+  /** Result of the caller's local (no-AI) reference-sample comparison. */
+  referenceVerdict?: { label: "good" | "defect"; note?: string | null };
+
 }
 
 const DEFAULT_CATEGORIES = [
@@ -151,15 +156,37 @@ Deno.serve(async (req) => {
     }
 
 
+    // Inspection areas keep the model focused on the part of the picture that
+    // matters (a conveyor, a doorway) and stop it reporting background traffic.
+    const regionText = (body.regions ?? []).length
+      ? `Inspection areas (normalised x, y, width, height of the image — ONLY report detections whose centre falls inside one of these areas, ignore everything else):\n${
+          body.regions!
+            .map((r, i) =>
+              `• ${r.name ?? `Area ${i + 1}`}: [${r.x.toFixed(2)}, ${r.y.toFixed(2)}, ${r.w.toFixed(2)}, ${r.h.toFixed(2)}]` +
+              (r.categories?.length ? ` — watch for: ${r.categories.join(", ")}` : "")
+            )
+            .join("\n")
+        }`
+      : "";
+
+    const verdictText = body.referenceVerdict
+      ? `A local comparison against this site's own sample photos matched a ${
+          body.referenceVerdict.label === "good" ? "KNOWN-GOOD" : "KNOWN-FAULTY"
+        } example${body.referenceVerdict.note ? ` (${body.referenceVerdict.note})` : ""}. Use it as a strong prior, but judge the frame on its own evidence.`
+      : "";
+
     const userText = [
       `Camera: ${body.cameraName ?? "Unknown"}`,
       `Zone: ${body.zone ?? "Unknown"}`,
       `Active categories: ${categories.map((c) => c.id).join(", ") || "all"}`,
+      regionText,
+      verdictText,
       body.context ? `Additional context: ${body.context}` : "",
       body.videoUrl
         ? "This is a short video clip from the camera. Watch the full clip, account for motion and events over time, and return the JSON per schema summarising the whole clip."
         : "Analyze this frame and return the JSON per schema.",
     ].filter(Boolean).join("\n");
+
 
     // ---- Tenant AI budget guard -------------------------------------------
     let budget = null;

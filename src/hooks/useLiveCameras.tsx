@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Camera as MockCamera } from "@/data/mockData";
 import { useTenants } from "@/hooks/useTenants";
+import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
 
 export interface LiveCamera extends MockCamera {
   streamUrl?: string | null;
@@ -18,8 +20,15 @@ export interface LiveCamera extends MockCamera {
   inferenceStatus?: string | null;
   lastInferenceAt?: string | null;
   lastInferenceError?: string | null;
+  regions?: Region[];
+  referenceMatchEnabled?: boolean;
+  referenceMatchThreshold?: number;
+  referenceSamples?: ReferenceSample[];
+  clipAnalysisEnabled?: boolean;
+  clipSeconds?: number;
   isLive: boolean; // has a real playable stream_url
   isDbBacked: boolean; // came from cameras table (not fallback mock)
+
 }
 
 interface DetectionPing {
@@ -63,8 +72,15 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     inferenceStatus: row.inference_status ?? null,
     lastInferenceAt: row.last_inference_at ?? null,
     lastInferenceError: row.last_inference_error ?? null,
+    regions: Array.isArray(row.regions_of_interest) ? (row.regions_of_interest as Region[]) : [],
+    referenceMatchEnabled: !!row.reference_match_enabled,
+    referenceMatchThreshold: Number(row.reference_match_threshold ?? 0.06),
+    referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
+    clipAnalysisEnabled: !!row.clip_analysis_enabled,
+    clipSeconds: row.clip_seconds ?? 5,
     isLive: !!row.stream_url,
     isDbBacked: true,
+
   };
 }
 
@@ -103,7 +119,7 @@ export function useLiveCameras() {
       setLoading(true);
       // Never pull camera credentials or ingest tokens into the operator console.
       let q = supabase.from("cameras").select(
-        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error"
+        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error, regions_of_interest, reference_match_enabled, reference_match_threshold, reference_samples, clip_analysis_enabled, clip_seconds"
       ).order("name");
       if (activeTenantId) q = q.eq("tenant_id", activeTenantId);
       const { data, error } = await q;

@@ -384,6 +384,8 @@ export type Database = {
         Row: {
           ai_models: Json
           audio_enabled: boolean
+          clip_analysis_enabled: boolean
+          clip_seconds: number
           confidence_threshold: number
           created_at: string
           credentials: Json
@@ -407,6 +409,10 @@ export type Database = {
           name: string
           ptz_enabled: boolean
           recording_enabled: boolean
+          reference_match_enabled: boolean
+          reference_match_threshold: number
+          reference_samples: Json
+          regions_of_interest: Json
           resolution: string | null
           retention_days: number
           rtsp_url: string | null
@@ -424,6 +430,8 @@ export type Database = {
         Insert: {
           ai_models?: Json
           audio_enabled?: boolean
+          clip_analysis_enabled?: boolean
+          clip_seconds?: number
           confidence_threshold?: number
           created_at?: string
           credentials?: Json
@@ -447,6 +455,10 @@ export type Database = {
           name: string
           ptz_enabled?: boolean
           recording_enabled?: boolean
+          reference_match_enabled?: boolean
+          reference_match_threshold?: number
+          reference_samples?: Json
+          regions_of_interest?: Json
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
@@ -464,6 +476,8 @@ export type Database = {
         Update: {
           ai_models?: Json
           audio_enabled?: boolean
+          clip_analysis_enabled?: boolean
+          clip_seconds?: number
           confidence_threshold?: number
           created_at?: string
           credentials?: Json
@@ -487,6 +501,10 @@ export type Database = {
           name?: string
           ptz_enabled?: boolean
           recording_enabled?: boolean
+          reference_match_enabled?: boolean
+          reference_match_threshold?: number
+          reference_samples?: Json
+          regions_of_interest?: Json
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null

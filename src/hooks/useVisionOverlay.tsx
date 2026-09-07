@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  frameSignature, signatureDelta, matchReference, insideRegions,
+  type Region, type ReferenceSample, type ReferenceVerdict,
+} from "@/lib/visionMatch";
+
 
 export type VisionCategory =
   | "ppe" | "intrusion" | "downtime" | "ergonomics"
@@ -102,6 +107,8 @@ interface Options {
   startDelayMs?: number;
   /** Returns a data URL frame grabbed from the playing stream, or null. */
   capture: () => string | null;
+  /** Records a short clip of the playing stream as a data URL, or null. */
+  record?: ((seconds: number) => Promise<string | null>) | null;
   /** Server-side snapshot fallback when the browser cannot read the pixels. */
   hasSnapshot?: boolean;
   /** Skip inference while the scene is visually unchanged (cost gating). */
@@ -110,49 +117,24 @@ interface Options {
   changeThreshold?: number;
   /** Force a full analysis after this many consecutive skipped ticks. */
   maxSkippedTicks?: number;
+  /** Only these areas of the picture are inspected. */
+  regions?: Region[];
+  /** Compare the frame with uploaded samples locally before paying for AI. */
+  referenceMatchEnabled?: boolean;
+  referenceMatchThreshold?: number;
+  referenceSamples?: ReferenceSample[];
+  /** Analyse a few seconds of motion instead of a single still frame. */
+  clipAnalysisEnabled?: boolean;
+  clipSeconds?: number;
 }
 
-const SIGNATURE_SIZE = 32;
-
-/** Downscaled grayscale fingerprint of a frame, used for cheap change detection. */
-function frameSignature(dataUrl: string): Promise<Float32Array | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = SIGNATURE_SIZE;
-        canvas.height = SIGNATURE_SIZE;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (!ctx) return resolve(null);
-        ctx.drawImage(img, 0, 0, SIGNATURE_SIZE, SIGNATURE_SIZE);
-        const { data } = ctx.getImageData(0, 0, SIGNATURE_SIZE, SIGNATURE_SIZE);
-        const out = new Float32Array(SIGNATURE_SIZE * SIGNATURE_SIZE);
-        for (let i = 0; i < out.length; i++) {
-          const p = i * 4;
-          out[i] = (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) / 255;
-        }
-        resolve(out);
-      } catch {
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = dataUrl;
-  });
-}
-
-function signatureDelta(a: Float32Array, b: Float32Array): number {
-  if (a.length !== b.length) return 1;
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
-  return sum / a.length;
-}
 
 export function useVisionOverlay({
   cameraId, cameraName, zone, tenantId, enabled,
-  intervalSeconds = 15, startDelayMs = 0, capture, hasSnapshot,
+  intervalSeconds = 15, startDelayMs = 0, capture, record, hasSnapshot,
   sceneGating = true, changeThreshold = 0.012, maxSkippedTicks = 10,
+  regions, referenceMatchEnabled = false, referenceMatchThreshold = 0.06,
+  referenceSamples, clipAnalysisEnabled = false, clipSeconds = 5,
 }: Options) {
   const [boxes, setBoxes] = useState<VisionBox[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
@@ -162,9 +144,13 @@ export function useVisionOverlay({
   const [idle, setIdle] = useState(false);
   const [skippedRuns, setSkippedRuns] = useState(0);
   const [budgetBlocked, setBudgetBlocked] = useState(false);
+  const [referenceVerdict, setReferenceVerdict] = useState<ReferenceVerdict | null>(null);
+  const [localChecks, setLocalChecks] = useState(0);
   const busy = useRef(false);
   const captureRef = useRef(capture);
   captureRef.current = capture;
+  const recordRef = useRef(record);
+  recordRef.current = record;
   const lastSignature = useRef<Float32Array | null>(null);
   const skippedTicks = useRef(0);
   const budgetBlockedRef = useRef(false);
@@ -180,8 +166,10 @@ export function useVisionOverlay({
 
       if (frame) {
         // Scene-change gating: only pay for inference when the picture moved.
+        // Signatures are cropped to the inspection areas, so background
+        // traffic outside them never triggers a paid analysis.
         if (sceneGating && !force) {
-          const signature = await frameSignature(frame);
+          const signature = await frameSignature(frame, regions);
           if (signature) {
             const previous = lastSignature.current;
             lastSignature.current = signature;
@@ -196,18 +184,47 @@ export function useVisionOverlay({
             }
           }
         } else if (sceneGating && force) {
-          lastSignature.current = await frameSignature(frame);
+          lastSignature.current = await frameSignature(frame, regions);
         }
         skippedTicks.current = 0;
         setIdle(false);
 
+        // Local reference check — decided on this machine, costs nothing.
+        if (referenceMatchEnabled && referenceSamples?.length) {
+          const signature = lastSignature.current ?? (await frameSignature(frame, regions));
+          const verdict = signature ? matchReference(signature, referenceSamples, referenceMatchThreshold) : null;
+          setReferenceVerdict(verdict);
+          if (verdict?.confident) {
+            setLocalChecks((n) => n + 1);
+            setLastRunAt(new Date());
+            setError(null);
+            if (verdict.label === "good") {
+              // A clear match against a known-good sample: nothing to escalate.
+              setBoxes([]);
+              setSummary(`Matches known-good sample${verdict.sample.note ? ` (${verdict.sample.note})` : ""} — no AI check needed`);
+              return;
+            }
+            // A clear match against a known-faulty sample still goes to the AI
+            // so the alert carries a description and evidence.
+          }
+        }
+
+        let clipUrl: string | null = null;
+        if (clipAnalysisEnabled && recordRef.current) {
+          clipUrl = await recordRef.current(clipSeconds);
+        }
+
         const { data, error: fnError } = await supabase.functions.invoke("analyze-frame", {
           body: {
-            imageUrl: frame,
+            ...(clipUrl ? { videoUrl: clipUrl } : { imageUrl: frame }),
             cameraName,
             zone,
             tenantId,
             cameraId,
+            regions,
+            referenceVerdict: referenceVerdict
+              ? { label: referenceVerdict.label, note: referenceVerdict.sample.note ?? null }
+              : undefined,
             source: "overlay",
             sceneChanged: true,
             sceneDelta,
@@ -229,7 +246,8 @@ export function useVisionOverlay({
         return;
       }
 
-      setBoxes(detectionsToBoxes(analysis));
+      setBoxes(insideRegions(detectionsToBoxes(analysis), regions));
+
       setSummary(typeof analysis?.summary === "string" ? analysis.summary : null);
       setLastRunAt(new Date());
       setError(null);
@@ -246,7 +264,9 @@ export function useVisionOverlay({
       busy.current = false;
       setRunning(false);
     }
-  }, [cameraId, cameraName, zone, tenantId, hasSnapshot, sceneGating, changeThreshold, maxSkippedTicks]);
+  }, [cameraId, cameraName, zone, tenantId, hasSnapshot, sceneGating, changeThreshold, maxSkippedTicks,
+      regions, referenceMatchEnabled, referenceMatchThreshold, referenceSamples, clipAnalysisEnabled, clipSeconds, referenceVerdict]);
+
 
   /** Manual trigger always analyses, bypassing the change gate. */
   const runOnce = useCallback(() => run(true), [run]);
@@ -272,6 +292,10 @@ export function useVisionOverlay({
 
   budgetBlockedRef.current = budgetBlocked;
 
-  return { boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked };
+  return {
+    boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked,
+    referenceVerdict, localChecks,
+  };
+
 }
 

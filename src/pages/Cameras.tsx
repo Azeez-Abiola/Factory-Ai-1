@@ -467,6 +467,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
   const tel = telemetryFor(cam);
   const showLive = cam.isLive && cam.streamUrl;
   const captureRef = useRef<(() => string | null) | null>(null);
+  const recordRef = useRef<((seconds: number) => Promise<string | null>) | null>(null);
 
   const vision = useVisionOverlay({
     cameraId: cam.id,
@@ -477,8 +478,16 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
     intervalSeconds: Math.max(5, cam.inferenceIntervalSeconds ?? (large ? 10 : 20)),
     startDelayMs: (stagger % 6) * 1200,
     capture: () => captureRef.current?.() ?? null,
+    record: (seconds) => recordRef.current?.(seconds) ?? Promise.resolve(null),
     hasSnapshot: !!cam.snapshotUrl,
+    regions: cam.regions,
+    referenceMatchEnabled: cam.referenceMatchEnabled,
+    referenceMatchThreshold: cam.referenceMatchThreshold,
+    referenceSamples: cam.referenceSamples,
+    clipAnalysisEnabled: cam.clipAnalysisEnabled,
+    clipSeconds: cam.clipSeconds,
   });
+
 
   // A browser-reachable stream can play before a gateway heartbeat arrives.
   // Maintenance always wins; cameras without playback stay on their status panel.
@@ -506,8 +515,23 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           type={cam.streamType ?? "hls"}
           muted={!canPlayAudio}
           captureRef={captureRef}
-          overlay={<DetectionBoxes boxes={vision.boxes} large={large} />}
+          recordRef={recordRef}
+          overlay={
+            <>
+              {visionOn && (cam.regions ?? []).map((r) => (
+                <div
+                  key={r.id}
+                  className="pointer-events-none absolute rounded-sm border border-dashed border-primary/50"
+                  style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
+                >
+                  <span className="absolute -top-3.5 left-0 rounded-sm bg-primary/80 px-1 text-[8px] font-mono text-primary-foreground">{r.name}</span>
+                </div>
+              ))}
+              <DetectionBoxes boxes={vision.boxes} large={large} />
+            </>
+          }
         />
+
       </div>
 
       {/* Corner HUD */}
@@ -542,6 +566,21 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           </span>
         </div>
       )}
+      {visionOn && cam.referenceMatchEnabled && vision.referenceVerdict && (
+        <div
+          className={cn(
+            "absolute bottom-8 right-2 rounded px-1.5 py-0.5 text-[9px] font-mono backdrop-blur-sm",
+            vision.referenceVerdict.label === "good"
+              ? "bg-success/20 text-success"
+              : "bg-destructive/20 text-destructive"
+          )}
+        >
+          {vision.referenceVerdict.confident
+            ? vision.referenceVerdict.label === "good" ? "Matches good sample" : "Matches faulty sample"
+            : "No clear sample match"}
+        </div>
+      )}
+
 
     </>
   );
