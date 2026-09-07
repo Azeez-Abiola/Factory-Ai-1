@@ -566,6 +566,21 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           </span>
         </div>
       )}
+      {visionOn && cam.referenceMatchEnabled && vision.referenceVerdict && (
+        <div
+          className={cn(
+            "absolute bottom-8 right-2 rounded px-1.5 py-0.5 text-[9px] font-mono backdrop-blur-sm",
+            vision.referenceVerdict.label === "good"
+              ? "bg-success/20 text-success"
+              : "bg-destructive/20 text-destructive"
+          )}
+        >
+          {vision.referenceVerdict.confident
+            ? vision.referenceVerdict.label === "good" ? "Matches good sample" : "Matches faulty sample"
+            : "No clear sample match"}
+        </div>
+      )}
+
 
     </>
   );
