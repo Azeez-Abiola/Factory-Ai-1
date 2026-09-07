@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -357,6 +358,7 @@ const Onboarding = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{cam.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{cam.rtspUrl}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{cam.zone || "No area assigned"}</p>
                   </div>
                   <Badge
                     variant="outline"
@@ -416,6 +418,15 @@ const Onboarding = () => {
                       spellCheck={false}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <FieldLabel htmlFor="cam-zone" hint="Areas come from the next step.">Factory area</FieldLabel>
+                    <Select value={newCameraZone} onValueChange={setNewCameraZone}>
+                      <SelectTrigger id="cam-zone"><SelectValue placeholder="Select an area" /></SelectTrigger>
+                      <SelectContent>
+                        {zones.map((z) => <SelectItem key={z.name} value={z.name}>{z.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <Button variant="outline" onClick={() => setAddCameraOpen(false)}>Cancel</Button>
                     <Button onClick={handleAddCamera} className="gap-2">
@@ -429,51 +440,94 @@ const Onboarding = () => {
         )}
 
         {currentStep === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-2xl">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Define Factory Zones</h2>
-              <p className="text-sm text-muted-foreground">Map your factory into logical zones for monitoring.</p>
+              <h2 className="text-lg font-semibold text-foreground">Define Factory Areas</h2>
+              <p className="text-sm text-muted-foreground">
+                These areas appear on the operator floor plan, and alerts light up the area they came from.
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl">
-              {["Zone A – Main Hall", "Zone B – Assembly", "Zone C – Packaging", "Zone D – Storage", "Zone E – QC Lab", "Zone F – Loading Dock"].map((zone, i) => (
-                <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border text-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {zones.map((z) => (
+                <div key={z.name} className="relative p-3 rounded-lg bg-muted/30 border border-border text-center group">
                   <MapPin className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <p className="text-sm text-foreground">{zone}</p>
-                  <p className="text-xs text-muted-foreground">{2 + i} cameras</p>
+                  <p className="text-sm text-foreground">{z.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{z.zone_type}</p>
+                  <Button
+                    variant="ghost" size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => setZones((prev) => prev.filter((v) => v.name !== z.name))}
+                    aria-label={`Remove ${z.name}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               ))}
+              {zones.length === 0 && (
+                <p className="text-sm text-muted-foreground italic md:col-span-3">No areas yet — add at least one.</p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_200px_auto] gap-2">
+              <div className="space-y-1">
+                <FieldLabel htmlFor="zone-name">Area name</FieldLabel>
+                <Input id="zone-name" placeholder="Zone D - Loading Dock" value={newZoneName}
+                  onChange={(e) => setNewZoneName(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <FieldLabel>Type</FieldLabel>
+                <Select value={newZoneType} onValueChange={setNewZoneType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ZONE_TYPES.map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <FieldLabel className="opacity-0">&nbsp;</FieldLabel>
+                <Button variant="outline" className="gap-2" onClick={() => {
+                  const name = newZoneName.trim();
+                  if (!name) { toast.error("Enter an area name"); return; }
+                  if (zones.some((z) => z.name.toLowerCase() === name.toLowerCase())) { toast.info("That area already exists"); return; }
+                  setZones((prev) => [...prev, { name, zone_type: newZoneType }]);
+                  setNewZoneName("");
+                }}>
+                  <Plus className="w-4 h-4" /> Add area
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
         {currentStep === 3 && (
-          <div className="space-y-4 max-w-xl">
+          <div className="space-y-5 max-w-xl">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Alert Thresholds</h2>
-              <p className="text-sm text-muted-foreground">Configure detection sensitivity and alert rules.</p>
+              <h2 className="text-lg font-semibold text-foreground">AI Analysis Budget</h2>
+              <p className="text-sm text-muted-foreground">
+                Cap what this site can spend on AI analysis each month. Nothing is analysed beyond this cap when the
+                hard stop is on.
+              </p>
             </div>
-            {[
-              { label: "PPE Violation Detection", desc: "Trigger alert when PPE missing for" },
-              { label: "Machine Idle Timeout", desc: "Alert if machine idle for" },
-              { label: "Quality Defect Sensitivity", desc: "Minimum confidence threshold" },
-              { label: "Restricted Zone Alert", desc: "Immediate alert on unauthorized entry" },
-            ].map((rule, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                <div>
-                  <p className="text-sm text-foreground">{rule.label}</p>
-                  <p className="text-xs text-muted-foreground">{rule.desc}</p>
-                </div>
-                <Select defaultValue={i === 3 ? "instant" : "5min"}>
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instant">Instant</SelectItem>
-                    <SelectItem value="2min">2 min</SelectItem>
-                    <SelectItem value="5min">5 min</SelectItem>
-                    <SelectItem value="10min">10 min</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <FieldLabel required htmlFor="ob-budget" hint="US dollars per calendar month.">Monthly cap</FieldLabel>
+                <Input id="ob-budget" type="number" min={1} step={5} value={budgetLimit}
+                  onChange={(e) => setBudgetLimit(e.target.value)} />
               </div>
-            ))}
+              <div className="space-y-2">
+                <FieldLabel htmlFor="ob-threshold" hint="We warn the site admins at this point.">Warning level (%)</FieldLabel>
+                <Input id="ob-threshold" type="number" min={10} max={100} step={5} value={budgetThreshold}
+                  onChange={(e) => setBudgetThreshold(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex items-start justify-between gap-4 p-3 rounded-lg bg-muted/30 border border-border">
+              <div>
+                <p className="text-sm text-foreground">Stop analysis at the cap</p>
+                <p className="text-xs text-muted-foreground">
+                  Recommended. Cameras keep streaming and recording — only AI analysis pauses.
+                </p>
+              </div>
+              <Switch checked={budgetHardStop} onCheckedChange={setBudgetHardStop} />
+            </div>
           </div>
         )}
 
