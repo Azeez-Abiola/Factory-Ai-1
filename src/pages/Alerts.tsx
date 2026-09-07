@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -89,8 +89,11 @@ const StatTile = ({ label, value, tone }: { label: string; value: string | numbe
 export default function Alerts() {
   const { user } = useAuth();
   const { activeTenantId, activeTenant } = useTenants();
+  const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [cameras, setCameras] = useState<{ id: string; name: string }[]>([]);
+  // Alerts escalated into an investigation case — used for the cross-link badge.
+  const [caseByAlert, setCaseByAlert] = useState<Record<string, { id: string; status: string }>>({});
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selected, setSelected] = useState<AlertRow | null>(null);
@@ -108,14 +111,20 @@ export default function Alerts() {
   const load = async () => {
     if (!activeTenantId) { setAlerts([]); setLoading(false); return; }
     setLoading(true);
-    const [{ data, error }, { data: cams }] = await Promise.all([
+    const [{ data, error }, { data: cams }, { data: cases }] = await Promise.all([
       supabase.from("alerts").select("*").eq("tenant_id", activeTenantId)
         .order("detected_at", { ascending: false }).limit(300),
       supabase.from("cameras").select("id, name").eq("tenant_id", activeTenantId).order("name"),
+      supabase.from("incidents").select("id, alert_id, status").eq("tenant_id", activeTenantId).limit(500),
     ]);
     if (error) toast.error(error.message);
     setAlerts((data ?? []) as AlertRow[]);
     setCameras((cams ?? []) as { id: string; name: string }[]);
+    setCaseByAlert(Object.fromEntries(
+      ((cases ?? []) as { id: string; alert_id: string | null; status: string }[])
+        .filter((c) => c.alert_id)
+        .map((c) => [c.alert_id as string, { id: c.id, status: c.status }])
+    ));
     setLoading(false);
   };
 
@@ -263,18 +272,23 @@ export default function Alerts() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Live Feed"
+        eyebrow="Triage Queue"
         icon={Bell}
-        title="Alerts & Incidents"
+        title="Alerts"
         description={
           activeTenant
-            ? `${filtered.length} of ${alerts.length} live incidents · ${activeTenant.name}`
+            ? `${filtered.length} of ${alerts.length} detections · escalate anything real into an investigation · ${activeTenant.name}`
             : "Select a tenant to view alerts"
         }
         actions={
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV} disabled={filtered.length === 0}>
-            <Download className="h-4 w-4" /> Export
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate("/app/investigations")}>
+              <ShieldCheck className="h-4 w-4" /> Investigations
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportCSV} disabled={filtered.length === 0}>
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </div>
         }
       />
 
@@ -371,6 +385,14 @@ export default function Alerts() {
                   <Badge variant="outline" className={cn("text-xs", severityColors[a.severity] || "")}>{a.severity}</Badge>
                   <Badge variant="outline" className="text-xs">{a.type}</Badge>
                   <Badge variant="outline" className="text-xs capitalize">{a.status}</Badge>
+                  {caseByAlert[a.id] && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/app/investigations?incident=${caseByAlert[a.id].id}`); }}
+                      className="text-xs rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+                    >
+                      Investigation · {caseByAlert[a.id].status.replace("_", " ")}
+                    </button>
+                  )}
                 </div>
                 {a.description && <p className="text-xs text-muted-foreground line-clamp-1">{a.description}</p>}
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">

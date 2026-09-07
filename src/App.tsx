@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +13,7 @@ import NotFound from "./pages/NotFound.tsx";
 import AppLayout from "./components/app/AppLayout.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
-import Incidents from "./pages/Incidents.tsx";
+import Investigations from "./pages/Investigations.tsx";
 import Cameras from "./pages/Cameras.tsx";
 import FloorPlan from "./pages/FloorPlan.tsx";
 import Reports from "./pages/Reports.tsx";
@@ -73,7 +73,8 @@ const App = () => (
             >
               <Route index element={<Dashboard />} />
               <Route path="alerts" element={<Alerts />} />
-              <Route path="incidents" element={<Incidents />} />
+              <Route path="investigations" element={<Investigations />} />
+              <Route path="incidents" element={<Navigate to="/app/investigations" replace />} />
               <Route path="cameras" element={<Cameras />} />
               <Route path="floor-plan" element={<FloorPlan />} />
 
