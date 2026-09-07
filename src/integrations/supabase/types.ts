@@ -1000,6 +1000,62 @@ export type Database = {
           },
         ]
       }
+      site_zones: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          height: number
+          id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+          width: number
+          x: number
+          y: number
+          zone_type: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          height?: number
+          id?: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+          width?: number
+          x?: number
+          y?: number
+          zone_type?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          height?: number
+          id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          width?: number
+          x?: number
+          y?: number
+          zone_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_zones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_ai_budgets: {
         Row: {
           alert_threshold_pct: number
