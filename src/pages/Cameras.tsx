@@ -467,6 +467,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
   const tel = telemetryFor(cam);
   const showLive = cam.isLive && cam.streamUrl;
   const captureRef = useRef<(() => string | null) | null>(null);
+  const recordRef = useRef<((seconds: number) => Promise<string | null>) | null>(null);
 
   const vision = useVisionOverlay({
     cameraId: cam.id,
@@ -477,8 +478,16 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
     intervalSeconds: Math.max(5, cam.inferenceIntervalSeconds ?? (large ? 10 : 20)),
     startDelayMs: (stagger % 6) * 1200,
     capture: () => captureRef.current?.() ?? null,
+    record: (seconds) => recordRef.current?.(seconds) ?? Promise.resolve(null),
     hasSnapshot: !!cam.snapshotUrl,
+    regions: cam.regions,
+    referenceMatchEnabled: cam.referenceMatchEnabled,
+    referenceMatchThreshold: cam.referenceMatchThreshold,
+    referenceSamples: cam.referenceSamples,
+    clipAnalysisEnabled: cam.clipAnalysisEnabled,
+    clipSeconds: cam.clipSeconds,
   });
+
 
   // A browser-reachable stream can play before a gateway heartbeat arrives.
   // Maintenance always wins; cameras without playback stay on their status panel.
