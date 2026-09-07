@@ -47,13 +47,23 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "forklift",     label: "Forklift / Pedestrian",  description: "pedestrian in forklift zone, no spotter, unsafe speed",                     severity_hint: "critical", enabled: true },
 ];
 
+interface ReferenceImage {
+  path: string;
+  label: string;
+  kind: "compliant" | "violation";
+  note?: string;
+}
+
 interface CustomModel {
   id: string;
   label: string;
   notes?: string;
 }
 
+const SITE_PPE_MODEL_ID = "site/ppe-reference";
+
 const MODELS = [
+  { id: SITE_PPE_MODEL_ID, label: "Site PPE Model (your factory's photos + Gemini)" },
   { id: "google/gemini-2.5-pro",   label: "Gemini 2.5 Pro (best vision, default)" },
   { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (faster, cheaper)" },
   { id: "google/gemini-3-pro-image", label: "Gemini 3 Pro (next-gen vision)" },
@@ -87,6 +97,11 @@ const AIConfig = () => {
   const [newModelId, setNewModelId] = useState("");
   const [newModelLabel, setNewModelLabel] = useState("");
   const [newModelNotes, setNewModelNotes] = useState("");
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
+  const [refPreviews, setRefPreviews] = useState<Record<string, string>>({});
+  const [uploadingRefs, setUploadingRefs] = useState(false);
+  const [refKind, setRefKind] = useState<"compliant" | "violation">("compliant");
+  const [refNote, setRefNote] = useState("");
 
   const allModels = useMemo(
     () => [...MODELS, ...customModels.filter((m) => m.id && !MODELS.some((b) => b.id === m.id))],
@@ -109,11 +124,16 @@ const AIConfig = () => {
         setCategories(cats.length ? cats : DEFAULT_CATEGORIES);
         const models = Array.isArray((data as any).custom_models) ? ((data as any).custom_models as CustomModel[]) : [];
         setCustomModels(models);
+        const refs = Array.isArray((data as any).reference_images) ? ((data as any).reference_images as ReferenceImage[]) : [];
+        setReferenceImages(refs);
+        void signPreviews(refs);
       } else {
         setSystemPrompt(DEFAULT_PROMPT);
         setModel("google/gemini-2.5-pro");
         setCategories(DEFAULT_CATEGORIES);
         setCustomModels([]);
+        setReferenceImages([]);
+        setRefPreviews({});
       }
       setLoading(false);
     })();
@@ -129,6 +149,7 @@ const AIConfig = () => {
       model,
       categories: categories as unknown as never,
       custom_models: customModels as unknown as never,
+      reference_images: referenceImages as unknown as never,
       updated_by: userRes.user?.id,
     };
     const { error } = await supabase
@@ -140,9 +161,50 @@ const AIConfig = () => {
       tenantId: activeTenantId,
       action: "ai_config.updated",
       entityType: "ai_analysis_config",
-      metadata: { model, category_count: categories.length, custom_model_count: customModels.length, enabled_count: categories.filter((c) => c.enabled !== false).length },
+      metadata: { model, category_count: categories.length, custom_model_count: customModels.length, reference_image_count: referenceImages.length, enabled_count: categories.filter((c) => c.enabled !== false).length },
     });
     toast.success("AI configuration saved");
+  };
+
+  const signPreviews = async (refs: ReferenceImage[]) => {
+    if (!refs.length) { setRefPreviews({}); return; }
+    const { data } = await supabase.storage
+      .from("ppe-reference")
+      .createSignedUrls(refs.map((r) => r.path), 3600);
+    const map: Record<string, string> = {};
+    (data ?? []).forEach((d, i) => { if (d.signedUrl) map[refs[i].path] = d.signedUrl; });
+    setRefPreviews(map);
+  };
+
+  const onReferenceFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    if (!activeTenantId) { toast.error("Select a tenant first"); return; }
+    setUploadingRefs(true);
+    const added: ReferenceImage[] = [];
+    for (const file of Array.from(files).slice(0, 10)) {
+      if (!file.type.startsWith("image/")) { toast.error(`${file.name} is not an image`); continue; }
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} is larger than 10 MB`); continue; }
+      const path = `${activeTenantId}/${crypto.randomUUID()}-${slugify(file.name.replace(/\.[^.]+$/, ""))}`;
+      const { error } = await supabase.storage.from("ppe-reference").upload(path, file, { contentType: file.type });
+      if (error) { toast.error(`Upload failed for ${file.name}: ${error.message}`); continue; }
+      added.push({ path, label: file.name.replace(/\.[^.]+$/, ""), kind: refKind, note: refNote.trim() || undefined });
+    }
+    if (added.length) {
+      const next = [...referenceImages, ...added];
+      setReferenceImages(next);
+      await signPreviews(next);
+      toast.success(`${added.length} reference photo${added.length > 1 ? "s" : ""} added — click Save to apply`);
+    }
+    setUploadingRefs(false);
+  };
+
+  const updateReference = (path: string, patch: Partial<ReferenceImage>) =>
+    setReferenceImages((rs) => rs.map((r) => (r.path === path ? { ...r, ...patch } : r)));
+
+  const removeReference = async (path: string) => {
+    await supabase.storage.from("ppe-reference").remove([path]);
+    setReferenceImages((rs) => rs.filter((r) => r.path !== path));
+    toast.info("Reference photo removed — click Save to apply");
   };
 
   const addCustomModel = () => {
@@ -363,6 +425,75 @@ const AIConfig = () => {
               <p className="text-xs text-muted-foreground mt-2">
                 All calls route through Lovable AI Gateway. Gemini 2.5 Pro is the default for best vision accuracy; switch to Flash to reduce cost when running high-cadence inference.
               </p>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h4 className="font-semibold text-foreground text-sm">Site PPE Model — your factory's own photos</h4>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                    Upload photos of your own crews showing correct PPE and real violations. When <strong>Site PPE Model</strong> is selected above, every frame is judged against these photos instead of generic PPE assumptions — your helmet colours, vest type and local rules. Up to 8 photos are sent with each analysis.
+                  </p>
+                </div>
+                <Badge variant={model === SITE_PPE_MODEL_ID ? "secondary" : "outline"} className="text-[10px] shrink-0">
+                  {model === SITE_PPE_MODEL_ID ? "In use" : "Not selected"}
+                </Badge>
+              </div>
+
+              {referenceImages.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {referenceImages.map((r) => (
+                    <div key={r.path} className="rounded-lg border border-border bg-muted/20 overflow-hidden">
+                      {refPreviews[r.path]
+                        ? <img src={refPreviews[r.path]} alt={`PPE reference: ${r.label}`} className="w-full h-32 object-cover" loading="lazy" />
+                        : <div className="w-full h-32 grid place-items-center text-muted-foreground"><ImageIcon className="w-5 h-5" /></div>}
+                      <div className="p-3 space-y-2">
+                        <Input value={r.label} onChange={(e) => updateReference(r.path, { label: e.target.value })} className="h-8 text-xs" aria-label="Reference label" />
+                        <div className="flex items-center gap-2">
+                          <Select value={r.kind} onValueChange={(v) => updateReference(r.path, { kind: v as ReferenceImage["kind"] })}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="compliant">Correct PPE</SelectItem>
+                              <SelectItem value="violation">PPE violation</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="icon" aria-label={`Remove ${r.label}`} onClick={() => removeReference(r.path)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <Input value={r.note ?? ""} onChange={(e) => updateReference(r.path, { note: e.target.value })} placeholder="Note (optional)" className="h-8 text-xs" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid gap-3 md:grid-cols-3 max-w-3xl items-end">
+                <div>
+                  <Label className="text-xs">These photos show</Label>
+                  <Select value={refKind} onValueChange={(v) => setRefKind(v as "compliant" | "violation")}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="compliant">Correct PPE</SelectItem>
+                      <SelectItem value="violation">PPE violation</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Note applied to this upload (optional)</Label>
+                  <Input value={refNote} onChange={(e) => setRefNote(e.target.value)} placeholder="e.g. Blue helmet + orange vest is our line standard" className="h-9 text-xs" />
+                </div>
+              </div>
+              <div>
+                <input id="ppe-ref-upload" type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onReferenceFiles(e.target.files); e.currentTarget.value = ""; }} />
+                <Button variant="outline" size="sm" disabled={uploadingRefs || !activeTenantId} onClick={() => document.getElementById("ppe-ref-upload")?.click()}>
+                  {uploadingRefs ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                  {uploadingRefs ? "Uploading…" : "Upload PPE photos"}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  JPG or PNG up to 10 MB each. Photos are stored privately for this site only. Remember to click Save.
+                </p>
+              </div>
             </div>
 
             <div className="border-t border-border pt-4 space-y-3">
