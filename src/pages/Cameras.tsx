@@ -498,7 +498,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
         <div className="text-center relative">
           <config.icon className={cn(large ? "w-10 h-10" : "w-6 h-6", "mx-auto mb-1", config.text)} />
           <p className={cn("font-mono", large ? "text-sm" : "text-xs", config.text)}>{config.label}</p>
-          <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.id}</p>
+          <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.name}</p>
         </div>
       </div>
     );
