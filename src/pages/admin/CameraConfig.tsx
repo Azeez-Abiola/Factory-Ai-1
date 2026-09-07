@@ -22,7 +22,10 @@ import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
+import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
+import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
 
 
 type StreamType = "hls" | "webrtc" | "mjpeg";
@@ -136,6 +139,8 @@ const CameraConfig = () => {
   const [analysing, setAnalysing] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
+  const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
+
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
   const [connectionTested, setConnectionTested] = useState(false);
 
@@ -155,8 +160,10 @@ const CameraConfig = () => {
   useEffect(() => {
     load();
     setGatewayBase((activeTenant as any)?.settings?.gateway_base_url ?? "");
+    setGatewayVendor(((activeTenant as any)?.settings?.gateway_vendor as GatewayVendor) ?? "mediamtx");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenantId]);
+
 
   // Realtime sync so the wall + config stay in lockstep as soon as gateways emit heartbeats
   useEffect(() => {
@@ -185,20 +192,31 @@ const CameraConfig = () => {
     const existing = ((activeTenant as any)?.settings ?? {}) as Record<string, unknown>;
     const { error } = await supabase
       .from("tenants")
-      .update({ settings: { ...existing, gateway_base_url: gatewayBase.replace(/\/$/, "") } })
+      .update({ settings: { ...existing, gateway_base_url: gatewayBase.replace(/\/$/, ""), gateway_vendor: gatewayVendor } })
       .eq("id", activeTenantId);
     setSavingSettings(false);
     if (error) toast.error(error.message);
     else toast.success("Gateway settings saved");
   };
 
+
   const autoStreamUrl = (cameraId: string, type: StreamType) => {
     if (!gatewayBase) return "";
-    const base = gatewayBase.replace(/\/$/, "");
-    if (type === "hls") return `${base}/${cameraId}/index.m3u8`;
-    if (type === "webrtc") return `${base}/${cameraId}/whep`;
-    return `${base}/${cameraId}`;
+    const p = getGatewayPattern(gatewayVendor);
+    if (type === "hls") return p.hls(gatewayBase, cameraId);
+    if (type === "webrtc") return p.webrtc(gatewayBase, cameraId);
+    return p.mjpeg(gatewayBase, cameraId);
   };
+
+  /** Suggests a JPEG still address: gateway convention first, then the camera's own brand route. */
+  const suggestSnapshotUrl = (cameraId?: string, rtsp?: string | null): string => {
+    if (gatewayBase && cameraId) {
+      const fromGateway = getGatewayPattern(gatewayVendor).snapshot(gatewayBase, cameraId);
+      if (fromGateway) return fromGateway;
+    }
+    return (rtsp ? guessSnapshotFromRtsp(rtsp) : null) ?? "";
+  };
+
 
   const runStreamTest = async (opts: {
     stream_url?: string | null;
