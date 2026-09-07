@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { auditLog } from "@/lib/audit";
 import { toast } from "sonner";
+import sampleClip from "@/assets/sample-factory-clip.mp4.asset.json";
 
 interface Category {
   id: string;
@@ -67,6 +68,9 @@ const AIConfig = () => {
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [testOpen, setTestOpen] = useState(false);
   const [testImage, setTestImage] = useState(SAMPLE_IMAGE);
+  const [testMode, setTestMode] = useState<"image" | "video">("image");
+  const [testVideo, setTestVideo] = useState<string>(sampleClip.url);
+  const [videoLabel, setVideoLabel] = useState<string>("Sample factory clip (5s)");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [newCatLabel, setNewCatLabel] = useState("");
@@ -140,13 +144,36 @@ const AIConfig = () => {
   };
   const removeCategory = (id: string) => setCategories((cs) => cs.filter((c) => c.id !== id));
 
+  const toDataUrl = async (url: string) => {
+    if (url.startsWith("data:")) return url;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Could not load clip (${res.status})`);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Could not read clip"));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const onVideoFile = async (file: File) => {
+    if (file.size > 20 * 1024 * 1024) { toast.error("Clip is too large — use a clip under 20 MB"); return; }
+    const dataUrl = await toDataUrl(URL.createObjectURL(file));
+    setTestVideo(dataUrl);
+    setVideoLabel(file.name);
+  };
+
   const runTest = async () => {
-    if (!testImage) { toast.error("Provide a test image URL"); return; }
+    if (testMode === "video" && !testVideo) { toast.error("Provide a test clip"); return; }
+    if (testMode === "image" && !testImage) { toast.error("Provide a test image URL"); return; }
     setTesting(true); setTestResult(null);
     try {
+      const videoUrl = testMode === "video" ? await toDataUrl(testVideo) : undefined;
       const { data, error } = await supabase.functions.invoke("analyze-frame", {
         body: {
-          imageUrl: testImage,
+          imageUrl: testMode === "image" ? testImage : undefined,
+          videoUrl,
           tenantId: activeTenantId,
           cameraName: "Prompt test",
           zone: "Configuration sandbox",
@@ -324,17 +351,64 @@ const AIConfig = () => {
             <DialogTitle className="flex items-center gap-2"><ImageIcon className="w-5 h-5 text-primary" /> Test analysis</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Label>Frame URL</Label>
-            <div className="flex gap-2">
-              <Input value={testImage} onChange={(e) => setTestImage(e.target.value)} className="font-mono text-xs" />
-              <Button onClick={runTest} disabled={testing} className="gap-2 shrink-0">
-                {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Run
-              </Button>
-            </div>
-            {testImage && (
-              <div className="rounded-lg border border-border bg-muted/20 max-h-64 overflow-hidden flex items-center justify-center">
-                <img src={testImage} alt="Test" className="max-h-64 object-contain" />
-              </div>
+            <Tabs value={testMode} onValueChange={(v) => { setTestMode(v as "image" | "video"); setTestResult(null); }}>
+              <TabsList>
+                <TabsTrigger value="image">Still frame</TabsTrigger>
+                <TabsTrigger value="video">Video clip</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {testMode === "image" ? (
+              <>
+                <Label>Frame URL</Label>
+                <div className="flex gap-2">
+                  <Input value={testImage} onChange={(e) => setTestImage(e.target.value)} className="font-mono text-xs" />
+                  <Button onClick={runTest} disabled={testing} className="gap-2 shrink-0">
+                    {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Run
+                  </Button>
+                </div>
+                {testImage && (
+                  <div className="rounded-lg border border-border bg-muted/20 max-h-64 overflow-hidden flex items-center justify-center">
+                    <img src={testImage} alt="Test" className="max-h-64 object-contain" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Label>Clip</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setTestVideo(sampleClip.url); setVideoLabel("Sample factory clip (5s)"); setTestResult(null); }}
+                  >
+                    Use sample clip
+                  </Button>
+                  <Button type="button" variant="outline" asChild>
+                    <label className="cursor-pointer">
+                      Upload clip
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm"
+                        className="sr-only"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) onVideoFile(f); }}
+                      />
+                    </label>
+                  </Button>
+                  <Button onClick={runTest} disabled={testing} className="gap-2 shrink-0">
+                    {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Run
+                  </Button>
+                  <span className="text-xs text-muted-foreground truncate">{videoLabel}</span>
+                </div>
+                {testVideo && (
+                  <div className="rounded-lg border border-border bg-muted/20 overflow-hidden flex items-center justify-center">
+                    <video src={testVideo} controls muted loop playsInline className="max-h-64 w-full object-contain bg-black" />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  The clip is analysed end-to-end, so movement over time (a worker walking without a hard hat, a stalled line, a forklift near pedestrians) is judged the same way it will be on a live feed. Keep clips short — under 10 seconds and 20 MB.
+                </p>
+              </>
             )}
             {testResult && (
               <pre className="text-[11px] bg-muted/40 rounded-lg p-3 overflow-x-auto max-h-80">
