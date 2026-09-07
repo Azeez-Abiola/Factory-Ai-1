@@ -16,6 +16,8 @@ import LiveFeed from "@/components/app/LiveFeed";
 import { toast } from "sonner";
 import AIAnalyzeDialog from "@/components/app/AIAnalyzeDialog";
 import PageHeader from "@/components/app/PageHeader";
+import { useTenants } from "@/hooks/useTenants";
+import { useVisionOverlay, VISION_CATEGORIES, categoryColor, VisionBox } from "@/hooks/useVisionOverlay";
 
 type LayoutKey = "1" | "4" | "9" | "12" | "16";
 
@@ -42,6 +44,8 @@ const telemetryFor = (cam: LiveCamera) => {
 
 const Cameras = () => {
   const { cameras, hasLiveStreams } = useLiveCameras();
+  const { activeTenantId } = useTenants();
+  const [visionOn, setVisionOn] = useState(true);
   const [selected, setSelected] = useState<LiveCamera | null>(null);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [status, setStatus] = useState<string>("all");
@@ -246,8 +250,8 @@ const Cameras = () => {
         ) : (
           <>
             <div className={cn("grid gap-3", layoutConfig[layout].cols)}>
-              {visible.map((cam) => (
-                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} audioOn={audioOn} />
+              {visible.map((cam, idx) => (
+                <CameraTile key={cam.id} cam={cam} onOpen={() => setSelected(cam)} now={now} focus={layout === "1"} audioOn={audioOn} visionOn={visionOn} tenantId={activeTenantId} stagger={idx} />
               ))}
               {/* Fill empty slots so grid keeps its shape */}
               {Array.from({ length: Math.max(0, perPage - visible.length) }).map((_, i) => (
@@ -296,7 +300,7 @@ const Cameras = () => {
 
               <div className="space-y-4">
                 <div className="relative h-80 bg-muted/30 rounded-lg overflow-hidden border border-border">
-                  <FeedInner cam={selected} now={now} large audioOn={audioOn} />
+                  <FeedInner cam={selected} now={now} large audioOn={audioOn} visionOn={visionOn} tenantId={activeTenantId} stagger={0} />
                 </div>
 
                 {/* Telemetry */}
