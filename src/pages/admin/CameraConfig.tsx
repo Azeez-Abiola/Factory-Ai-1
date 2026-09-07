@@ -883,6 +883,28 @@ const CameraConfig = () => {
                 )}
               </TabsContent>
 
+              <TabsContent value="inspect">
+                <CameraInspectionTab
+                  tenantId={activeTenantId}
+                  cameraId={editing.id}
+                  snapshotUrl={editing.snapshot_url}
+                  regions={editing.regions_of_interest ?? []}
+                  onRegionsChange={(regions_of_interest) => setEditing({ ...editing, regions_of_interest })}
+                  samples={editing.reference_samples ?? []}
+                  onSamplesChange={(reference_samples) => setEditing({ ...editing, reference_samples })}
+                  referenceEnabled={!!editing.reference_match_enabled}
+                  onReferenceEnabledChange={(reference_match_enabled) => setEditing({ ...editing, reference_match_enabled })}
+                  tolerance={editing.reference_match_threshold ?? 0.06}
+                  onToleranceChange={(reference_match_threshold) => setEditing({ ...editing, reference_match_threshold })}
+                  clipEnabled={!!editing.clip_analysis_enabled}
+                  onClipEnabledChange={(clip_analysis_enabled) => setEditing({ ...editing, clip_analysis_enabled })}
+                  clipSeconds={editing.clip_seconds ?? 5}
+                  onClipSecondsChange={(clip_seconds) => setEditing({ ...editing, clip_seconds })}
+                />
+              </TabsContent>
+
+
+
               <TabsContent value="ops" className="space-y-3 pt-4">
                 <div className="grid grid-cols-1 gap-3">
                   <div className="space-y-1.5">
