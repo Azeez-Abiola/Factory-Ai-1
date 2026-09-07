@@ -15,6 +15,11 @@ interface Body {
   source?: string;        // live_inference | overlay | manual | insights
   sceneChanged?: boolean; // false when the caller's frame gating saw no change
   sceneDelta?: number;
+  /** Inspection areas — normalised 0..1 boxes the model must restrict itself to. */
+  regions?: { id?: string; name?: string; x: number; y: number; w: number; h: number; categories?: string[] }[];
+  /** Result of the caller's local (no-AI) reference-sample comparison. */
+  referenceVerdict?: { label: "good" | "defect"; note?: string | null };
+
 }
 
 const DEFAULT_CATEGORIES = [
