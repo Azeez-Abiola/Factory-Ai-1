@@ -458,16 +458,23 @@ const CameraConfig = () => {
 
       {/* Gateway settings */}
       <div className="glass rounded-xl border border-border p-5 space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Settings2 className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Streaming Gateway</h3>
-          <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Ant Media · WHEP</Badge>
+          <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Frigate · Ant Media</Badge>
+          <div className="ml-auto"><GatewaySetupGuide /></div>
         </div>
         <p className="text-xs text-muted-foreground">
           Browsers can't pull RTSP directly. Point a gateway at your RTSP cameras and paste its base URL here.
-          New cameras auto-generate their <span className="font-mono">stream_url</span> from this base plus the camera ID.
+          New cameras auto-generate their playback and snapshot addresses from this base plus the camera ID.
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
+          <Select value={gatewayVendor} onValueChange={(v: GatewayVendor) => setGatewayVendor(v)}>
+            <SelectTrigger className="sm:w-52"><SelectValue placeholder="Gateway software" /></SelectTrigger>
+            <SelectContent>
+              {GATEWAY_PATTERNS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Input
             value={gatewayBase}
             onChange={(e) => setGatewayBase(e.target.value)}
@@ -480,10 +487,13 @@ const CameraConfig = () => {
           </Button>
         </div>
         {gatewayBase && (
-          <p className="text-[11px] text-muted-foreground font-mono">
-            HLS pattern: {gatewayBase.replace(/\/$/, "")}/&lt;camera-id&gt;/index.m3u8 · WHEP: {gatewayBase.replace(/\/$/, "")}/&lt;camera-id&gt;/whep
-          </p>
+          <div className="space-y-0.5 text-[11px] text-muted-foreground font-mono">
+            <p>Playback · {getGatewayPattern(gatewayVendor).hls(gatewayBase, "<camera-id>")}</p>
+            <p>WebRTC · {getGatewayPattern(gatewayVendor).webrtc(gatewayBase, "<camera-id>")}</p>
+            <p>Snapshot · {getGatewayPattern(gatewayVendor).snapshot(gatewayBase, "<camera-id>") || "not served by this gateway — use the camera's own JPEG route"}</p>
+          </div>
         )}
+
       </div>
 
       {/* Camera grid */}
