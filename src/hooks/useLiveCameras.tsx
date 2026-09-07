@@ -14,6 +14,7 @@ export interface LiveCamera extends MockCamera {
   ptzEnabled?: boolean;
   snapshotUrl?: string | null;
   inferenceEnabled?: boolean;
+  inferenceIntervalSeconds?: number;
   inferenceStatus?: string | null;
   lastInferenceAt?: string | null;
   lastInferenceError?: string | null;
@@ -58,6 +59,7 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     ptzEnabled: !!row.ptz_enabled,
     snapshotUrl: row.snapshot_url ?? null,
     inferenceEnabled: !!row.inference_enabled,
+    inferenceIntervalSeconds: row.inference_interval_seconds ?? 30,
     inferenceStatus: row.inference_status ?? null,
     lastInferenceAt: row.last_inference_at ?? null,
     lastInferenceError: row.last_inference_error ?? null,

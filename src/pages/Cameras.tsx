@@ -474,7 +474,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
     zone: cam.zone,
     tenantId,
     enabled: visionOn && !!showLive && cam.status !== "maintenance" && cam.inferenceEnabled !== false,
-    intervalSeconds: large ? 10 : 20,
+    intervalSeconds: Math.max(5, cam.inferenceIntervalSeconds ?? (large ? 10 : 20)),
     startDelayMs: (stagger % 6) * 1200,
     capture: () => captureRef.current?.() ?? null,
     hasSnapshot: !!cam.snapshotUrl,
