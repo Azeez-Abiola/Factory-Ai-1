@@ -22,7 +22,10 @@ import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
+import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
+import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
 
 
 type StreamType = "hls" | "webrtc" | "mjpeg";
@@ -136,6 +139,8 @@ const CameraConfig = () => {
   const [analysing, setAnalysing] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
+  const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
+
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
   const [connectionTested, setConnectionTested] = useState(false);
 
@@ -155,8 +160,10 @@ const CameraConfig = () => {
   useEffect(() => {
     load();
     setGatewayBase((activeTenant as any)?.settings?.gateway_base_url ?? "");
+    setGatewayVendor(((activeTenant as any)?.settings?.gateway_vendor as GatewayVendor) ?? "mediamtx");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenantId]);
+
 
   // Realtime sync so the wall + config stay in lockstep as soon as gateways emit heartbeats
   useEffect(() => {
@@ -185,20 +192,31 @@ const CameraConfig = () => {
     const existing = ((activeTenant as any)?.settings ?? {}) as Record<string, unknown>;
     const { error } = await supabase
       .from("tenants")
-      .update({ settings: { ...existing, gateway_base_url: gatewayBase.replace(/\/$/, "") } })
+      .update({ settings: { ...existing, gateway_base_url: gatewayBase.replace(/\/$/, ""), gateway_vendor: gatewayVendor } })
       .eq("id", activeTenantId);
     setSavingSettings(false);
     if (error) toast.error(error.message);
     else toast.success("Gateway settings saved");
   };
 
+
   const autoStreamUrl = (cameraId: string, type: StreamType) => {
     if (!gatewayBase) return "";
-    const base = gatewayBase.replace(/\/$/, "");
-    if (type === "hls") return `${base}/${cameraId}/index.m3u8`;
-    if (type === "webrtc") return `${base}/${cameraId}/whep`;
-    return `${base}/${cameraId}`;
+    const p = getGatewayPattern(gatewayVendor);
+    if (type === "hls") return p.hls(gatewayBase, cameraId);
+    if (type === "webrtc") return p.webrtc(gatewayBase, cameraId);
+    return p.mjpeg(gatewayBase, cameraId);
   };
+
+  /** Suggests a JPEG still address: gateway convention first, then the camera's own brand route. */
+  const suggestSnapshotUrl = (cameraId?: string, rtsp?: string | null): string => {
+    if (gatewayBase && cameraId) {
+      const fromGateway = getGatewayPattern(gatewayVendor).snapshot(gatewayBase, cameraId);
+      if (fromGateway) return fromGateway;
+    }
+    return (rtsp ? guessSnapshotFromRtsp(rtsp) : null) ?? "";
+  };
+
 
   const runStreamTest = async (opts: {
     stream_url?: string | null;
@@ -298,10 +316,17 @@ const CameraConfig = () => {
     } else {
       const { data, error } = await supabase.from("cameras").insert(payload).select("*").maybeSingle();
       if (error) return toast.error(error.message);
-      if (data && !data.stream_url && gatewayBase) {
-        const generated = autoStreamUrl(data.id, payload.stream_type as StreamType);
-        await supabase.from("cameras").update({ stream_url: generated }).eq("id", data.id);
+      if (data && gatewayBase) {
+        const patch: { stream_url?: string; snapshot_url?: string } = {};
+        if (!data.stream_url) patch.stream_url = autoStreamUrl(data.id, payload.stream_type as StreamType);
+        if (!data.snapshot_url) {
+          const snap = suggestSnapshotUrl(data.id, data.rtsp_url);
+          if (snap) patch.snapshot_url = snap;
+        }
+        if (Object.keys(patch).length) await supabase.from("cameras").update(patch).eq("id", data.id);
+
       }
+
       toast.success(`${payload.name} provisioned · ingest token generated`);
     }
     setEditing(null);
@@ -440,16 +465,23 @@ const CameraConfig = () => {
 
       {/* Gateway settings */}
       <div className="glass rounded-xl border border-border p-5 space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Settings2 className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Streaming Gateway</h3>
-          <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Ant Media · WHEP</Badge>
+          <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Frigate · Ant Media</Badge>
+          <div className="ml-auto"><GatewaySetupGuide /></div>
         </div>
         <p className="text-xs text-muted-foreground">
           Browsers can't pull RTSP directly. Point a gateway at your RTSP cameras and paste its base URL here.
-          New cameras auto-generate their <span className="font-mono">stream_url</span> from this base plus the camera ID.
+          New cameras auto-generate their playback and snapshot addresses from this base plus the camera ID.
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
+          <Select value={gatewayVendor} onValueChange={(v: GatewayVendor) => setGatewayVendor(v)}>
+            <SelectTrigger className="sm:w-52"><SelectValue placeholder="Gateway software" /></SelectTrigger>
+            <SelectContent>
+              {GATEWAY_PATTERNS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Input
             value={gatewayBase}
             onChange={(e) => setGatewayBase(e.target.value)}
@@ -462,10 +494,13 @@ const CameraConfig = () => {
           </Button>
         </div>
         {gatewayBase && (
-          <p className="text-[11px] text-muted-foreground font-mono">
-            HLS pattern: {gatewayBase.replace(/\/$/, "")}/&lt;camera-id&gt;/index.m3u8 · WHEP: {gatewayBase.replace(/\/$/, "")}/&lt;camera-id&gt;/whep
-          </p>
+          <div className="space-y-0.5 text-[11px] text-muted-foreground font-mono">
+            <p>Playback · {getGatewayPattern(gatewayVendor).hls(gatewayBase, "<camera-id>")}</p>
+            <p>WebRTC · {getGatewayPattern(gatewayVendor).webrtc(gatewayBase, "<camera-id>")}</p>
+            <p>Snapshot · {getGatewayPattern(gatewayVendor).snapshot(gatewayBase, "<camera-id>") || "not served by this gateway — use the camera's own JPEG route"}</p>
+          </div>
         )}
+
       </div>
 
       {/* Camera grid */}
@@ -653,7 +688,27 @@ const CameraConfig = () => {
                     </div>
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <Label>AI snapshot address</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>AI snapshot address</Label>
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => {
+                          const suggestion = suggestSnapshotUrl(editing.id, editing.rtsp_url);
+                          if (!suggestion) {
+                            toast.error("No pattern matched — add a gateway that serves snapshots, or paste the camera's JPEG address (see IT setup guide).");
+                            return;
+                          }
+                          setConnectionTested(false);
+                          setEditing({ ...editing, snapshot_url: suggestion });
+                          toast.success("Suggested address filled in — test it before saving");
+                        }}
+                      >
+                        Suggest address
+                      </Button>
+                    </div>
                     <Input
                       value={editing.snapshot_url ?? ""}
                       onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, snapshot_url: e.target.value }); }}
@@ -661,9 +716,11 @@ const CameraConfig = () => {
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Required for scheduled AI unless the playback address itself returns an image. Use the camera or gateway JPEG snapshot address.
+                      Required for scheduled AI unless the playback address itself returns an image. Suggestions use your
+                      gateway's convention first, then the camera brand detected from the RTSP address.
                     </p>
                   </div>
+
                   <div className="col-span-2 space-y-1.5">
                     <Label>RTSP URL (source)</Label>
                     <Input
