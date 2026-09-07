@@ -11,6 +11,9 @@ interface LiveFeedProps {
   poster?: string;
   /** Filled with a function that grabs the current frame as a JPEG data URL. */
   captureRef?: MutableRefObject<(() => string | null) | null>;
+  /** Filled with a function that records N seconds of the feed as a WebM data URL. */
+  recordRef?: MutableRefObject<((seconds: number) => Promise<string | null>) | null>;
+
   /** Rendered above the video (detection boxes, HUD). */
   overlay?: ReactNode;
 }
