@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  frameSignature, signatureDelta, matchReference, insideRegions,
+  type Region, type ReferenceSample, type ReferenceVerdict,
+} from "@/lib/visionMatch";
+
 
 export type VisionCategory =
   | "ppe" | "intrusion" | "downtime" | "ergonomics"
