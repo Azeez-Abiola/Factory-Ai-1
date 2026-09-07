@@ -48,6 +48,12 @@ interface CameraRow {
   last_seen_at: string | null;
   inference_enabled?: boolean;
   inference_interval_seconds?: number;
+  scene_gating_enabled?: boolean;
+  scene_change_threshold?: number;
+  max_idle_seconds?: number;
+  frames_skipped?: number;
+  frames_analyzed?: number;
+  last_scene_delta?: number | null;
   last_inference_at?: string | null;
   inference_status?: string;
   last_inference_error?: string | null;
@@ -84,6 +90,9 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   audio_enabled: false,
   inference_enabled: false,
   inference_interval_seconds: 30,
+  scene_gating_enabled: true,
+  scene_change_threshold: 1.2,
+  max_idle_seconds: 900,
 });
 
 const isLikelyStreamUrl = (u: string, t: StreamType) => {
@@ -253,6 +262,9 @@ const CameraConfig = () => {
       audio_enabled: !!e.audio_enabled,
       inference_enabled: !!e.inference_enabled,
       inference_interval_seconds: e.inference_interval_seconds ?? 30,
+      scene_gating_enabled: e.scene_gating_enabled !== false,
+      scene_change_threshold: e.scene_change_threshold ?? 1.2,
+      max_idle_seconds: e.max_idle_seconds ?? 900,
     };
 
     if (e.id) {
@@ -520,7 +532,9 @@ const CameraConfig = () => {
                     {cam.inference_enabled ? (
                       <Badge variant="outline" className="text-[10px] text-success border-success/40">
                         <Radio className="w-2.5 h-2.5 mr-1 animate-pulse" />
-                        Inference running · every {cam.inference_interval_seconds ?? 30}s
+                        {cam.scene_gating_enabled === false
+                          ? `Inference running · every ${cam.inference_interval_seconds ?? 30}s`
+                          : "Inference running · on scene change"}
                         {cam.last_inference_at && ` · last ${Math.max(0, Math.floor((Date.now() - new Date(cam.last_inference_at).getTime()) / 1000))}s ago`}
                       </Badge>
                     ) : (
@@ -783,16 +797,62 @@ const CameraConfig = () => {
                   />
                 </div>
                 {editing.inference_enabled && (
-                  <div className="space-y-1.5 p-3 rounded-lg border border-border">
-                    <Label>Inference Cadence: every {editing.inference_interval_seconds ?? 30}s</Label>
-                    <Slider
-                      value={[editing.inference_interval_seconds ?? 30]}
-                      min={5} max={300} step={5}
-                      onValueChange={(v) => setEditing({ ...editing, inference_interval_seconds: v[0] })}
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Lower cadence = faster detection, higher AI credit usage.
-                    </p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                      <div className="pr-3">
+                        <p className="text-sm font-medium">Automatic scene-change analysis</p>
+                        <p className="text-xs text-muted-foreground">
+                          The camera is checked continuously, but the AI only reads a frame when the picture actually changes. No cadence to tune.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={editing.scene_gating_enabled !== false}
+                        onCheckedChange={(v) => setEditing({ ...editing, scene_gating_enabled: v })}
+                      />
+                    </div>
+                    {editing.scene_gating_enabled !== false ? (
+                      <div className="space-y-4 p-3 rounded-lg border border-border">
+                        <div className="space-y-1.5">
+                          <Label>Change sensitivity: {(editing.scene_change_threshold ?? 1.2).toFixed(1)}%</Label>
+                          <Slider
+                            value={[Math.round((editing.scene_change_threshold ?? 1.2) * 10)]}
+                            min={2} max={100} step={1}
+                            onValueChange={(v) => setEditing({ ...editing, scene_change_threshold: v[0] / 10 })}
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Lower = reacts to the smallest movement (more analyses). Higher = only obvious activity is analysed.
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Refresh a still scene every {Math.round((editing.max_idle_seconds ?? 900) / 60)} min</Label>
+                          <Slider
+                            value={[Math.round((editing.max_idle_seconds ?? 900) / 60)]}
+                            min={1} max={60} step={1}
+                            onValueChange={(v) => setEditing({ ...editing, max_idle_seconds: v[0] * 60 })}
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Safety net: even a completely static scene is re-analysed on this interval.
+                          </p>
+                        </div>
+                        {typeof editing.frames_analyzed === "number" && (
+                          <p className="text-[11px] text-muted-foreground font-mono">
+                            {editing.frames_analyzed ?? 0} analysed · {editing.frames_skipped ?? 0} skipped as unchanged
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 p-3 rounded-lg border border-border">
+                        <Label>Fixed cadence: every {editing.inference_interval_seconds ?? 30}s</Label>
+                        <Slider
+                          value={[editing.inference_interval_seconds ?? 30]}
+                          min={5} max={300} step={5}
+                          onValueChange={(v) => setEditing({ ...editing, inference_interval_seconds: v[0] })}
+                        />
+                        <p className="text-[11px] text-muted-foreground">
+                          Every tick is sent to the AI regardless of movement — higher credit usage.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </TabsContent>

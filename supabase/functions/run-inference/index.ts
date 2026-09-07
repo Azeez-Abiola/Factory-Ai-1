@@ -56,13 +56,59 @@ async function fetchFrame(url: string, credentials: Record<string, any> | null) 
     const buf = new Uint8Array(await res.arrayBuffer());
     if (!buf.length) return { ok: false as const, reason: 'snapshot_empty' };
     const mime = ct.startsWith('image/') ? ct.split(';')[0] : 'image/jpeg';
-    return { ok: true as const, dataUrl: `data:${mime};base64,${toBase64(buf)}`, bytes: buf.length };
+    return { ok: true as const, dataUrl: `data:${mime};base64,${toBase64(buf)}`, bytes: buf.length, raw: buf, mime };
   } catch (e) {
     return { ok: false as const, reason: `snapshot_error_${(e as Error).name}` };
   } finally {
     clearTimeout(timer);
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Scene-change gating
+ * A 32x32 grayscale fingerprint of every polled frame is stored on the
+ * camera row. The (expensive) vision model only sees a frame when its
+ * fingerprint drifts past the camera's sensitivity threshold, so a static
+ * scene costs one cheap snapshot fetch instead of one LLM call.
+ * ------------------------------------------------------------------ */
+const SIG_SIZE = 32;
+
+/** 32x32 luma fingerprint from a JPEG buffer, base64 encoded. Null when undecodable. */
+async function frameSignature(bytes: Uint8Array, mime: string): Promise<string | null> {
+  if (!/jpe?g/i.test(mime)) return null;
+  try {
+    const { default: jpeg } = await import('npm:jpeg-js@0.4.4');
+    const img = jpeg.decode(bytes, { useTArray: true, maxMemoryUsageInMB: 128 });
+    if (!img?.width || !img?.height) return null;
+    const out = new Uint8Array(SIG_SIZE * SIG_SIZE);
+    for (let y = 0; y < SIG_SIZE; y++) {
+      const sy = Math.min(img.height - 1, Math.floor((y + 0.5) * img.height / SIG_SIZE));
+      for (let x = 0; x < SIG_SIZE; x++) {
+        const sx = Math.min(img.width - 1, Math.floor((x + 0.5) * img.width / SIG_SIZE));
+        const p = (sy * img.width + sx) * 4;
+        out[y * SIG_SIZE + x] = (0.299 * img.data[p] + 0.587 * img.data[p + 1] + 0.114 * img.data[p + 2]) | 0;
+      }
+    }
+    return toBase64(out);
+  } catch {
+    return null;
+  }
+}
+
+/** Mean absolute luma difference, expressed as a percentage (0..100). */
+function signatureDelta(a: string, b: string): number | null {
+  try {
+    const decode = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    const x = decode(a), y = decode(b);
+    if (x.length !== y.length || !x.length) return null;
+    let sum = 0;
+    for (let i = 0; i < x.length; i++) sum += Math.abs(x[i] - y[i]);
+    return (sum / x.length) / 255 * 100;
+  } catch {
+    return null;
+  }
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -99,7 +145,7 @@ Deno.serve(async (req) => {
 
   let query = supabase
     .from('cameras')
-    .select('id, tenant_id, name, zone, stream_url, snapshot_url, rtsp_url, credentials, ai_models, confidence_threshold, inference_interval_seconds, last_inference_at, status, inference_enabled')
+    .select('id, tenant_id, name, zone, stream_url, snapshot_url, rtsp_url, credentials, ai_models, confidence_threshold, inference_interval_seconds, last_inference_at, status, inference_enabled, scene_gating_enabled, scene_change_threshold, frame_signature, last_frame_change_at, frames_skipped, frames_analyzed, max_idle_seconds')
     .limit(50);
 
   query = requestedCamera
@@ -110,11 +156,17 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 500);
 
   const now = Date.now();
+  const POLL_FLOOR_SECONDS = 10;
   const due = (cams ?? []).filter((c) => {
     if (requestedCamera) return true;
     if (!c.last_inference_at) return true;
     const age = (now - new Date(c.last_inference_at).getTime()) / 1000;
-    return age >= (c.inference_interval_seconds ?? 30);
+    // With scene gating on, the camera is polled on every tick — the cheap
+    // fingerprint check, not a fixed cadence, decides if the model runs.
+    const cadence = c.scene_gating_enabled === false
+      ? (c.inference_interval_seconds ?? 30)
+      : POLL_FLOOR_SECONDS;
+    return age >= cadence;
   });
 
   const analyzeUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-frame`;
@@ -123,11 +175,12 @@ Deno.serve(async (req) => {
   for (const cam of due) {
     await supabase.from('cameras').update({ inference_status: 'running' }).eq('id', cam.id);
 
-    const finish = async (status: string, err: string | null, extra: Record<string, unknown> = {}) => {
+    const finish = async (status: string, err: string | null, extra: Record<string, unknown> = {}, patch: Record<string, unknown> = {}) => {
       await supabase.from('cameras').update({
         inference_status: status,
         last_inference_at: new Date().toISOString(),
         last_inference_error: err,
+        ...patch,
       }).eq('id', cam.id);
       results.push({ camera_id: cam.id, camera: cam.name, status, error: err, ...extra });
     };
@@ -143,6 +196,38 @@ Deno.serve(async (req) => {
       await finish('error', frame.reason);
       continue;
     }
+
+    // ---- Scene-change gate -------------------------------------------------
+    // Manual runs always analyse. Otherwise the model only sees frames whose
+    // fingerprint drifted past the threshold, or a periodic keep-alive frame.
+    const gatingOn = cam.scene_gating_enabled !== false;
+    const signature = gatingOn ? await frameSignature(frame.raw, frame.mime) : null;
+    let sceneDelta: number | null = null;
+
+    if (gatingOn && signature && !requestedCamera) {
+      const previous = typeof cam.frame_signature === 'string' ? cam.frame_signature : null;
+      sceneDelta = previous ? signatureDelta(previous, signature) : null;
+      const threshold = Number(cam.scene_change_threshold ?? 1.2);
+      const maxIdle = Number(cam.max_idle_seconds ?? 900);
+      const sinceChange = cam.last_frame_change_at
+        ? (now - new Date(cam.last_frame_change_at).getTime()) / 1000
+        : Number.POSITIVE_INFINITY;
+
+      if (sceneDelta !== null && sceneDelta < threshold && sinceChange < maxIdle) {
+        await finish('idle', null, {
+          skipped: true,
+          reason: 'scene_unchanged',
+          scene_delta: Number(sceneDelta.toFixed(3)),
+          threshold,
+        }, {
+          frame_signature: signature,
+          last_scene_delta: sceneDelta,
+          frames_skipped: (cam.frames_skipped ?? 0) + 1,
+        });
+        continue;
+      }
+    }
+
 
     // Tenant policies steer what the model looks for on this frame.
     const { data: policies } = await supabase
@@ -263,14 +348,26 @@ Deno.serve(async (req) => {
       alerts_created: rows.length,
       suppressed: violations.length - rows.length,
       summary: analysis.summary,
+      scene_delta: sceneDelta === null ? null : Number(sceneDelta.toFixed(3)),
+      gated: gatingOn && !!signature,
       analysis,
+    }, {
+      ...(signature ? { frame_signature: signature, last_frame_change_at: new Date().toISOString() } : {}),
+      ...(sceneDelta === null ? {} : { last_scene_delta: sceneDelta }),
+      frames_analyzed: (cam.frames_analyzed ?? 0) + 1,
     });
   }
+
+  const analyzed = results.filter((r) => r.status === 'ok').length;
+  const skipped = results.filter((r) => r.skipped === true).length;
 
   return json({
     scanned: cams?.length ?? 0,
     processed: results.length,
+    analyzed,
+    skipped_unchanged: skipped,
     alerts_created: results.reduce((n, r) => n + (Number(r.alerts_created) || 0), 0),
     results,
   });
 });
+
