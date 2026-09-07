@@ -39,6 +39,7 @@ import RulesPolicy from "./pages/admin/RulesPolicy.tsx";
 import EscalationPolicies from "./pages/admin/EscalationPolicies.tsx";
 import NotificationSettings from "./pages/admin/NotificationSettings.tsx";
 import AIConfig from "./pages/admin/AIConfig.tsx";
+import AIBudget from "./pages/admin/AIBudget.tsx";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="onboarding" element={<Onboarding />} />
               <Route path="settings" element={<Settings />} />
               <Route path="kpi-config" element={<KpiConfig />} />
+              <Route path="ai-budget" element={<AIBudget />} />
               <Route path="tenants/:tenantId" element={<TenantDetail />} />
               <Route path="audit-log/:auditId" element={<AuditDetail />} />
               <Route path="cameras" element={<CameraConfig />} />
