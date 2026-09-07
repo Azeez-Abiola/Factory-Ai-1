@@ -348,14 +348,26 @@ Deno.serve(async (req) => {
       alerts_created: rows.length,
       suppressed: violations.length - rows.length,
       summary: analysis.summary,
+      scene_delta: sceneDelta === null ? null : Number(sceneDelta.toFixed(3)),
+      gated: gatingOn && !!signature,
       analysis,
+    }, {
+      ...(signature ? { frame_signature: signature, last_frame_change_at: new Date().toISOString() } : {}),
+      ...(sceneDelta === null ? {} : { last_scene_delta: sceneDelta }),
+      frames_analyzed: (cam.frames_analyzed ?? 0) + 1,
     });
   }
+
+  const analyzed = results.filter((r) => r.status === 'ok').length;
+  const skipped = results.filter((r) => r.skipped === true).length;
 
   return json({
     scanned: cams?.length ?? 0,
     processed: results.length,
+    analyzed,
+    skipped_unchanged: skipped,
     alerts_created: results.reduce((n, r) => n + (Number(r.alerts_created) || 0), 0),
     results,
   });
 });
+
