@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
+import { complianceScore, fetchAnalyzedFrames, isRealChangeAlert, ppePerThousandFrames } from "@/lib/gatedMetrics";
 
 // ── Types ──
 type KpiCategory = "safety" | "quality" | "efficiency" | "cost";
@@ -148,6 +149,8 @@ interface LiveMetrics {
   responseMinutes: number;
   openCritical: number;
   windowDays: number;
+  analyzedFrames: number;
+  ppePerThousandFrames: number;
 }
 
 const KpiConfig = () => {
@@ -171,7 +174,7 @@ const KpiConfig = () => {
       supabase.from("tenant_kpis").select("*").eq("tenant_id", activeTenantId).order("created_at"),
       supabase
         .from("alerts")
-        .select("id,type,severity,status,detected_at,acknowledged_at")
+        .select("id,type,severity,status,detected_at,acknowledged_at,metadata")
         .eq("tenant_id", activeTenantId)
         .gte("detected_at", since),
     ]);
@@ -184,7 +187,10 @@ const KpiConfig = () => {
       setKpis(((kpiRes.data ?? []) as KpiRow[]).map(rowToKpi));
     }
 
-    const alerts = alertRes.data ?? [];
+    // Frame gating: only alerts raised from a genuinely changed frame count as
+    // observations, and the denominator is the number of analysed frames.
+    const alerts = (alertRes.data ?? []).filter((a) => isRealChangeAlert((a as any).metadata));
+    const analyzedFrames = await fetchAnalyzedFrames(activeTenantId, since);
     const total = alerts.length;
     const violations = alerts.filter((a) => a.severity === "critical" || a.severity === "high").length;
     const ppe = alerts.filter((a) => (a.type ?? "").toLowerCase().includes("ppe")).length;
@@ -195,11 +201,13 @@ const KpiConfig = () => {
       : 0;
 
     setMetrics({
-      complianceScore: total === 0 ? 100 : Math.round(((total - violations) / total) * 1000) / 10,
+      complianceScore: complianceScore(analyzedFrames, violations, total),
       ppePerShift: Math.round((ppe / (30 * 3)) * 100) / 100, // 3 shifts/day over 30 days
       responseMinutes: Math.round(avgMinutes * 10) / 10,
       openCritical: alerts.filter((a) => a.severity === "critical" && a.status !== "resolved").length,
       windowDays: 30,
+      analyzedFrames,
+      ppePerThousandFrames: ppePerThousandFrames(analyzedFrames, ppe),
     });
     setLoading(false);
   }, [activeTenantId]);
@@ -327,7 +335,7 @@ const KpiConfig = () => {
 
       {metrics && (
         <div className="glass rounded-xl p-4 border border-border text-xs text-muted-foreground">
-          Live measurement window: last {metrics.windowDays} days · Compliance {metrics.complianceScore}% ·
+          Live measurement window: last {metrics.windowDays} days · {metrics.analyzedFrames.toLocaleString()} changed frames analysed · Compliance {metrics.complianceScore}% ·
           {" "}PPE events {metrics.ppePerShift}/shift · Avg response {metrics.responseMinutes} min · {metrics.openCritical} open critical alerts
         </div>
       )}
@@ -528,7 +536,7 @@ const KpiConfig = () => {
             <div>
               <Label className="text-xs text-muted-foreground">Baseline / Current Value</Label>
               <Input type="number" value={formData.current} onChange={(e) => setFormData({ ...formData, current: Number(e.target.value) })} className="mt-1" />
-              <p className="text-[11px] text-muted-foreground mt-1">Compliance, PPE and response KPIs are recalculated automatically from live alert data.</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Compliance, PPE and response KPIs are recalculated from live alert data, measured only against frames where the scene actually changed.</p>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Formula (optional)</Label>

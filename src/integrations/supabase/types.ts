@@ -120,6 +120,63 @@ export type Database = {
           },
         ]
       }
+      ai_usage_events: {
+        Row: {
+          camera_id: string | null
+          cost_usd: number
+          created_at: string
+          id: string
+          media: string
+          metadata: Json
+          model: string | null
+          scene_changed: boolean
+          scene_delta: number | null
+          source: string
+          tenant_id: string
+        }
+        Insert: {
+          camera_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          media?: string
+          metadata?: Json
+          model?: string | null
+          scene_changed?: boolean
+          scene_delta?: number | null
+          source?: string
+          tenant_id: string
+        }
+        Update: {
+          camera_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          media?: string
+          metadata?: Json
+          model?: string | null
+          scene_changed?: boolean
+          scene_delta?: number | null
+          source?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "cameras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_rules: {
         Row: {
           auto_assign_role: string | null
@@ -943,6 +1000,50 @@ export type Database = {
           },
         ]
       }
+      tenant_ai_budgets: {
+        Row: {
+          alert_threshold_pct: number
+          created_at: string
+          enabled: boolean
+          hard_stop: boolean
+          last_alert_pct: number
+          last_alert_period: string | null
+          monthly_limit_usd: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          alert_threshold_pct?: number
+          created_at?: string
+          enabled?: boolean
+          hard_stop?: boolean
+          last_alert_pct?: number
+          last_alert_period?: string | null
+          monthly_limit_usd?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          alert_threshold_pct?: number
+          created_at?: string
+          enabled?: boolean
+          hard_stop?: boolean
+          last_alert_pct?: number
+          last_alert_period?: string | null
+          monthly_limit_usd?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_ai_budgets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_invitations: {
         Row: {
           accepted_at: string | null
@@ -1279,6 +1380,7 @@ export type Database = {
     }
     Functions: {
       accept_tenant_invitation: { Args: { _token: string }; Returns: string }
+      ai_budget_status: { Args: { _tenant_id: string }; Returns: Json }
       camera_heartbeat: {
         Args: {
           _camera_id: string

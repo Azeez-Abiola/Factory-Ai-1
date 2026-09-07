@@ -161,19 +161,22 @@ export function useVisionOverlay({
   const [error, setError] = useState<string | null>(null);
   const [idle, setIdle] = useState(false);
   const [skippedRuns, setSkippedRuns] = useState(0);
+  const [budgetBlocked, setBudgetBlocked] = useState(false);
   const busy = useRef(false);
   const captureRef = useRef(capture);
   captureRef.current = capture;
   const lastSignature = useRef<Float32Array | null>(null);
   const skippedTicks = useRef(0);
+  const budgetBlockedRef = useRef(false);
 
   const run = useCallback(async (force: boolean) => {
-    if (busy.current) return;
+    if (busy.current || budgetBlockedRef.current) return;
     busy.current = true;
     setRunning(true);
     try {
       const frame = captureRef.current();
       let analysis: any = null;
+      let sceneDelta: number | null = null;
 
       if (frame) {
         // Scene-change gating: only pay for inference when the picture moved.
@@ -183,6 +186,7 @@ export function useVisionOverlay({
             const previous = lastSignature.current;
             lastSignature.current = signature;
             const delta = previous ? signatureDelta(previous, signature) : 1;
+            sceneDelta = delta;
             const stale = skippedTicks.current >= Math.max(1, maxSkippedTicks);
             if (previous && delta < changeThreshold && !stale) {
               skippedTicks.current += 1;
@@ -198,10 +202,21 @@ export function useVisionOverlay({
         setIdle(false);
 
         const { data, error: fnError } = await supabase.functions.invoke("analyze-frame", {
-          body: { imageUrl: frame, cameraName, zone, tenantId },
+          body: {
+            imageUrl: frame,
+            cameraName,
+            zone,
+            tenantId,
+            cameraId,
+            source: "overlay",
+            sceneChanged: true,
+            sceneDelta,
+          },
         });
         if (fnError) throw fnError;
+        if ((data as any)?.error === "ai_budget_exceeded") throw new Error((data as any).message);
         analysis = (data as any)?.analysis;
+        setBudgetBlocked(false);
       } else if (hasSnapshot) {
         setIdle(false);
         const { data, error: fnError } = await supabase.functions.invoke("run-inference", {
@@ -219,7 +234,14 @@ export function useVisionOverlay({
       setLastRunAt(new Date());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed");
+      const status = (e as any)?.context?.status;
+      const message = e instanceof Error ? e.message : "Analysis failed";
+      if (status === 402 || /budget/i.test(message)) {
+        setBudgetBlocked(true);
+        setError("AI budget reached for this site — analysis paused");
+      } else {
+        setError(message);
+      }
     } finally {
       busy.current = false;
       setRunning(false);
@@ -248,6 +270,8 @@ export function useVisionOverlay({
     };
   }, [enabled, intervalSeconds, startDelayMs, run]);
 
-  return { boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns };
+  budgetBlockedRef.current = budgetBlocked;
+
+  return { boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns, budgetBlocked };
 }
 
