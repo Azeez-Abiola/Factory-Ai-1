@@ -622,11 +622,13 @@ const CameraConfig = () => {
           </DialogHeader>
           {editing && (
             <Tabs defaultValue="stream" className="w-full">
-              <TabsList className="grid grid-cols-3 w-full">
+              <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="stream">Stream</TabsTrigger>
                 <TabsTrigger value="ai">AI Models</TabsTrigger>
+                <TabsTrigger value="inspect">Inspection</TabsTrigger>
                 <TabsTrigger value="ops">Operations</TabsTrigger>
               </TabsList>
+
 
               <TabsContent value="stream" className="space-y-4 pt-4">
                 <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-card text-xs">
