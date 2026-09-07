@@ -416,7 +416,7 @@ const CameraTile = ({ cam, onOpen, now, focus, audioOn, visionOn, tenantId, stag
           <div className={cn("w-2 h-2 rounded-full", config.color)} />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{cam.zone} • {cam.type}</span>
+          <span className="text-xs text-muted-foreground">{cam.zone?.trim() || "Unassigned zone"} • {cam.type}</span>
           {cam.detections > 0 && (
             <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
               {cam.detections} det.
