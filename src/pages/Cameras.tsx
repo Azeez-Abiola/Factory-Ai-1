@@ -530,16 +530,19 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
       </div>
       {visionOn && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-background/50 px-1.5 py-0.5 text-[9px] font-mono backdrop-blur-sm">
-          <span className={cn("h-1.5 w-1.5 rounded-full", vision.running ? "bg-primary animate-pulse" : vision.error ? "bg-destructive" : "bg-success")} />
+          <span className={cn("h-1.5 w-1.5 rounded-full", vision.running ? "bg-primary animate-pulse" : vision.error ? "bg-destructive" : vision.idle ? "bg-muted-foreground" : "bg-success")} />
           <span className="text-muted-foreground">
             {vision.running
               ? "AI scanning"
               : vision.error
                 ? "AI unavailable"
-                : `AI ${vision.boxes.length} flagged`}
+                : vision.idle
+                  ? "AI idle · scene unchanged"
+                  : `AI ${vision.boxes.length} flagged`}
           </span>
         </div>
       )}
+
     </>
   );
 };
