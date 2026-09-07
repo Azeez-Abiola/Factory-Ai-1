@@ -83,6 +83,15 @@ const AIConfig = () => {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [newCatLabel, setNewCatLabel] = useState("");
+  const [customModels, setCustomModels] = useState<CustomModel[]>([]);
+  const [newModelId, setNewModelId] = useState("");
+  const [newModelLabel, setNewModelLabel] = useState("");
+  const [newModelNotes, setNewModelNotes] = useState("");
+
+  const allModels = useMemo(
+    () => [...MODELS, ...customModels.filter((m) => m.id && !MODELS.some((b) => b.id === m.id))],
+    [customModels],
+  );
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -98,10 +107,13 @@ const AIConfig = () => {
         setModel(data.model || "google/gemini-2.5-pro");
         const cats = Array.isArray(data.categories) ? (data.categories as unknown as Category[]) : [];
         setCategories(cats.length ? cats : DEFAULT_CATEGORIES);
+        const models = Array.isArray((data as any).custom_models) ? ((data as any).custom_models as CustomModel[]) : [];
+        setCustomModels(models);
       } else {
         setSystemPrompt(DEFAULT_PROMPT);
         setModel("google/gemini-2.5-pro");
         setCategories(DEFAULT_CATEGORIES);
+        setCustomModels([]);
       }
       setLoading(false);
     })();
@@ -116,6 +128,7 @@ const AIConfig = () => {
       system_prompt: systemPrompt,
       model,
       categories: categories as unknown as never,
+      custom_models: customModels as unknown as never,
       updated_by: userRes.user?.id,
     };
     const { error } = await supabase
@@ -127,15 +140,31 @@ const AIConfig = () => {
       tenantId: activeTenantId,
       action: "ai_config.updated",
       entityType: "ai_analysis_config",
-      metadata: { model, category_count: categories.length, enabled_count: categories.filter((c) => c.enabled !== false).length },
+      metadata: { model, category_count: categories.length, custom_model_count: customModels.length, enabled_count: categories.filter((c) => c.enabled !== false).length },
     });
     toast.success("AI configuration saved");
+  };
+
+  const addCustomModel = () => {
+    const id = newModelId.trim();
+    if (!id) { toast.error("Enter the model identifier"); return; }
+    if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) { toast.error("Use the vendor/model format, e.g. google/gemini-3.7-flash"); return; }
+    if (allModels.some((m) => m.id === id)) { toast.error("That model is already in the list"); return; }
+    setCustomModels((m) => [...m, { id, label: newModelLabel.trim() || id, notes: newModelNotes.trim() || undefined }]);
+    setNewModelId(""); setNewModelLabel(""); setNewModelNotes("");
+    toast.success("Model added — click Save to apply");
+  };
+
+  const removeCustomModel = (id: string) => {
+    setCustomModels((m) => m.filter((x) => x.id !== id));
+    if (model === id) setModel("google/gemini-2.5-pro");
   };
 
   const resetDefaults = () => {
     setSystemPrompt(DEFAULT_PROMPT);
     setModel("google/gemini-2.5-pro");
     setCategories(DEFAULT_CATEGORIES);
+
     toast.info("Reset to platform defaults — click Save to apply");
   };
 
