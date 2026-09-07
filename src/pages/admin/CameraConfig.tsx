@@ -631,7 +631,7 @@ const CameraConfig = () => {
                   <Button size="sm" variant="outline" onClick={() => { setConnectionTested(false); setEditing(cam); }} className="gap-1.5">
                     <Edit2 className="w-3.5 h-3.5" /> Edit
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(cam)} className="gap-1.5 text-destructive hover:text-destructive ml-auto">
+                  <Button size="sm" variant="ghost" aria-label={`Delete ${cam.name}`} title={`Delete ${cam.name}`} onClick={() => remove(cam)} className="gap-1.5 text-destructive hover:text-destructive ml-auto">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
