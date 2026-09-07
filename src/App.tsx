@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Alerts from "./pages/Alerts.tsx";
 import Incidents from "./pages/Incidents.tsx";
 import Cameras from "./pages/Cameras.tsx";
+import FloorPlan from "./pages/FloorPlan.tsx";
 import Reports from "./pages/Reports.tsx";
 import ShiftReports from "./pages/ShiftReports.tsx";
 import Insights from "./pages/Insights.tsx";
@@ -68,6 +69,8 @@ const App = () => (
               <Route path="alerts" element={<Alerts />} />
               <Route path="incidents" element={<Incidents />} />
               <Route path="cameras" element={<Cameras />} />
+              <Route path="floor-plan" element={<FloorPlan />} />
+
               <Route path="reports" element={<Reports />} />
               <Route path="reports/:reportId" element={<ReportDetail />} />
               <Route path="shift-reports" element={<ShiftReports />} />

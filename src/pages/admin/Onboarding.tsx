@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Building2, Camera, MapPin, Bell, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail, Loader2 } from "lucide-react";
+import { Building2, Camera, MapPin, Wallet, Users, CheckCircle, ChevronRight, ChevronLeft, ArrowRight, Plus, X, Rocket, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { onboardingSteps } from "@/data/extendedMockData";
 import { toast } from "sonner";
 import PageHeader from "@/components/app/PageHeader";
 import FieldLabel from "@/components/forms/FieldLabel";
@@ -18,21 +18,38 @@ import { useTenants } from "@/hooks/useTenants";
 import { auditLog } from "@/lib/audit";
 import { useNavigate } from "react-router-dom";
 
-const stepIcons = [Building2, Camera, MapPin, Bell, Users];
+const ONBOARDING_STEPS = [
+  { id: 1, title: "Organization Details", description: "Company name, industry, and plan" },
+  { id: 2, title: "Add Cameras", description: "Connect IP cameras and assign them to areas" },
+  { id: 3, title: "Define Zones", description: "Map the factory areas used by the floor plan" },
+  { id: 4, title: "AI Budget", description: "Cap what this site can spend on analysis" },
+  { id: 5, title: "Invite Users", description: "Add team members and assign roles" },
+];
+
+const stepIcons = [Building2, Camera, MapPin, Wallet, Users];
+
+const DEFAULT_ZONES = [
+  { name: "Zone A - Production", zone_type: "production" },
+  { name: "Zone B - Assembly", zone_type: "assembly" },
+  { name: "Zone C - Storage", zone_type: "storage" },
+];
+
+const ZONE_TYPES = ["production", "assembly", "storage", "loading", "quality", "hazard", "office"];
 
 interface CameraEntry {
   id: string;
   name: string;
   rtspUrl: string;
+  zone: string;
   status: "connected" | "pending";
 }
 
-const defaultCameras: CameraEntry[] = [
-  { id: "cam-1", name: "Main Entrance", rtspUrl: "rtsp://192.168.1.10/stream", status: "connected" },
-  { id: "cam-2", name: "Assembly Line 1", rtspUrl: "rtsp://192.168.1.11/stream", status: "connected" },
-  { id: "cam-3", name: "Packaging Hall", rtspUrl: "rtsp://192.168.1.12/stream", status: "connected" },
-  { id: "cam-4", name: "QC Station", rtspUrl: "rtsp://192.168.1.13/stream", status: "connected" },
-];
+interface ZoneEntry {
+  name: string;
+  zone_type: string;
+}
+
+const defaultCameras: CameraEntry[] = [];
 
 const RTSP_RE = /^rtsp:\/\/[^\s]+$/i;
 
@@ -45,6 +62,13 @@ const Onboarding = () => {
   const [addCameraOpen, setAddCameraOpen] = useState(false);
   const [newCameraName, setNewCameraName] = useState("");
   const [newCameraUrl, setNewCameraUrl] = useState("");
+  const [newCameraZone, setNewCameraZone] = useState("");
+  const [zones, setZones] = useState<ZoneEntry[]>(DEFAULT_ZONES);
+  const [newZoneName, setNewZoneName] = useState("");
+  const [newZoneType, setNewZoneType] = useState("production");
+  const [budgetLimit, setBudgetLimit] = useState("50");
+  const [budgetThreshold, setBudgetThreshold] = useState("80");
+  const [budgetHardStop, setBudgetHardStop] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<{ email: string; role: string }[]>([]);
 
@@ -95,11 +119,35 @@ const Onboarding = () => {
         await supabase.from("cameras").insert(cameras.map((c) => ({
           tenant_id: tenant.id,
           name: c.name,
+          zone: c.zone || null,
           stream_url: c.rtspUrl,
           stream_type: "rtsp",
           status: "offline",
         })));
       }
+
+      // 3b. Factory zones — these drive the operator floor plan.
+      if (zones.length) {
+        await supabase.from("site_zones").insert(zones.map((z, i) => ({
+          tenant_id: tenant.id,
+          name: z.name,
+          zone_type: z.zone_type,
+          x: Number((0.05 + (i % 3) * 0.31).toFixed(4)),
+          y: Number((0.06 + Math.floor(i / 3) * 0.31).toFixed(4)),
+          width: 0.28,
+          height: 0.26,
+          created_by: user.id,
+        })));
+      }
+
+      // 3c. AI budget — analysis is capped from day one.
+      await supabase.from("tenant_ai_budgets").upsert({
+        tenant_id: tenant.id,
+        monthly_limit_usd: Math.max(1, Number(budgetLimit) || 50),
+        alert_threshold_pct: Math.min(100, Math.max(10, Number(budgetThreshold) || 80)),
+        hard_stop: budgetHardStop,
+        enabled: true,
+      });
 
       // 4. Invitations — persist, then actually email each invitee.
       let invitesEmailed = 0;
@@ -130,6 +178,8 @@ const Onboarding = () => {
         tenantId: tenant.id, action: "tenant.onboarded", entityType: "tenant", entityId: tenant.id,
         metadata: {
           cameras: cameras.length,
+          zones: zones.length,
+          ai_budget_usd: Number(budgetLimit) || 50,
           invites: pendingInvites.length,
           invites_emailed: invitesEmailed,
           starter_pack: provision.pack.label,
@@ -147,7 +197,7 @@ const Onboarding = () => {
       );
       setCurrentStep(0);
       setCompanyName(""); setIndustry(""); setPlan(""); setAddress("");
-      setCameras(defaultCameras); setPendingInvites([]);
+      setCameras(defaultCameras); setPendingInvites([]); setZones(DEFAULT_ZONES);
       navigate(`/admin/tenants/${tenant.id}`);
     } catch (e: any) {
       toast.error("Onboarding failed: " + (e?.message ?? "unknown error"));
@@ -169,11 +219,13 @@ const Onboarding = () => {
       id: `cam-${Date.now()}`,
       name: newCameraName.trim(),
       rtspUrl: newCameraUrl.trim(),
+      zone: newCameraZone,
       status: "pending",
     };
     setCameras((prev) => [...prev, cam]);
     setNewCameraName("");
     setNewCameraUrl("");
+    setNewCameraZone("");
     setAddCameraOpen(false);
     toast.success(`Camera "${cam.name}" added successfully`);
   };
@@ -212,7 +264,7 @@ const Onboarding = () => {
 
       {/* Progress */}
       <div className="flex items-center gap-2">
-        {onboardingSteps.map((step, i) => {
+        {ONBOARDING_STEPS.map((step, i) => {
           const Icon = stepIcons[i];
           const isActive = i === currentStep;
           const isDone = i < currentStep;
@@ -232,7 +284,7 @@ const Onboarding = () => {
                 {isDone ? <CheckCircle className="w-4 h-4 shrink-0" /> : <Icon className="w-4 h-4 shrink-0" />}
                 <span className="hidden lg:inline truncate">{step.title}</span>
               </button>
-              {i < onboardingSteps.length - 1 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+              {i < ONBOARDING_STEPS.length - 1 && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
             </div>
           );
         })}
@@ -306,6 +358,7 @@ const Onboarding = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground truncate">{cam.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{cam.rtspUrl}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{cam.zone || "No area assigned"}</p>
                   </div>
                   <Badge
                     variant="outline"
@@ -365,6 +418,15 @@ const Onboarding = () => {
                       spellCheck={false}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <FieldLabel htmlFor="cam-zone" hint="Areas come from the next step.">Factory area</FieldLabel>
+                    <Select value={newCameraZone} onValueChange={setNewCameraZone}>
+                      <SelectTrigger id="cam-zone"><SelectValue placeholder="Select an area" /></SelectTrigger>
+                      <SelectContent>
+                        {zones.map((z) => <SelectItem key={z.name} value={z.name}>{z.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <Button variant="outline" onClick={() => setAddCameraOpen(false)}>Cancel</Button>
                     <Button onClick={handleAddCamera} className="gap-2">
@@ -378,51 +440,94 @@ const Onboarding = () => {
         )}
 
         {currentStep === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-2xl">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Define Factory Zones</h2>
-              <p className="text-sm text-muted-foreground">Map your factory into logical zones for monitoring.</p>
+              <h2 className="text-lg font-semibold text-foreground">Define Factory Areas</h2>
+              <p className="text-sm text-muted-foreground">
+                These areas appear on the operator floor plan, and alerts light up the area they came from.
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl">
-              {["Zone A – Main Hall", "Zone B – Assembly", "Zone C – Packaging", "Zone D – Storage", "Zone E – QC Lab", "Zone F – Loading Dock"].map((zone, i) => (
-                <div key={i} className="p-3 rounded-lg bg-muted/30 border border-border text-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {zones.map((z) => (
+                <div key={z.name} className="relative p-3 rounded-lg bg-muted/30 border border-border text-center group">
                   <MapPin className="w-5 h-5 text-primary mx-auto mb-1" />
-                  <p className="text-sm text-foreground">{zone}</p>
-                  <p className="text-xs text-muted-foreground">{2 + i} cameras</p>
+                  <p className="text-sm text-foreground">{z.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{z.zone_type}</p>
+                  <Button
+                    variant="ghost" size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => setZones((prev) => prev.filter((v) => v.name !== z.name))}
+                    aria-label={`Remove ${z.name}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               ))}
+              {zones.length === 0 && (
+                <p className="text-sm text-muted-foreground italic md:col-span-3">No areas yet — add at least one.</p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_200px_auto] gap-2">
+              <div className="space-y-1">
+                <FieldLabel htmlFor="zone-name">Area name</FieldLabel>
+                <Input id="zone-name" placeholder="Zone D - Loading Dock" value={newZoneName}
+                  onChange={(e) => setNewZoneName(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <FieldLabel>Type</FieldLabel>
+                <Select value={newZoneType} onValueChange={setNewZoneType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ZONE_TYPES.map((t) => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <FieldLabel className="opacity-0">&nbsp;</FieldLabel>
+                <Button variant="outline" className="gap-2" onClick={() => {
+                  const name = newZoneName.trim();
+                  if (!name) { toast.error("Enter an area name"); return; }
+                  if (zones.some((z) => z.name.toLowerCase() === name.toLowerCase())) { toast.info("That area already exists"); return; }
+                  setZones((prev) => [...prev, { name, zone_type: newZoneType }]);
+                  setNewZoneName("");
+                }}>
+                  <Plus className="w-4 h-4" /> Add area
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
         {currentStep === 3 && (
-          <div className="space-y-4 max-w-xl">
+          <div className="space-y-5 max-w-xl">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Alert Thresholds</h2>
-              <p className="text-sm text-muted-foreground">Configure detection sensitivity and alert rules.</p>
+              <h2 className="text-lg font-semibold text-foreground">AI Analysis Budget</h2>
+              <p className="text-sm text-muted-foreground">
+                Cap what this site can spend on AI analysis each month. Nothing is analysed beyond this cap when the
+                hard stop is on.
+              </p>
             </div>
-            {[
-              { label: "PPE Violation Detection", desc: "Trigger alert when PPE missing for" },
-              { label: "Machine Idle Timeout", desc: "Alert if machine idle for" },
-              { label: "Quality Defect Sensitivity", desc: "Minimum confidence threshold" },
-              { label: "Restricted Zone Alert", desc: "Immediate alert on unauthorized entry" },
-            ].map((rule, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">
-                <div>
-                  <p className="text-sm text-foreground">{rule.label}</p>
-                  <p className="text-xs text-muted-foreground">{rule.desc}</p>
-                </div>
-                <Select defaultValue={i === 3 ? "instant" : "5min"}>
-                  <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instant">Instant</SelectItem>
-                    <SelectItem value="2min">2 min</SelectItem>
-                    <SelectItem value="5min">5 min</SelectItem>
-                    <SelectItem value="10min">10 min</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <FieldLabel required htmlFor="ob-budget" hint="US dollars per calendar month.">Monthly cap</FieldLabel>
+                <Input id="ob-budget" type="number" min={1} step={5} value={budgetLimit}
+                  onChange={(e) => setBudgetLimit(e.target.value)} />
               </div>
-            ))}
+              <div className="space-y-2">
+                <FieldLabel htmlFor="ob-threshold" hint="We warn the site admins at this point.">Warning level (%)</FieldLabel>
+                <Input id="ob-threshold" type="number" min={10} max={100} step={5} value={budgetThreshold}
+                  onChange={(e) => setBudgetThreshold(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex items-start justify-between gap-4 p-3 rounded-lg bg-muted/30 border border-border">
+              <div>
+                <p className="text-sm text-foreground">Stop analysis at the cap</p>
+                <p className="text-xs text-muted-foreground">
+                  Recommended. Cameras keep streaming and recording — only AI analysis pauses.
+                </p>
+              </div>
+              <Switch checked={budgetHardStop} onCheckedChange={setBudgetHardStop} />
+            </div>
           </div>
         )}
 
@@ -498,7 +603,7 @@ const Onboarding = () => {
         >
           <ChevronLeft className="w-4 h-4" /> Back
         </Button>
-        {currentStep < onboardingSteps.length - 1 ? (
+        {currentStep < ONBOARDING_STEPS.length - 1 ? (
           <Button onClick={() => setCurrentStep(currentStep + 1)} className="gap-2 bg-destructive hover:bg-destructive/90">
             Next <ArrowRight className="w-4 h-4" />
           </Button>
