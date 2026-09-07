@@ -19,8 +19,117 @@ interface Body {
   regions?: { id?: string; name?: string; x: number; y: number; w: number; h: number; categories?: string[] }[];
   /** Result of the caller's local (no-AI) reference-sample comparison. */
   referenceVerdict?: { label: "good" | "defect"; note?: string | null };
+  /** Persist violations found in this clip/frame as alerts (rolling analysis). */
+  raiseAlerts?: boolean;
+  /** Still frame (data URL) stored as visual evidence when a clip is analysed. */
+  evidenceImage?: string;
 
 }
+
+interface AnalysisShape {
+  summary?: string;
+  risk_score?: number;
+  detections?: any[];
+  safety_violations?: any[];
+  recommended_actions?: string[];
+}
+
+const SEVERITY_SCORE: Record<string, number> = { low: 25, medium: 50, high: 75, critical: 95 };
+
+/**
+ * Turns violations found in a rolling clip (or overlay frame) into alerts,
+ * respecting the camera's confidence threshold and a per-type cooldown.
+ */
+async function raiseAlerts(
+  supabase: any,
+  body: Body,
+  analysis: AnalysisShape,
+  media: "image" | "video",
+): Promise<number> {
+  const { data: cam } = await supabase
+    .from("cameras")
+    .select("id, tenant_id, name, zone, confidence_threshold, inference_interval_seconds, clip_seconds")
+    .eq("id", body.cameraId)
+    .eq("tenant_id", body.tenantId)
+    .maybeSingle();
+  if (!cam) return 0;
+
+  const threshold = (cam.confidence_threshold ?? 70) / 100;
+  const violations = Array.isArray(analysis.safety_violations) ? analysis.safety_violations : [];
+  const detections = Array.isArray(analysis.detections) ? analysis.detections : [];
+  if (!violations.length) return 0;
+
+  const cooldownSeconds = Math.max((cam.inference_interval_seconds ?? 30) * 3, 300);
+  const since = new Date(Date.now() - cooldownSeconds * 1000).toISOString();
+  const { data: recent } = await supabase
+    .from("alerts")
+    .select("type")
+    .eq("camera_id", cam.id)
+    .gte("detected_at", since);
+  const recentTypes = new Set((recent ?? []).map((r: any) => r.type));
+
+  // Store the still frame that accompanies the clip as visual evidence.
+  let evidencePath: string | null = null;
+  const still = body.evidenceImage ?? (media === "image" ? body.imageUrl : undefined);
+  const match = still?.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+  if (match) {
+    try {
+      const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+      const ext = match[1] === "image/png" ? "png" : "jpg";
+      const path = `${cam.tenant_id}/${cam.id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("alert-evidence")
+        .upload(path, bytes, { contentType: match[1], upsert: false });
+      if (!error) evidencePath = path;
+    } catch (_e) {
+      evidencePath = null;
+    }
+  }
+
+  const rows = violations
+    .filter((v: any) => {
+      const hit = detections.find((d: any) =>
+        String(d?.label ?? "").toLowerCase().includes(String(v?.type ?? "").toLowerCase()));
+      const conf = typeof hit?.confidence === "number" ? hit.confidence : 1;
+      return conf >= threshold;
+    })
+    .map((v: any) => ({
+      type: String(v?.type ?? "anomaly").toLowerCase().replace(/\s+/g, "_").slice(0, 60),
+      tenant_id: cam.tenant_id,
+      camera_id: cam.id,
+      severity: ["low", "medium", "high", "critical"].includes(v?.severity) ? v.severity : "medium",
+      title: String(v?.type ?? "Detected violation").slice(0, 140),
+      description: String(v?.description ?? analysis.summary ?? "").slice(0, 1000),
+      status: "open",
+      zone: cam.zone,
+      risk_score: typeof analysis.risk_score === "number"
+        ? Math.round(analysis.risk_score)
+        : SEVERITY_SCORE[String(v?.severity)] ?? 50,
+      detected_at: new Date().toISOString(),
+      metadata: {
+        source: media === "video" ? "clip_analysis" : (body.source ?? "overlay"),
+        media,
+        clip_seconds: media === "video" ? cam.clip_seconds ?? null : null,
+        camera: cam.name,
+        summary: analysis.summary ?? null,
+        detections,
+        recommended_actions: analysis.recommended_actions ?? [],
+        reference_verdict: body.referenceVerdict ?? null,
+        scene_delta: typeof body.sceneDelta === "number" ? Number(body.sceneDelta.toFixed(3)) : null,
+        ...(evidencePath ? { evidence_path: evidencePath } : {}),
+      },
+    }))
+    .filter((r: any) => !recentTypes.has(r.type));
+
+  if (!rows.length) return 0;
+  const { error } = await supabase.from("alerts").insert(rows);
+  if (error) {
+    console.warn("alert insert failed", error.message);
+    return 0;
+  }
+  return rows.length;
+}
+
 
 const DEFAULT_CATEGORIES = [
   { id: "ppe",          label: "PPE Compliance",       description: "hard hats, hi-vis vests, gloves, goggles, hearing/respiratory protection" },
