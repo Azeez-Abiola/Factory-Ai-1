@@ -72,8 +72,15 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     inferenceStatus: row.inference_status ?? null,
     lastInferenceAt: row.last_inference_at ?? null,
     lastInferenceError: row.last_inference_error ?? null,
+    regions: Array.isArray(row.regions_of_interest) ? (row.regions_of_interest as Region[]) : [],
+    referenceMatchEnabled: !!row.reference_match_enabled,
+    referenceMatchThreshold: Number(row.reference_match_threshold ?? 0.06),
+    referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
+    clipAnalysisEnabled: !!row.clip_analysis_enabled,
+    clipSeconds: row.clip_seconds ?? 5,
     isLive: !!row.stream_url,
     isDbBacked: true,
+
   };
 }
 
