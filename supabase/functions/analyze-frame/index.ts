@@ -1,5 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -10,6 +11,10 @@ interface Body {
   categories?: string[];  // preferred — override active categories for this call
   context?: string;
   tenantId?: string;      // if provided, tenant-specific config is loaded
+  cameraId?: string;      // metered against the tenant AI budget
+  source?: string;        // live_inference | overlay | manual | insights
+  sceneChanged?: boolean; // false when the caller's frame gating saw no change
+  sceneDelta?: number;
 }
 
 const DEFAULT_CATEGORIES = [
@@ -79,12 +84,12 @@ Deno.serve(async (req) => {
     let model = "google/gemini-2.5-pro";
     let categories = DEFAULT_CATEGORIES;
 
-    if (body.tenantId) {
+    const supabase = body.tenantId
+      ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+      : null;
+
+    if (body.tenantId && supabase) {
       try {
-        const supabase = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        );
         const { data } = await supabase
           .from("ai_analysis_config")
           .select("system_prompt, model, categories")
@@ -119,6 +124,19 @@ Deno.serve(async (req) => {
         ? "This is a short video clip from the camera. Watch the full clip, account for motion and events over time, and return the JSON per schema summarising the whole clip."
         : "Analyze this frame and return the JSON per schema.",
     ].filter(Boolean).join("\n");
+
+    // ---- Tenant AI budget guard -------------------------------------------
+    let budget = null;
+    if (body.tenantId && supabase) {
+      budget = await getBudgetState(supabase, body.tenantId);
+      if (budget.blocked) {
+        return new Response(JSON.stringify({
+          error: "ai_budget_exceeded",
+          message: `This site has reached its monthly AI analysis budget ($${budget.limit.toFixed(2)}). Raise the budget in Admin → AI Budget to resume analysis.`,
+          budget: { spend_usd: Number(budget.spend.toFixed(4)), limit_usd: budget.limit, pct_used: Number(budget.pctUsed.toFixed(2)) },
+        }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     const gwRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -159,7 +177,22 @@ Deno.serve(async (req) => {
       if (match) { try { analysis = JSON.parse(match[0]); } catch { /* noop */ } }
     }
 
-    return new Response(JSON.stringify({ analysis, raw, model, media: body.videoUrl ? "video" : "image", categories: categories.map((c) => c.id) }), {
+    const media = body.videoUrl ? "video" as const : "image" as const;
+    if (body.tenantId && supabase) {
+      // Only analysed (changed) frames are metered — gated frames never reach here.
+      await recordUsage(supabase, {
+        tenantId: body.tenantId,
+        cameraId: body.cameraId ?? null,
+        source: body.source ?? "manual",
+        model,
+        media,
+        sceneChanged: body.sceneChanged !== false,
+        sceneDelta: typeof body.sceneDelta === "number" ? body.sceneDelta : null,
+        metadata: { camera: body.cameraName ?? null, zone: body.zone ?? null },
+      }, budget ?? undefined);
+    }
+
+    return new Response(JSON.stringify({ analysis, raw, model, media, categories: categories.map((c) => c.id) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
