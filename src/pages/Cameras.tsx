@@ -319,7 +319,7 @@ const Cameras = () => {
                   <Badge variant="outline" className={cn("text-xs", statusConfig[selected.status].text)}>
                     {statusConfig[selected.status].label}
                   </Badge>
-                  <span className="text-xs text-muted-foreground font-mono ml-1">{selected.id} • {selected.zone}</span>
+                  <span className="text-xs text-muted-foreground font-mono ml-1">{selected.id.slice(0, 8)} • {selected.zone?.trim() || "Unassigned zone"}</span>
                 </DialogTitle>
               </DialogHeader>
 
