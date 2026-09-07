@@ -104,22 +104,70 @@ interface Options {
   capture: () => string | null;
   /** Server-side snapshot fallback when the browser cannot read the pixels. */
   hasSnapshot?: boolean;
+  /** Skip inference while the scene is visually unchanged (cost gating). */
+  sceneGating?: boolean;
+  /** Mean per-pixel luma delta (0..1) that counts as a real scene change. */
+  changeThreshold?: number;
+  /** Force a full analysis after this many consecutive skipped ticks. */
+  maxSkippedTicks?: number;
+}
+
+const SIGNATURE_SIZE = 32;
+
+/** Downscaled grayscale fingerprint of a frame, used for cheap change detection. */
+function frameSignature(dataUrl: string): Promise<Float32Array | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = SIGNATURE_SIZE;
+        canvas.height = SIGNATURE_SIZE;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, SIGNATURE_SIZE, SIGNATURE_SIZE);
+        const { data } = ctx.getImageData(0, 0, SIGNATURE_SIZE, SIGNATURE_SIZE);
+        const out = new Float32Array(SIGNATURE_SIZE * SIGNATURE_SIZE);
+        for (let i = 0; i < out.length; i++) {
+          const p = i * 4;
+          out[i] = (0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2]) / 255;
+        }
+        resolve(out);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+function signatureDelta(a: Float32Array, b: Float32Array): number {
+  if (a.length !== b.length) return 1;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
+  return sum / a.length;
 }
 
 export function useVisionOverlay({
   cameraId, cameraName, zone, tenantId, enabled,
   intervalSeconds = 15, startDelayMs = 0, capture, hasSnapshot,
+  sceneGating = true, changeThreshold = 0.012, maxSkippedTicks = 10,
 }: Options) {
   const [boxes, setBoxes] = useState<VisionBox[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [idle, setIdle] = useState(false);
+  const [skippedRuns, setSkippedRuns] = useState(0);
   const busy = useRef(false);
   const captureRef = useRef(capture);
   captureRef.current = capture;
+  const lastSignature = useRef<Float32Array | null>(null);
+  const skippedTicks = useRef(0);
 
-  const runOnce = useCallback(async () => {
+  const run = useCallback(async (force: boolean) => {
     if (busy.current) return;
     busy.current = true;
     setRunning(true);
@@ -128,12 +176,34 @@ export function useVisionOverlay({
       let analysis: any = null;
 
       if (frame) {
+        // Scene-change gating: only pay for inference when the picture moved.
+        if (sceneGating && !force) {
+          const signature = await frameSignature(frame);
+          if (signature) {
+            const previous = lastSignature.current;
+            lastSignature.current = signature;
+            const delta = previous ? signatureDelta(previous, signature) : 1;
+            const stale = skippedTicks.current >= Math.max(1, maxSkippedTicks);
+            if (previous && delta < changeThreshold && !stale) {
+              skippedTicks.current += 1;
+              setSkippedRuns((n) => n + 1);
+              setIdle(true);
+              return;
+            }
+          }
+        } else if (sceneGating && force) {
+          lastSignature.current = await frameSignature(frame);
+        }
+        skippedTicks.current = 0;
+        setIdle(false);
+
         const { data, error: fnError } = await supabase.functions.invoke("analyze-frame", {
           body: { imageUrl: frame, cameraName, zone, tenantId },
         });
         if (fnError) throw fnError;
         analysis = (data as any)?.analysis;
       } else if (hasSnapshot) {
+        setIdle(false);
         const { data, error: fnError } = await supabase.functions.invoke("run-inference", {
           body: { camera_id: cameraId },
         });
@@ -154,23 +224,30 @@ export function useVisionOverlay({
       busy.current = false;
       setRunning(false);
     }
-  }, [cameraId, cameraName, zone, tenantId, hasSnapshot]);
+  }, [cameraId, cameraName, zone, tenantId, hasSnapshot, sceneGating, changeThreshold, maxSkippedTicks]);
+
+  /** Manual trigger always analyses, bypassing the change gate. */
+  const runOnce = useCallback(() => run(true), [run]);
 
   useEffect(() => {
     if (!enabled) {
       setBoxes([]);
+      setIdle(false);
+      lastSignature.current = null;
+      skippedTicks.current = 0;
       return;
     }
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = setTimeout(() => {
-      runOnce();
-      interval = setInterval(runOnce, Math.max(5, intervalSeconds) * 1000);
+      run(true);
+      interval = setInterval(() => run(false), Math.max(5, intervalSeconds) * 1000);
     }, startDelayMs);
     return () => {
       clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [enabled, intervalSeconds, startDelayMs, runOnce]);
+  }, [enabled, intervalSeconds, startDelayMs, run]);
 
-  return { boxes, summary, running, lastRunAt, error, runOnce };
+  return { boxes, summary, running, lastRunAt, error, runOnce, idle, skippedRuns };
 }
+
