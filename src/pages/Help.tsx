@@ -206,7 +206,7 @@ const articles: Article[] = [
         "Status filter: open / acknowledged / resolved / all.",
         "Click any row for the full detail dialog with metadata, risk score and workflow buttons.",
       ] },
-      { kind: "info", text: "Bulk actions live on the Incidents page — /app/incidents. Multi-select and use Acknowledge, Assign or Mark False Positive; each row gets an individual audit entry." },
+      { kind: "info", text: "Bulk actions live on the Incidents page — /app/investigations. Multi-select and use Acknowledge, Assign or Mark False Positive; each row gets an individual audit entry." },
     ],
   },
   {
@@ -218,7 +218,7 @@ const articles: Article[] = [
     readMinutes: 5,
     blocks: [
       { kind: "steps", items: [
-        "Mark the alert (or bulk in /app/incidents) as False Positive — audit entry incident.bulk.false_positive.",
+        "Mark the alert (or bulk in /app/investigations) as False Positive — audit entry incident.bulk.false_positive.",
         "Add a resolution note explaining what triggered it (glare, reflection, mannequin, etc.).",
         "In /admin/rules → Alert Rules, raise the confidence_threshold for the offending model, or add a zone exclusion.",
         "In /admin/cameras, adjust the camera's confidence_threshold or disable the model that generated the false hit.",
@@ -235,7 +235,7 @@ const articles: Article[] = [
     tags: ["incidents", "workflow", "resolution"],
     summary: "How the supervisor resolution workflow generates tasks, tracks progress and writes compliance records.",
     readMinutes: 8,
-    relatedRoute: { label: "Open Incidents", to: "/app/incidents" },
+    relatedRoute: { label: "Open Investigations", to: "/app/investigations" },
     blocks: [
       { kind: "p", text: "Any alert can be promoted into an incident with a full resolution workflow. Incidents carry status, assignee, timeline, tasks and audit references." },
       { kind: "h", text: "Statuses" },
@@ -820,8 +820,8 @@ interface ComplianceRow {
 
 const complianceMatrix: ComplianceRow[] = [
   { module: "Alerts",              route: "/app/alerts",         osha: "29 CFR 1910.132 (PPE), 1910.147 (LOTO)", iso: "ISO 45001 §8.2 (Emergency)",           soc2: "CC7.2 System Monitoring", retention: "365 days hot / 7 yrs cold",     auditTrail: "covered", auditNotes: "Every ack/assign/resolve appended to audit_log with AUD-id." },
-  { module: "Incidents",           route: "/app/incidents",      osha: "29 CFR 1904 (Recordkeeping)",           iso: "ISO 45001 §10.2 (Incident Invest.)",   soc2: "CC7.4, CC7.5 Incident Response", retention: "7 yrs (OSHA 1904.33)",        auditTrail: "covered", auditNotes: "Timeline links alerts, tasks, status changes to audit records." },
-  { module: "Resolution Tasks",    route: "/app/incidents",      osha: "29 CFR 1910 (Corrective actions)",      iso: "ISO 9001 §10.2 (Nonconformity)",       soc2: "CC7.4 Remediation",       retention: "3 yrs after close",             auditTrail: "covered", auditNotes: "Assignment, reassignment, completion all logged." },
+  { module: "Investigations",      route: "/app/investigations",      osha: "29 CFR 1904 (Recordkeeping)",           iso: "ISO 45001 §10.2 (Incident Invest.)",   soc2: "CC7.4, CC7.5 Incident Response", retention: "7 yrs (OSHA 1904.33)",        auditTrail: "covered", auditNotes: "Timeline links alerts, tasks, status changes to audit records." },
+  { module: "Resolution Tasks",    route: "/app/investigations",      osha: "29 CFR 1910 (Corrective actions)",      iso: "ISO 9001 §10.2 (Nonconformity)",       soc2: "CC7.4 Remediation",       retention: "3 yrs after close",             auditTrail: "covered", auditNotes: "Assignment, reassignment, completion all logged." },
   { module: "Cameras & Live Feed", route: "/app/cameras",        osha: "29 CFR 1910.132(d) (Hazard assess.)",   iso: "ISO 45001 §6.1.2 (Hazard ID)",         soc2: "CC6.1 Logical Access",    retention: "30-90 days video (configurable)", auditTrail: "partial", auditNotes: "Config changes audited; frame retention depends on gateway policy." },
   { module: "AI Insights",         route: "/app/insights",       osha: "General Duty Clause §5(a)(1)",           iso: "ISO 45001 §9.1 (Performance eval.)",   soc2: "CC4.1 Monitoring Activities", retention: "365 days",                  auditTrail: "covered", auditNotes: "PDF export + tenant-scoped storage; category/model changes audited." },
   { module: "Reports",             route: "/app/reports",        osha: "29 CFR 1904.35 (Employee involvement)", iso: "ISO 9001 §9.1.3 (Analysis)",           soc2: "CC4.2 Communication",     retention: "7 yrs",                         auditTrail: "covered", auditNotes: "Create/export events logged; PDF & CSV are audit-ready." },
