@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
-type AppRole = "super_admin" | "tenant_admin" | "operator" | "viewer";
+type AppRole = "super_admin" | "tenant_admin" | "manager" | "operator" | "viewer";
 
 interface Props {
   children: React.ReactNode;

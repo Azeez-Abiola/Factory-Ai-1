@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight } from "lucide-react";
+import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight, Gauge } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { useAuth } from "@/hooks/useAuth";
