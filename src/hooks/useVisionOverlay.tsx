@@ -305,7 +305,7 @@ export function useVisionOverlay({
       clearTimeout(start);
       if (interval) clearInterval(interval);
     };
-  }, [enabled, intervalSeconds, startDelayMs, run]);
+  }, [enabled, intervalSeconds, startDelayMs, clipAnalysisEnabled, clipSeconds, run]);
 
   budgetBlockedRef.current = budgetBlocked;
 
