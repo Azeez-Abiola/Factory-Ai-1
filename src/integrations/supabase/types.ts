@@ -325,15 +325,21 @@ export type Database = {
           created_at: string
           credentials: Json
           fps: number
+          frame_signature: string | null
+          frames_analyzed: number
+          frames_skipped: number
           heartbeat_interval_seconds: number
           id: string
           inference_enabled: boolean
           inference_interval_seconds: number
           inference_status: string
           ingest_token: string | null
+          last_frame_change_at: string | null
           last_inference_at: string | null
           last_inference_error: string | null
+          last_scene_delta: number | null
           last_seen_at: string | null
+          max_idle_seconds: number
           metadata: Json | null
           name: string
           ptz_enabled: boolean
@@ -341,6 +347,8 @@ export type Database = {
           resolution: string | null
           retention_days: number
           rtsp_url: string | null
+          scene_change_threshold: number
+          scene_gating_enabled: boolean
           snapshot_url: string | null
           status: string
           stream_type: string
@@ -357,15 +365,21 @@ export type Database = {
           created_at?: string
           credentials?: Json
           fps?: number
+          frame_signature?: string | null
+          frames_analyzed?: number
+          frames_skipped?: number
           heartbeat_interval_seconds?: number
           id?: string
           inference_enabled?: boolean
           inference_interval_seconds?: number
           inference_status?: string
           ingest_token?: string | null
+          last_frame_change_at?: string | null
           last_inference_at?: string | null
           last_inference_error?: string | null
+          last_scene_delta?: number | null
           last_seen_at?: string | null
+          max_idle_seconds?: number
           metadata?: Json | null
           name: string
           ptz_enabled?: boolean
@@ -373,6 +387,8 @@ export type Database = {
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
+          scene_change_threshold?: number
+          scene_gating_enabled?: boolean
           snapshot_url?: string | null
           status?: string
           stream_type?: string
@@ -389,15 +405,21 @@ export type Database = {
           created_at?: string
           credentials?: Json
           fps?: number
+          frame_signature?: string | null
+          frames_analyzed?: number
+          frames_skipped?: number
           heartbeat_interval_seconds?: number
           id?: string
           inference_enabled?: boolean
           inference_interval_seconds?: number
           inference_status?: string
           ingest_token?: string | null
+          last_frame_change_at?: string | null
           last_inference_at?: string | null
           last_inference_error?: string | null
+          last_scene_delta?: number | null
           last_seen_at?: string | null
+          max_idle_seconds?: number
           metadata?: Json | null
           name?: string
           ptz_enabled?: boolean
@@ -405,6 +427,8 @@ export type Database = {
           resolution?: string | null
           retention_days?: number
           rtsp_url?: string | null
+          scene_change_threshold?: number
+          scene_gating_enabled?: boolean
           snapshot_url?: string | null
           status?: string
           stream_type?: string
