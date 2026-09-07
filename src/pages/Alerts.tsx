@@ -385,6 +385,14 @@ export default function Alerts() {
                   <Badge variant="outline" className={cn("text-xs", severityColors[a.severity] || "")}>{a.severity}</Badge>
                   <Badge variant="outline" className="text-xs">{a.type}</Badge>
                   <Badge variant="outline" className="text-xs capitalize">{a.status}</Badge>
+                  {caseByAlert[a.id] && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/app/investigations?incident=${caseByAlert[a.id].id}`); }}
+                      className="text-xs rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary hover:bg-primary/20"
+                    >
+                      Investigation · {caseByAlert[a.id].status.replace("_", " ")}
+                    </button>
+                  )}
                 </div>
                 {a.description && <p className="text-xs text-muted-foreground line-clamp-1">{a.description}</p>}
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
