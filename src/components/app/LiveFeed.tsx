@@ -63,6 +63,56 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     return () => { if (captureRef) captureRef.current = null; };
   }, [captureRef, type, attempt]);
 
+  // Expose a short-clip recorder for quality checks that need motion, not a still.
+  useEffect(() => {
+    if (!recordRef) return;
+    recordRef.current = (seconds: number) =>
+      new Promise((resolve) => {
+        const source: HTMLVideoElement | HTMLImageElement | null =
+          type === "mjpeg" ? imgRef.current : videoRef.current;
+        if (!source || typeof MediaRecorder === "undefined") return resolve(null);
+        const width = source instanceof HTMLVideoElement ? source.videoWidth : source.naturalWidth;
+        const height = source instanceof HTMLVideoElement ? source.videoHeight : source.naturalHeight;
+        if (!width || !height) return resolve(null);
+        try {
+          const canvas = document.createElement("canvas");
+          const scale = Math.min(1, 640 / width);
+          canvas.width = Math.round(width * scale);
+          canvas.height = Math.round(height * scale);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(null);
+          const fps = 8;
+          const draw = () => {
+            try { ctx.drawImage(source as CanvasImageSource, 0, 0, canvas.width, canvas.height); } catch { /* tainted */ }
+          };
+          draw();
+          const painter = window.setInterval(draw, 1000 / fps);
+          const stream = canvas.captureStream(fps);
+          const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+            .find((m) => MediaRecorder.isTypeSupported(m));
+          const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+          const chunks: BlobPart[] = [];
+          recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+          recorder.onstop = () => {
+            window.clearInterval(painter);
+            stream.getTracks().forEach((t) => t.stop());
+            const blob = new Blob(chunks, { type: mime ?? "video/webm" });
+            if (!blob.size) return resolve(null);
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          };
+          recorder.start();
+          window.setTimeout(() => { if (recorder.state !== "inactive") recorder.stop(); }, Math.max(2, seconds) * 1000);
+        } catch {
+          resolve(null);
+        }
+      });
+    return () => { if (recordRef) recordRef.current = null; };
+  }, [recordRef, type, attempt]);
+
+
 
   useEffect(() => {
     setState("loading");
