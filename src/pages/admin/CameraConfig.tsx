@@ -282,7 +282,14 @@ const CameraConfig = () => {
       scene_gating_enabled: e.scene_gating_enabled !== false,
       scene_change_threshold: e.scene_change_threshold ?? 1.2,
       max_idle_seconds: e.max_idle_seconds ?? 900,
+      regions_of_interest: (e.regions_of_interest ?? []) as unknown as any,
+      reference_match_enabled: !!e.reference_match_enabled,
+      reference_match_threshold: e.reference_match_threshold ?? 0.06,
+      reference_samples: (e.reference_samples ?? []) as unknown as any,
+      clip_analysis_enabled: !!e.clip_analysis_enabled,
+      clip_seconds: e.clip_seconds ?? 5,
     };
+
 
     if (e.id) {
       const { error } = await supabase.from("cameras").update(payload).eq("id", e.id);
