@@ -172,7 +172,10 @@ Deno.serve(async (req) => {
   const analyzeUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-frame`;
   const results: Array<Record<string, unknown>> = [];
 
+  const budgetBlocked = new Set<string>();
+
   for (const cam of due) {
+    if (budgetBlocked.has(cam.tenant_id)) continue;
     await supabase.from('cameras').update({ inference_status: 'running' }).eq('id', cam.id);
 
     const finish = async (status: string, err: string | null, extra: Record<string, unknown> = {}, patch: Record<string, unknown> = {}) => {
@@ -265,6 +268,10 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           imageUrl: frame.dataUrl,
           tenantId: cam.tenant_id,
+          cameraId: cam.id,
+          source: 'live_inference',
+          sceneChanged: true,
+          sceneDelta: sceneDelta,
           cameraName: cam.name,
           zone: cam.zone,
           categories: selectedCategories,
@@ -272,6 +279,12 @@ Deno.serve(async (req) => {
         }),
       });
       const payload = await res.json();
+      if (res.status === 402) {
+        // Tenant AI budget exhausted — pause this camera until the cap is raised.
+        budgetBlocked.add(cam.tenant_id);
+        await finish('budget_paused', String(payload?.message ?? 'Monthly AI analysis budget reached.').slice(0, 300), { skipped: true, reason: 'budget_exceeded' });
+        continue;
+      }
       if (!res.ok) {
         await finish('error', `analyze_${res.status}: ${String(payload?.error ?? '').slice(0, 200)}`);
         continue;
@@ -330,6 +343,8 @@ Deno.serve(async (req) => {
             recommended_actions: analysis.recommended_actions ?? [],
             policies_applied: relevant.map((p) => p.name),
             frame_bytes: frame.bytes,
+            scene_changed: true,
+            scene_delta: sceneDelta === null ? null : Number(sceneDelta.toFixed(3)),
           },
         };
       })
@@ -362,6 +377,7 @@ Deno.serve(async (req) => {
   const skipped = results.filter((r) => r.skipped === true).length;
 
   return json({
+    budget_paused_tenants: [...budgetBlocked],
     scanned: cams?.length ?? 0,
     processed: results.length,
     analyzed,
