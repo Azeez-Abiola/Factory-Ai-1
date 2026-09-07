@@ -21,6 +21,7 @@ export type Database = {
           custom_models: Json
           id: string
           model: string
+          reference_images: Json
           system_prompt: string
           tenant_id: string
           updated_at: string
@@ -32,6 +33,7 @@ export type Database = {
           custom_models?: Json
           id?: string
           model?: string
+          reference_images?: Json
           system_prompt?: string
           tenant_id: string
           updated_at?: string
@@ -43,6 +45,7 @@ export type Database = {
           custom_models?: Json
           id?: string
           model?: string
+          reference_images?: Json
           system_prompt?: string
           tenant_id?: string
           updated_at?: string
