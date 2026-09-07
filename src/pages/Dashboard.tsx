@@ -20,6 +20,7 @@ interface AlertRow {
   camera_id: string | null;
   detected_at: string;
   resolved_at: string | null;
+  metadata?: unknown;
 }
 
 interface CameraRow {
