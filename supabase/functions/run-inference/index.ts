@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
 
   let query = supabase
     .from('cameras')
-    .select('id, tenant_id, name, zone, stream_url, snapshot_url, rtsp_url, credentials, ai_models, confidence_threshold, inference_interval_seconds, last_inference_at, status, inference_enabled')
+    .select('id, tenant_id, name, zone, stream_url, snapshot_url, rtsp_url, credentials, ai_models, confidence_threshold, inference_interval_seconds, last_inference_at, status, inference_enabled, scene_gating_enabled, scene_change_threshold, frame_signature, last_frame_change_at, frames_skipped, frames_analyzed, max_idle_seconds')
     .limit(50);
 
   query = requestedCamera
@@ -156,11 +156,17 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 500);
 
   const now = Date.now();
+  const POLL_FLOOR_SECONDS = 10;
   const due = (cams ?? []).filter((c) => {
     if (requestedCamera) return true;
     if (!c.last_inference_at) return true;
     const age = (now - new Date(c.last_inference_at).getTime()) / 1000;
-    return age >= (c.inference_interval_seconds ?? 30);
+    // With scene gating on, the camera is polled on every tick — the cheap
+    // fingerprint check, not a fixed cadence, decides if the model runs.
+    const cadence = c.scene_gating_enabled === false
+      ? (c.inference_interval_seconds ?? 30)
+      : POLL_FLOOR_SECONDS;
+    return age >= cadence;
   });
 
   const analyzeUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/analyze-frame`;
@@ -169,11 +175,12 @@ Deno.serve(async (req) => {
   for (const cam of due) {
     await supabase.from('cameras').update({ inference_status: 'running' }).eq('id', cam.id);
 
-    const finish = async (status: string, err: string | null, extra: Record<string, unknown> = {}) => {
+    const finish = async (status: string, err: string | null, extra: Record<string, unknown> = {}, patch: Record<string, unknown> = {}) => {
       await supabase.from('cameras').update({
         inference_status: status,
         last_inference_at: new Date().toISOString(),
         last_inference_error: err,
+        ...patch,
       }).eq('id', cam.id);
       results.push({ camera_id: cam.id, camera: cam.name, status, error: err, ...extra });
     };
@@ -189,6 +196,38 @@ Deno.serve(async (req) => {
       await finish('error', frame.reason);
       continue;
     }
+
+    // ---- Scene-change gate -------------------------------------------------
+    // Manual runs always analyse. Otherwise the model only sees frames whose
+    // fingerprint drifted past the threshold, or a periodic keep-alive frame.
+    const gatingOn = cam.scene_gating_enabled !== false;
+    const signature = gatingOn ? await frameSignature(frame.raw, frame.mime) : null;
+    let sceneDelta: number | null = null;
+
+    if (gatingOn && signature && !requestedCamera) {
+      const previous = typeof cam.frame_signature === 'string' ? cam.frame_signature : null;
+      sceneDelta = previous ? signatureDelta(previous, signature) : null;
+      const threshold = Number(cam.scene_change_threshold ?? 1.2);
+      const maxIdle = Number(cam.max_idle_seconds ?? 900);
+      const sinceChange = cam.last_frame_change_at
+        ? (now - new Date(cam.last_frame_change_at).getTime()) / 1000
+        : Number.POSITIVE_INFINITY;
+
+      if (sceneDelta !== null && sceneDelta < threshold && sinceChange < maxIdle) {
+        await finish('idle', null, {
+          skipped: true,
+          reason: 'scene_unchanged',
+          scene_delta: Number(sceneDelta.toFixed(3)),
+          threshold,
+        }, {
+          frame_signature: signature,
+          last_scene_delta: sceneDelta,
+          frames_skipped: (cam.frames_skipped ?? 0) + 1,
+        });
+        continue;
+      }
+    }
+
 
     // Tenant policies steer what the model looks for on this frame.
     const { data: policies } = await supabase
