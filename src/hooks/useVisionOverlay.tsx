@@ -216,7 +216,7 @@ export function useVisionOverlay({
 
         const { data, error: fnError } = await supabase.functions.invoke("analyze-frame", {
           body: {
-            ...(clipUrl ? { videoUrl: clipUrl } : { imageUrl: frame }),
+            ...(clipUrl ? { videoUrl: clipUrl, evidenceImage: frame } : { imageUrl: frame }),
             cameraName,
             zone,
             tenantId,
@@ -225,7 +225,10 @@ export function useVisionOverlay({
             referenceVerdict: referenceVerdict
               ? { label: referenceVerdict.label, note: referenceVerdict.sample.note ?? null }
               : undefined,
-            source: "overlay",
+            source: clipUrl ? "overlay_clip" : "overlay",
+            // Rolling analysis raises alerts by itself — quality defects seen in
+            // motion no longer need a scheduled still-frame pass to be flagged.
+            raiseAlerts: true,
             sceneChanged: true,
             sceneDelta,
           },
@@ -233,7 +236,13 @@ export function useVisionOverlay({
         if (fnError) throw fnError;
         if ((data as any)?.error === "ai_budget_exceeded") throw new Error((data as any).message);
         analysis = (data as any)?.analysis;
+        const created = Number((data as any)?.alerts_created ?? 0);
+        if (created > 0) {
+          setAlertsRaised((n) => n + created);
+          setLastAlertAt(new Date());
+        }
         setBudgetBlocked(false);
+
       } else if (hasSnapshot) {
         setIdle(false);
         const { data, error: fnError } = await supabase.functions.invoke("run-inference", {
