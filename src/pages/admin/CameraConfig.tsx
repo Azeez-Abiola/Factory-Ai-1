@@ -103,6 +103,13 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   scene_gating_enabled: true,
   scene_change_threshold: 1.2,
   max_idle_seconds: 900,
+  regions_of_interest: [],
+  reference_match_enabled: false,
+  reference_match_threshold: 0.06,
+  reference_samples: [],
+  clip_analysis_enabled: false,
+  clip_seconds: 5,
+
 });
 
 const isLikelyStreamUrl = (u: string, t: StreamType) => {
