@@ -58,7 +58,14 @@ interface CameraRow {
   inference_status?: string;
   last_inference_error?: string | null;
   snapshot_url?: string | null;
+  regions_of_interest?: Region[];
+  reference_match_enabled?: boolean;
+  reference_match_threshold?: number;
+  reference_samples?: ReferenceSample[];
+  clip_analysis_enabled?: boolean;
+  clip_seconds?: number;
 }
+
 
 const AI_MODEL_DEFS = [
   { key: "ppe", label: "PPE Compliance", desc: "Hard hats, vests, gloves, goggles" },
