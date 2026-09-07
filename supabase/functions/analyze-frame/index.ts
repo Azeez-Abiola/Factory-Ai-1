@@ -262,9 +262,20 @@ Deno.serve(async (req) => {
       }, budget ?? undefined);
     }
 
-    return new Response(JSON.stringify({ analysis, raw, model, media, site_model: siteModel, reference_images_used: exemplars.length, categories: categories.map((c) => c.id) }), {
+    // ---- Raise alerts from browser-side (rolling clip / overlay) analysis ---
+    let alertsCreated = 0;
+    if (body.raiseAlerts && body.tenantId && body.cameraId && supabase && analysis) {
+      try {
+        alertsCreated = await raiseAlerts(supabase, body, analysis as AnalysisShape, media);
+      } catch (e) {
+        console.warn("raiseAlerts failed", (e as Error).message);
+      }
+    }
+
+    return new Response(JSON.stringify({ analysis, raw, model, media, site_model: siteModel, reference_images_used: exemplars.length, alerts_created: alertsCreated, categories: categories.map((c) => c.id) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (err) {
     console.error("analyze-frame crash", err);
     return new Response(JSON.stringify({ error: (err as Error).message }), {
