@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
+  videoUrl?: string;      // https URL or data:video/...;base64,... (short clip)
   cameraName?: string;
   zone?: string;
   aiModels?: string[];    // legacy — kept for backward compatibility
@@ -52,8 +53,8 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as Body;
-    if (!body.imageUrl) {
-      return new Response(JSON.stringify({ error: "imageUrl is required (https URL or data URL)" }), {
+    if (!body.imageUrl && !body.videoUrl) {
+      return new Response(JSON.stringify({ error: "imageUrl or videoUrl is required (https URL or data URL)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -99,7 +100,9 @@ Deno.serve(async (req) => {
       `Zone: ${body.zone ?? "Unknown"}`,
       `Active categories: ${categories.map((c) => c.id).join(", ") || "all"}`,
       body.context ? `Additional context: ${body.context}` : "",
-      "Analyze this frame and return the JSON per schema.",
+      body.videoUrl
+        ? "This is a short video clip from the camera. Watch the full clip, account for motion and events over time, and return the JSON per schema summarising the whole clip."
+        : "Analyze this frame and return the JSON per schema.",
     ].filter(Boolean).join("\n");
 
     const gwRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -114,7 +117,9 @@ Deno.serve(async (req) => {
           { role: "system", content: finalSystemPrompt },
           { role: "user", content: [
             { type: "text", text: userText },
-            { type: "image_url", image_url: { url: body.imageUrl } },
+            body.videoUrl
+              ? { type: "video_url", video_url: { url: body.videoUrl } }
+              : { type: "image_url", image_url: { url: body.imageUrl } },
           ]},
         ],
       }),
@@ -139,7 +144,7 @@ Deno.serve(async (req) => {
       if (match) { try { analysis = JSON.parse(match[0]); } catch { /* noop */ } }
     }
 
-    return new Response(JSON.stringify({ analysis, raw, model, categories: categories.map((c) => c.id) }), {
+    return new Response(JSON.stringify({ analysis, raw, model, media: body.videoUrl ? "video" : "image", categories: categories.map((c) => c.id) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
