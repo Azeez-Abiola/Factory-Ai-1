@@ -18,8 +18,15 @@ export interface LiveCamera extends MockCamera {
   inferenceStatus?: string | null;
   lastInferenceAt?: string | null;
   lastInferenceError?: string | null;
+  regions?: Region[];
+  referenceMatchEnabled?: boolean;
+  referenceMatchThreshold?: number;
+  referenceSamples?: ReferenceSample[];
+  clipAnalysisEnabled?: boolean;
+  clipSeconds?: number;
   isLive: boolean; // has a real playable stream_url
   isDbBacked: boolean; // came from cameras table (not fallback mock)
+
 }
 
 interface DetectionPing {
