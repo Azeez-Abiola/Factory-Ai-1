@@ -148,13 +148,16 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     return (
       <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
         <img
+          ref={imgRef}
           key={attempt}
           src={url}
           alt="Live camera feed"
+          crossOrigin="anonymous"
           className="h-full w-full object-cover"
           onLoad={() => setState("playing")}
           onError={() => { setErrorMsg("MJPEG stream could not be loaded by this browser"); setState("error"); }}
         />
+        {state === "playing" && overlay}
         {state === "loading" && <FeedLoading />}
         {state === "error" && <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />}
       </div>
@@ -168,9 +171,11 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         muted={muted}
         autoPlay
         playsInline
+        crossOrigin="anonymous"
         poster={poster}
         style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000" }}
       />
+      {state === "playing" && overlay}
       {state === "loading" && (
         <FeedLoading />
       )}
@@ -180,6 +185,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     </div>
   );
 }
+
 
 const FeedLoading = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm">
