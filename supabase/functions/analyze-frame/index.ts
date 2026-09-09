@@ -119,6 +119,7 @@ async function raiseAlerts(
         recommended_actions: analysis.recommended_actions ?? [],
         reference_verdict: body.referenceVerdict ?? null,
         scene_delta: typeof body.sceneDelta === "number" ? Number(body.sceneDelta.toFixed(3)) : null,
+        confidence_gate: decisions.get(v) ?? null,
         ...(evidencePath ? { evidence_path: evidencePath } : {}),
       },
     }))
