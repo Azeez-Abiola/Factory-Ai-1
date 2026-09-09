@@ -73,7 +73,7 @@ const ReportDetail = () => {
           status: built.status,
           findings_count: built.findings_count,
           summary: built.summary,
-          data: built.data as unknown as Record<string, unknown>,
+          data: JSON.parse(JSON.stringify(built.data)),
         })
         .eq("id", report.id);
       if (error) throw error;

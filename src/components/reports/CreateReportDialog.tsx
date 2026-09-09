@@ -78,7 +78,7 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
         period_start: start.toISOString(),
         period_end: end.toISOString(),
         summary: built.summary,
-        data: built.data as unknown as Record<string, unknown>,
+        data: JSON.parse(JSON.stringify(built.data)),
         generated_by: user?.id ?? null,
         generated_by_name: name,
       });
