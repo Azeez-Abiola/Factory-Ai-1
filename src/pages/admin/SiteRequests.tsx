@@ -186,7 +186,7 @@ const SiteRequests = () => {
           </DialogHeader>
           {active && (
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><div className="text-xs text-muted-foreground">Location</div>{active.location ?? "—"}</div>
                 <div><div className="text-xs text-muted-foreground">Cameras</div>{active.estimated_cameras}</div>
                 <div>

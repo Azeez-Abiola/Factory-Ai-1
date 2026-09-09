@@ -97,7 +97,7 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel required>Shift</FieldLabel>
               <Select value={shiftName} onValueChange={setShiftName}>
@@ -122,7 +122,7 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel required htmlFor="sr-start">Start Time</FieldLabel>
               <Input
@@ -144,7 +144,7 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel hint="Compliance %.">Safety Score</FieldLabel>
               <div className="relative">
@@ -177,7 +177,7 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel>Incidents</FieldLabel>
               <Input

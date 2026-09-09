@@ -200,7 +200,7 @@ function PolicyDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Name *</Label>
               <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Hard hat compliance – Zone A" />
@@ -246,7 +246,7 @@ function PolicyDialog({
               placeholder="Example: All personnel entering Zone A between 06:00 and 22:00 must wear a hard hat and a high-visibility vest."
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>Severity</Label>
               <Select value={form.severity} onValueChange={(v) => setForm(f => ({ ...f, severity: v }))}>
@@ -414,7 +414,7 @@ function AlertRuleDialog({
           <DialogDescription>Define how a policy fires: triggers, debounce, escalation, and channels.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Name *</Label>
               <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -434,7 +434,7 @@ function AlertRuleDialog({
             <Label>Description</Label>
             <Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Trigger source</Label>
               <Select value={form.trigger_source} onValueChange={(v) => setForm(f => ({ ...f, trigger_source: v }))}>
@@ -462,7 +462,7 @@ function AlertRuleDialog({
               <Slider min={0.3} max={1} step={0.05} value={[form.confidence_threshold]} onValueChange={([v]) => setForm(f => ({ ...f, confidence_threshold: v }))} />
               <p className="text-xs text-muted-foreground mt-1">Detections below this confidence are dropped.</p>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs uppercase tracking-wider">Debounce (s)</Label>
                 <Input type="number" value={form.debounce_seconds} onChange={(e) => setForm(f => ({ ...f, debounce_seconds: parseInt(e.target.value) || 0 }))} />
@@ -732,7 +732,7 @@ const RulesPolicy = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-1 sm:grid-cols-2">
                 {filteredTemplates.map(t => (
                   <div key={t.id} className="rounded-lg border border-border bg-card/50 hover:border-primary/40 transition p-4 flex flex-col">
                     <div className="flex items-start justify-between gap-2">
