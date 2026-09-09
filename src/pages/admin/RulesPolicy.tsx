@@ -732,7 +732,7 @@ const RulesPolicy = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-3 md:grid-cols-1 sm:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2">
                 {filteredTemplates.map(t => (
                   <div key={t.id} className="rounded-lg border border-border bg-card/50 hover:border-primary/40 transition p-4 flex flex-col">
                     <div className="flex items-start justify-between gap-2">

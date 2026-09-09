@@ -541,7 +541,7 @@ const CameraConfig = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {rows.map((cam) => {
             const activeModels = Object.entries(cam.ai_models ?? {}).filter(([, v]) => v).map(([k]) => k);
             const lastSeen = cam.last_seen_at ? new Date(cam.last_seen_at) : null;
@@ -744,7 +744,7 @@ const CameraConfig = () => {
                   </div>
                   <div className="col-span-2 rounded-lg border border-border p-4 space-y-4">
                     <div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">Camera sign-in</p></div>
-                    <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5"><Label>Username</Label><Input autoComplete="username" value={editing.credentials?.username ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), username: e.target.value } }); }} placeholder="admin" /></div>
                       <div className="space-y-1.5"><Label>Password</Label><Input type="password" autoComplete="current-password" value={editing.credentials?.password ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), password: e.target.value } }); }} placeholder="Camera password" /></div>
                     </div>
