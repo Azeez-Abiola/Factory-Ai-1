@@ -867,8 +867,14 @@ const RulesPolicy = () => {
                     {p.description && <p className="text-xs text-muted-foreground mt-1">{p.description}</p>}
                     <p className="text-sm mt-2 line-clamp-2">{p.natural_language}</p>
                     <div className="flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground">
-                      {p.scope_zones.length > 0 && <span>Zones: {p.scope_zones.join(", ")}</span>}
-                      {p.scope_cameras.length > 0 && <span>Cameras: {p.scope_cameras.join(", ")}</span>}
+                      <span>Zones: {p.scope_zones.length > 0 ? p.scope_zones.join(", ") : "All zones"}</span>
+                      <span>Cameras: {p.scope_cameras.length > 0 ? p.scope_cameras.map(cameraLabel).join(", ") : "All cameras"}</span>
+                      {(() => {
+                        const linked = rules.filter(r => r.policy_id === p.id);
+                        return linked.length > 0
+                          ? <span>Alert rules: {linked.map(r => r.name).join(", ")}</span>
+                          : <span className="text-warning">No alert rule linked</span>;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 sm:shrink-0">
