@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 interface LiveFeedProps {
   url: string;
   type?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
+  /** Used automatically when the primary stream cannot be played (gateway down). */
+  fallbackUrl?: string | null;
+  fallbackType?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
   /** Refresh interval for snapshot playback (ms). */
   snapshotIntervalMs?: number;
   muted?: boolean;
@@ -25,27 +28,58 @@ interface LiveFeedProps {
  * - HLS via hls.js (with native Safari playback fallback).
  * - MJPEG via <img>.
  * - WebRTC/WHEP: attempts a minimal WHEP handshake (POST SDP offer, receive answer).
+ * - Falls back to a snapshot feed when the streaming gateway is unreachable, and
+ *   retries the live stream periodically.
  *
  * A real production deploy will front cameras with a media gateway (MediaMTX,
  * AWS KVS, Frigate, Ant Media, etc.) that exposes HLS/WHEP URLs per camera.
  * Store that URL in `cameras.stream_url` and this component plays it.
  */
-export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, recordRef, overlay, snapshotIntervalMs = 1000 }: LiveFeedProps) {
+export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallbackType = "snapshot", muted = true, className, poster, captureRef, recordRef, overlay, snapshotIntervalMs = 1000 }: LiveFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"loading" | "playing" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [attempt, setAttempt] = useState(0);
   const [snapshotTick, setSnapshotTick] = useState(0);
-  const isImageFeed = type === "mjpeg" || type === "snapshot";
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const hasFallback = !!fallbackUrl && fallbackUrl !== url;
+  const activeUrl = usingFallback && fallbackUrl ? fallbackUrl : url;
+  const activeType = usingFallback ? fallbackType ?? "snapshot" : type;
+  const isImageFeed = activeType === "mjpeg" || activeType === "snapshot";
+
+  // Reset the fallback whenever the camera / primary address changes.
+  useEffect(() => { setUsingFallback(false); }, [url, type]);
+
+  // Stream failed → drop to snapshots instead of showing a dead tile.
+  useEffect(() => {
+    if (state === "error" && hasFallback && !usingFallback) {
+      setUsingFallback(true);
+      setState("loading");
+      setErrorMsg("");
+    }
+  }, [state, hasFallback, usingFallback]);
+
+  // While on snapshots, re-test the gateway every 60s so playback self-heals.
+  useEffect(() => {
+    if (!usingFallback || !hasFallback) return;
+    const t = window.setTimeout(() => {
+      setUsingFallback(false);
+      setState("loading");
+      setErrorMsg("");
+    }, 60000);
+    return () => window.clearTimeout(t);
+  }, [usingFallback, hasFallback, attempt]);
+
 
   // Snapshot playback: re-fetch the still image on a timer so the tile animates.
   useEffect(() => {
-    if (type !== "snapshot") return;
+    if (activeType !== "snapshot") return;
     const ms = Math.max(250, snapshotIntervalMs);
     const t = window.setInterval(() => setSnapshotTick((n) => n + 1), ms);
     return () => window.clearInterval(t);
-  }, [type, snapshotIntervalMs, attempt]);
+  }, [activeType, snapshotIntervalMs, attempt]);
 
   // Expose a frame grabber so the AI vision loop can read the live picture.
   useEffect(() => {
@@ -73,7 +107,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
       }
     };
     return () => { if (captureRef) captureRef.current = null; };
-  }, [captureRef, type, attempt]);
+  }, [captureRef, activeType, attempt]);
 
   // Expose a short-clip recorder for quality checks that need motion, not a still.
   useEffect(() => {
@@ -122,7 +156,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         }
       });
     return () => { if (recordRef) recordRef.current = null; };
-  }, [recordRef, type, attempt]);
+  }, [recordRef, activeType, attempt]);
 
 
 
@@ -161,7 +195,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         };
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        const res = await fetch(url, {
+        const res = await fetch(activeUrl, {
           method: "POST",
           headers: { "Content-Type": "application/sdp" },
           body: offer.sdp ?? "",
@@ -178,11 +212,11 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
       }
     }
 
-    if (type === "webrtc") {
+    if (activeType === "webrtc") {
       startWhep();
     } else if (Hls.isSupported()) {
       hls = new Hls({ lowLatencyMode: true, backBufferLength: 15, maxBufferLength: 6 });
-      hls.loadSource(url);
+      hls.loadSource(activeUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().then(() => setState("playing")).catch(() => setState("playing"));
@@ -191,7 +225,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         if (data.fatal) { setErrorMsg(data.details ?? "stream error"); setState("error"); }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = url;
+      video.src = activeUrl;
       video.addEventListener("loadedmetadata", () => {
         video.play().then(() => setState("playing")).catch(() => setState("playing"));
       });
@@ -207,32 +241,33 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
       if (pc) { pc.close(); }
       if (video) { video.srcObject = null; video.removeAttribute("src"); video.load(); }
     };
-  }, [url, type, attempt]);
+  }, [activeUrl, activeType, attempt]);
 
   if (isImageFeed) {
     const src =
-      type === "snapshot"
-        ? `${url}${url.includes("?") ? "&" : "?"}_t=${snapshotTick}`
-        : url;
+      activeType === "snapshot"
+        ? `${activeUrl}${activeUrl.includes("?") ? "&" : "?"}_t=${snapshotTick}`
+        : activeUrl;
     return (
       <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
         <img
           ref={imgRef}
-          key={type === "snapshot" ? attempt : attempt}
+          key={`${activeUrl}-${attempt}`}
           src={src}
           alt="Live camera feed"
           crossOrigin="anonymous"
           className="h-full w-full object-cover"
           onLoad={() => setState("playing")}
           onError={() => {
-            if (type === "snapshot" && state === "playing") return; // one dropped frame is not a failure
-            setErrorMsg(type === "snapshot" ? "Snapshot image could not be loaded" : "MJPEG stream could not be loaded by this browser");
+            if (activeType === "snapshot" && state === "playing") return; // one dropped frame is not a failure
+            setErrorMsg(activeType === "snapshot" ? "Snapshot image could not be loaded" : "MJPEG stream could not be loaded by this browser");
             setState("error");
           }}
         />
         {state === "playing" && overlay}
+        {state === "playing" && usingFallback && <SnapshotBadge />}
         {state === "loading" && <FeedLoading />}
-        {state === "error" && <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />}
+        {state === "error" && <FeedError message={errorMsg} onRetry={() => { setUsingFallback(false); setAttempt((value) => value + 1); }} />}
       </div>
     );
   }
@@ -253,12 +288,18 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
         <FeedLoading />
       )}
       {state === "error" && (
-        <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />
+        <FeedError message={errorMsg} onRetry={() => { setUsingFallback(false); setAttempt((value) => value + 1); }} />
       )}
     </div>
   );
 }
 
+
+const SnapshotBadge = () => (
+  <span className="pointer-events-none absolute bottom-1 left-1 rounded-sm bg-background/80 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+    Snapshot fallback
+  </span>
+);
 
 const FeedLoading = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm">

@@ -520,6 +520,8 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
         <LiveFeed
           url={playbackUrl}
           type={playbackType ?? "hls"}
+          fallbackUrl={cam.fallbackUrl ?? null}
+          fallbackType={cam.fallbackType ?? "snapshot"}
           snapshotIntervalMs={large || tileFocus ? 700 : 1500}
           muted={!canPlayAudio}
           captureRef={captureRef}
