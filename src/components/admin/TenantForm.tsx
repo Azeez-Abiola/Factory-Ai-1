@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Building2, Shield, Contact2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import AddressFields from "@/components/forms/AddressFields";
 import type { TenantRow } from "@/hooks/useTenants";
+import { eligibleParents, tenantPath } from "@/lib/tenantTree";
 
 const tenantSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
@@ -42,6 +43,8 @@ interface TenantFormProps {
   onOpenChange: (open: boolean) => void;
   tenant?: TenantRow | null;
   parentTenant?: TenantRow | null;
+  /** Full tenant list — used to offer/move a parent site. */
+  allTenants?: TenantRow[];
   onSubmit: (data: TenantFormValues & { parent_id?: string | null; id?: string }) => Promise<void> | void;
 }
 
@@ -80,9 +83,13 @@ const SectionHeader = ({ icon: Icon, title, hint }: { icon: React.ElementType; t
   </div>
 );
 
-const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: TenantFormProps) => {
+const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [], onSubmit }: TenantFormProps) => {
   const isEdit = !!tenant;
   const isSubTenant = !!parentTenant;
+  const [parentId, setParentId] = useState<string | null>(
+    parentTenant?.id ?? tenant?.parent_id ?? null,
+  );
+  const parentOptions = eligibleParents(allTenants, tenant?.id).filter((t) => t.id !== tenant?.id);
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantSchema),
@@ -123,7 +130,7 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: Tena
     await onSubmit({
       ...values,
       id: tenant?.id,
-      parent_id: parentTenant?.id ?? tenant?.parent_id ?? null,
+      parent_id: parentId,
     });
     onOpenChange(false);
     form.reset();
@@ -181,6 +188,30 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: Tena
                   )}
                 />
               </div>
+
+              <FormItem>
+                <FormLabel optional>Parent site</FormLabel>
+                <Select
+                  value={parentId ?? "none"}
+                  onValueChange={(v) => setParentId(v === "none" ? null : v)}
+                >
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Top-level site" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="max-h-64">
+                    <SelectItem value="none">No parent · top-level site</SelectItem>
+                    {parentOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {tenantPath(allTenants, p.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription className="text-xs">
+                  Sub-sites keep their own cameras, defects and budget, and roll up into the parent.
+                </FormDescription>
+              </FormItem>
+
 
               <FormField
                 control={form.control}

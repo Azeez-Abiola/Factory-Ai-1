@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTenants } from "@/hooks/useTenants";
+import { buildTenantTree, flattenTree } from "@/lib/tenantTree";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,11 +42,12 @@ const TenantSwitcher = () => {
         {tenants.length === 0 && (
           <DropdownMenuItem disabled className="text-xs">No sites available</DropdownMenuItem>
         )}
-        {tenants.map((t) => (
+        {flattenTree(buildTenantTree(tenants), new Set()).map(({ tenant: t, depth }) => (
           <DropdownMenuItem
             key={t.id}
             onClick={() => setActiveTenantId(t.id)}
-            className={cn("gap-2", t.parent_id && "pl-6")}
+            className="gap-2"
+            style={{ paddingLeft: 8 + depth * 14 }}
           >
             <Check className={cn("w-3.5 h-3.5", t.id === activeTenantId ? "opacity-100 text-primary" : "opacity-0")} />
             <span className="truncate">{t.name}</span>
