@@ -586,7 +586,9 @@ const CameraConfig = () => {
                     <LiveFeed
                       url={(cam.stream_url ?? cam.snapshot_url) as string}
                       type={cam.stream_url ? (cam.stream_type as "hls" | "webrtc" | "mjpeg") : "snapshot"}
+                      fallbackUrl={cam.stream_url && cam.snapshot_url ? (cam.snapshot_url as string) : null}
                       snapshotIntervalMs={1500}
+
                     />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
