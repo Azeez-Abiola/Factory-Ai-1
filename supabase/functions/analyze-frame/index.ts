@@ -94,12 +94,8 @@ async function raiseAlerts(
   }
 
   const rows = violations
-    .filter((v: any) => {
-      const hit = detections.find((d: any) =>
-        String(d?.label ?? "").toLowerCase().includes(String(v?.type ?? "").toLowerCase()));
-      const conf = typeof hit?.confidence === "number" ? hit.confidence : 1;
-      return conf >= threshold;
-    })
+    .filter((v: any) => decisions.get(v)!.pass)
+
     .map((v: any) => ({
       type: String(v?.type ?? "anomaly").toLowerCase().replace(/\s+/g, "_").slice(0, 60),
       tenant_id: cam.tenant_id,
