@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
+import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -59,7 +60,13 @@ async function raiseAlerts(
   const detections = Array.isArray(analysis.detections) ? analysis.detections : [];
   if (!violations.length) return 0;
 
-  const cooldownSeconds = Math.max((cam.inference_interval_seconds ?? 30) * 3, 300);
+  // Site alert rules layer their own confidence bar and cooldown on the camera's.
+  const gateRules = await loadGateRules(supabase, cam.tenant_id);
+  const decisions = new Map<any, ReturnType<typeof gateViolation>>();
+  for (const v of violations) decisions.set(v, gateViolation(v, detections, threshold, gateRules));
+
+  const cooldownSeconds = effectiveCooldown(gateRules, Math.max((cam.inference_interval_seconds ?? 30) * 3, 300));
+
   const since = new Date(Date.now() - cooldownSeconds * 1000).toISOString();
   const { data: recent } = await supabase
     .from("alerts")
@@ -87,12 +94,8 @@ async function raiseAlerts(
   }
 
   const rows = violations
-    .filter((v: any) => {
-      const hit = detections.find((d: any) =>
-        String(d?.label ?? "").toLowerCase().includes(String(v?.type ?? "").toLowerCase()));
-      const conf = typeof hit?.confidence === "number" ? hit.confidence : 1;
-      return conf >= threshold;
-    })
+    .filter((v: any) => decisions.get(v)!.pass)
+
     .map((v: any) => ({
       type: String(v?.type ?? "anomaly").toLowerCase().replace(/\s+/g, "_").slice(0, 60),
       tenant_id: cam.tenant_id,
@@ -116,6 +119,7 @@ async function raiseAlerts(
         recommended_actions: analysis.recommended_actions ?? [],
         reference_verdict: body.referenceVerdict ?? null,
         scene_delta: typeof body.sceneDelta === "number" ? Number(body.sceneDelta.toFixed(3)) : null,
+        confidence_gate: decisions.get(v) ?? null,
         ...(evidencePath ? { evidence_path: evidencePath } : {}),
       },
     }))
