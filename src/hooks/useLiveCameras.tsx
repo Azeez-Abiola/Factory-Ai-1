@@ -46,7 +46,10 @@ function computeStatus(row: any): MockCamera["status"] {
   if (row.status === "maintenance") return "maintenance";
   const heartbeat = row.heartbeat_interval_seconds ?? 60;
   const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
-  const stale = Date.now() - lastSeen > heartbeat * 3 * 1000;
+  // Snapshot cameras only refresh while their tile is on screen, so give them a
+  // generous grace window instead of flipping to offline the moment you look away.
+  const graceMs = row.snapshot_url ? Math.max(heartbeat * 3, 900) * 1000 : heartbeat * 3 * 1000;
+  const stale = Date.now() - lastSeen > graceMs;
   if (!lastSeen || stale) return "offline";
   return row.status === "offline" ? "offline" : "online";
 }
