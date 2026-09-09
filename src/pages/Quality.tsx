@@ -210,6 +210,20 @@ const Quality = () => {
         description="Defects detected per camera, the defect types driving them, and how quickly your team is closing them out."
         actions={
           <>
+            <Select value={defectFilter} onValueChange={setDefectFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All defect types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All defect types ({alerts.length})</SelectItem>
+                {defectTypes.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label} ({defectCounts[d.id] ?? 0})
+                  </SelectItem>
+                ))}
+                <SelectItem value="__other">Uncategorised ({defectCounts.__other ?? 0})</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={range} onValueChange={(v) => setRange(v as keyof typeof RANGE_HOURS)}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -221,12 +235,19 @@ const Quality = () => {
             <Button variant="outline" className="gap-2" onClick={load} disabled={loading}>
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
             </Button>
-            <Button variant="outline" className="gap-2" onClick={exportCsv} disabled={!alerts.length}>
+            <Button variant="outline" className="gap-2" onClick={exportCsv} disabled={!visible.length}>
               <Download className="w-4 h-4" /> Export
             </Button>
           </>
         }
       />
+
+      {defectTypes.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          No defect types configured yet — set them up under Admin → AI Model &amp; Categories to filter by your own product defects.
+        </p>
+      )}
+
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Defects detected" value={stats.total} subtitle={`Across ${perCamera.length} camera${perCamera.length === 1 ? "" : "s"}`} icon={PackageSearch} />
