@@ -321,7 +321,6 @@ Deno.serve(async (req) => {
     const rows = violations
       .filter((v) => decisions.get(v)!.pass)
 
-      })
       .map((v) => {
         const type = String(v.type ?? 'anomaly').toLowerCase().replace(/\s+/g, '_').slice(0, 60);
         return {
