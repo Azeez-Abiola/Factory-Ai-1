@@ -203,6 +203,7 @@ Deno.serve(async (req) => {
     let categories = DEFAULT_CATEGORIES;
     let referenceImages: { path: string; label?: string; kind?: string; note?: string }[] = [];
     let siteModel = false;
+    let defectTypes: { label: string; description?: string; severity_hint?: string }[] = [];
 
     const supabase = body.tenantId
       ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
@@ -212,7 +213,7 @@ Deno.serve(async (req) => {
       try {
         const { data } = await supabase
           .from("ai_analysis_config")
-          .select("system_prompt, model, categories, reference_images")
+          .select("system_prompt, model, categories, reference_images, defect_types")
           .eq("tenant_id", body.tenantId)
           .maybeSingle();
         if (data) {
@@ -223,6 +224,9 @@ Deno.serve(async (req) => {
           }
           if (Array.isArray((data as any).reference_images)) {
             referenceImages = (data as any).reference_images.filter((r: any) => r?.path);
+          }
+          if (Array.isArray((data as any).defect_types)) {
+            defectTypes = (data as any).defect_types.filter((d: any) => d?.label && d?.enabled !== false);
           }
         }
       } catch (e) {
@@ -261,6 +265,11 @@ Deno.serve(async (req) => {
     }
 
     let finalSystemPrompt = buildSystemPrompt(systemPrompt, categories);
+    if (defectTypes.length) {
+      finalSystemPrompt += `\n\nProduct defect types this site inspects for (use these exact labels when reporting a quality issue):\n${defectTypes
+        .map((d: any) => `• ${d.label}${d.description ? `: ${d.description}` : ""}${d.severity_hint ? ` [default severity: ${d.severity_hint}]` : ""}`)
+        .join("\n")}`;
+    }
     if (exemplars.length) {
       finalSystemPrompt += `\n\nThis site has provided ${exemplars.length} of its OWN labelled PPE reference photos, supplied before the live frame. Treat them as the ground truth for what correct and incorrect PPE looks like at this factory (uniform colour, helmet style, vest type, local rules). Judge the live frame against these examples rather than generic PPE assumptions, and never report the reference photos themselves as detections.`;
     }

@@ -20,6 +20,7 @@ export interface TenantRow {
 }
 
 const ACTIVE_KEY = "factoryai.activeTenantId";
+const ACTIVE_EVENT = "factoryai:active-tenant-changed";
 
 /**
  * Loads all tenants the current user can access (RLS-scoped),
@@ -68,6 +69,21 @@ export function useTenants() {
     setActiveTenantIdState(id);
     if (id) localStorage.setItem(ACTIVE_KEY, id);
     else localStorage.removeItem(ACTIVE_KEY);
+    window.dispatchEvent(new CustomEvent(ACTIVE_EVENT, { detail: id }));
+  }, []);
+
+  // Keep every mounted consumer in sync when the site is switched anywhere.
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const id = (e as CustomEvent<string | null>).detail ?? localStorage.getItem(ACTIVE_KEY);
+      setActiveTenantIdState(id);
+    };
+    window.addEventListener(ACTIVE_EVENT, onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener(ACTIVE_EVENT, onChange);
+      window.removeEventListener("storage", onChange);
+    };
   }, []);
 
   const activeTenant = tenants.find((t) => t.id === activeTenantId) ?? null;

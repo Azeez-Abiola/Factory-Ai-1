@@ -47,6 +47,22 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "forklift",     label: "Forklift / Pedestrian",  description: "pedestrian in forklift zone, no spotter, unsafe speed",                     severity_hint: "critical", enabled: true },
 ];
 
+interface DefectType {
+  id: string;
+  label: string;
+  description: string;
+  severity_hint?: "low" | "medium" | "high" | "critical";
+  enabled?: boolean;
+}
+
+const DEFAULT_DEFECT_TYPES: DefectType[] = [
+  { id: "surface-damage",   label: "Surface damage",     description: "scratches, dents, cracks or chips on the product surface", severity_hint: "medium", enabled: true },
+  { id: "misalignment",     label: "Misalignment",       description: "parts, caps or labels not seated square or centred",       severity_hint: "medium", enabled: true },
+  { id: "label-error",      label: "Label / print error", description: "missing, skewed, smudged or unreadable labels and codes", severity_hint: "medium", enabled: true },
+  { id: "contamination",    label: "Contamination",      description: "foreign material, residue or spillage on or in the product", severity_hint: "high",  enabled: true },
+  { id: "packaging-defect", label: "Packaging defect",   description: "torn, underfilled, unsealed or deformed packaging",        severity_hint: "medium", enabled: true },
+];
+
 interface ReferenceImage {
   path: string;
   label: string;
@@ -85,6 +101,8 @@ const AIConfig = () => {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
   const [model, setModel] = useState("google/gemini-2.5-pro");
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [defectTypes, setDefectTypes] = useState<DefectType[]>(DEFAULT_DEFECT_TYPES);
+  const [newDefectLabel, setNewDefectLabel] = useState("");
   const [testOpen, setTestOpen] = useState(false);
   const [testImage, setTestImage] = useState(SAMPLE_IMAGE);
   const [testMode, setTestMode] = useState<"image" | "video">("image");
@@ -122,6 +140,8 @@ const AIConfig = () => {
         setModel(data.model || "google/gemini-2.5-pro");
         const cats = Array.isArray(data.categories) ? (data.categories as unknown as Category[]) : [];
         setCategories(cats.length ? cats : DEFAULT_CATEGORIES);
+        const defects = Array.isArray((data as any).defect_types) ? ((data as any).defect_types as DefectType[]) : [];
+        setDefectTypes(defects);
         const models = Array.isArray((data as any).custom_models) ? ((data as any).custom_models as CustomModel[]) : [];
         setCustomModels(models);
         const refs = Array.isArray((data as any).reference_images) ? ((data as any).reference_images as ReferenceImage[]) : [];
@@ -131,6 +151,7 @@ const AIConfig = () => {
         setSystemPrompt(DEFAULT_PROMPT);
         setModel("google/gemini-2.5-pro");
         setCategories(DEFAULT_CATEGORIES);
+        setDefectTypes(DEFAULT_DEFECT_TYPES);
         setCustomModels([]);
         setReferenceImages([]);
         setRefPreviews({});
@@ -150,6 +171,7 @@ const AIConfig = () => {
       categories: categories as unknown as never,
       custom_models: customModels as unknown as never,
       reference_images: referenceImages as unknown as never,
+      defect_types: defectTypes as unknown as never,
       updated_by: userRes.user?.id,
     };
     const { error } = await supabase
@@ -229,6 +251,18 @@ const AIConfig = () => {
 
     toast.info("Reset to platform defaults — click Save to apply");
   };
+
+  const addDefectType = () => {
+    const label = newDefectLabel.trim();
+    if (!label) return;
+    const id = slugify(label);
+    if (defectTypes.some((d) => d.id === id)) { toast.error("That defect type already exists"); return; }
+    setDefectTypes((d) => [...d, { id, label, description: "", severity_hint: "medium", enabled: true }]);
+    setNewDefectLabel("");
+  };
+  const updateDefectType = (id: string, patch: Partial<DefectType>) =>
+    setDefectTypes((ds) => ds.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  const removeDefectType = (id: string) => setDefectTypes((ds) => ds.filter((d) => d.id !== id));
 
   const addCategory = () => {
     const label = newCatLabel.trim();
@@ -409,6 +443,86 @@ const AIConfig = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="glass rounded-xl border border-border p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Defect types</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                The specific product faults this site cares about. They are sent to the model with the
+                Quality / Defect category and drive the defect breakdown on the Quality page.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <Input
+                placeholder="New defect type (e.g. Label misaligned)"
+                value={newDefectLabel}
+                onChange={(e) => setNewDefectLabel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefectType(); } }}
+                className="max-w-sm"
+              />
+              <Button variant="outline" onClick={addDefectType} className="gap-2"><Plus className="w-4 h-4" /> Add defect type</Button>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {defectTypes.filter((d) => d.enabled !== false).length} active · {defectTypes.length} total
+              </span>
+            </div>
+
+            {defectTypes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No defect types yet — add the faults your line inspects for, or{" "}
+                <button type="button" className="text-primary underline" onClick={() => setDefectTypes(DEFAULT_DEFECT_TYPES)}>
+                  start from the standard list
+                </button>.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {defectTypes.map((d) => (
+                  <div key={d.id} className="rounded-lg border border-border p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Input
+                          value={d.label}
+                          onChange={(e) => updateDefectType(d.id, { label: e.target.value })}
+                          className="max-w-xs font-medium"
+                        />
+                        <Badge variant="outline" className="text-[10px] font-mono">{d.id}</Badge>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Switch checked={d.enabled !== false} onCheckedChange={(v) => updateDefectType(d.id, { enabled: v })} />
+                        <Button size="icon" variant="ghost" onClick={() => removeDefectType(d.id)} aria-label="Delete defect type">
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-3">
+                      <div>
+                        <Label className="text-xs">What it looks like</Label>
+                        <Textarea
+                          value={d.description}
+                          onChange={(e) => updateDefectType(d.id, { description: e.target.value })}
+                          rows={2}
+                          className="text-sm"
+                          placeholder="Describe the fault so the model can recognise it…"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Default severity</Label>
+                        <Select value={d.severity_hint ?? "medium"} onValueChange={(v) => updateDefectType(d.id, { severity_hint: v as DefectType["severity_hint"] })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 

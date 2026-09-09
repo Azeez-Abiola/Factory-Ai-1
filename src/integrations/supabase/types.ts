@@ -19,6 +19,7 @@ export type Database = {
           categories: Json
           created_at: string
           custom_models: Json
+          defect_types: Json
           id: string
           model: string
           reference_images: Json
@@ -31,6 +32,7 @@ export type Database = {
           categories?: Json
           created_at?: string
           custom_models?: Json
+          defect_types?: Json
           id?: string
           model?: string
           reference_images?: Json
@@ -43,6 +45,7 @@ export type Database = {
           categories?: Json
           created_at?: string
           custom_models?: Json
+          defect_types?: Json
           id?: string
           model?: string
           reference_images?: Json

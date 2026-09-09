@@ -53,7 +53,7 @@ const defaultCameras: CameraEntry[] = [];
 
 const RTSP_RE = /^rtsp:\/\/[^\s]+$/i;
 
-const Onboarding = () => {
+const Onboarding = ({ embedded = false }: { embedded?: boolean }) => {
   const { user } = useAuth();
   const { reload: reloadTenants, setActiveTenantId } = useTenants();
   const navigate = useNavigate();
@@ -255,12 +255,14 @@ const Onboarding = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="Provisioning"
-        icon={Rocket}
-        title="Tenant Onboarding"
-        description="Step-by-step wizard to set up a new factory — from org details to camera mapping."
-      />
+      {!embedded && (
+        <PageHeader
+          eyebrow="Provisioning"
+          icon={Rocket}
+          title="Tenant Onboarding"
+          description="Step-by-step wizard to set up a new factory — from org details to camera mapping."
+        />
+      )}
 
       {/* Progress */}
       <div className="flex items-center gap-2">

@@ -31,7 +31,6 @@ import UserManagement from "./pages/admin/UserManagement.tsx";
 import SystemMonitoring from "./pages/admin/SystemMonitoring.tsx";
 import Billing from "./pages/admin/Billing.tsx";
 import AuditLog from "./pages/admin/AuditLog.tsx";
-import Onboarding from "./pages/admin/Onboarding.tsx";
 import Settings from "./pages/admin/Settings.tsx";
 import KpiConfig from "./pages/admin/KpiConfig.tsx";
 import TenantDetail from "./pages/admin/TenantDetail.tsx";
@@ -116,7 +115,7 @@ const App = () => (
               <Route path="system" element={<SystemMonitoring />} />
               <Route path="billing" element={<Billing />} />
               <Route path="audit-log" element={<AuditLog />} />
-              <Route path="onboarding" element={<Onboarding />} />
+              <Route path="onboarding" element={<Navigate to="/admin" replace />} />
               <Route path="settings" element={<Settings />} />
               <Route path="kpi-config" element={<KpiConfig />} />
               <Route path="ai-budget" element={<AIBudget />} />
