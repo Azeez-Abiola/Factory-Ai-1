@@ -197,8 +197,8 @@ export function useLiveCameras() {
 
   const cameras = useMemo<LiveCamera[]>(() => {
     void tick;
-    return rows.map((r) => normalize(r, detections));
-  }, [rows, detections, tick, loading]);
+    return rows.map((r) => normalize(r, detections, token));
+  }, [rows, detections, tick, loading, token]);
 
   return { cameras, loading, hasLiveStreams: cameras.some((c) => c.isLive) };
 }
