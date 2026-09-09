@@ -60,7 +60,13 @@ async function raiseAlerts(
   const detections = Array.isArray(analysis.detections) ? analysis.detections : [];
   if (!violations.length) return 0;
 
-  const cooldownSeconds = Math.max((cam.inference_interval_seconds ?? 30) * 3, 300);
+  // Site alert rules layer their own confidence bar and cooldown on the camera's.
+  const gateRules = await loadGateRules(supabase, cam.tenant_id);
+  const decisions = new Map<any, ReturnType<typeof gateViolation>>();
+  for (const v of violations) decisions.set(v, gateViolation(v, detections, threshold, gateRules));
+
+  const cooldownSeconds = effectiveCooldown(gateRules, Math.max((cam.inference_interval_seconds ?? 30) * 3, 300));
+
   const since = new Date(Date.now() - cooldownSeconds * 1000).toISOString();
   const { data: recent } = await supabase
     .from("alerts")
