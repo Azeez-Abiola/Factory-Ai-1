@@ -189,6 +189,30 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [],
                 />
               </div>
 
+              <FormItem>
+                <FormLabel optional>Parent site</FormLabel>
+                <Select
+                  value={parentId ?? "none"}
+                  onValueChange={(v) => setParentId(v === "none" ? null : v)}
+                >
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Top-level site" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="max-h-64">
+                    <SelectItem value="none">No parent · top-level site</SelectItem>
+                    {parentOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {tenantPath(allTenants, p.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription className="text-xs">
+                  Sub-sites keep their own cameras, defects and budget, and roll up into the parent.
+                </FormDescription>
+              </FormItem>
+
+
               <FormField
                 control={form.control}
                 name="industry"
