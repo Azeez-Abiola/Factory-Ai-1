@@ -264,12 +264,30 @@ function PolicyDialog({
               </Select>
             </div>
             <div>
-              <Label>Scope zones (comma-separated)</Label>
-              <Input value={form.scope_zones} onChange={(e) => setForm(f => ({ ...f, scope_zones: e.target.value }))} placeholder="Zone A, Loading Bay" />
+              <Label htmlFor="policy-zones">Scope zones</Label>
+              <MultiSelect
+                id="policy-zones"
+                options={zoneOptions.map(z => ({ value: z, label: z }))}
+                value={form.scope_zones}
+                onChange={(v) => setForm(f => ({ ...f, scope_zones: v }))}
+                placeholder="All zones"
+                searchPlaceholder="Search zones…"
+                emptyText="No zones defined for this site yet."
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Leave empty to apply to every zone.</p>
             </div>
             <div>
-              <Label>Scope cameras</Label>
-              <Input value={form.scope_cameras} onChange={(e) => setForm(f => ({ ...f, scope_cameras: e.target.value }))} placeholder="cam-01, cam-02" />
+              <Label htmlFor="policy-cameras">Scope cameras</Label>
+              <MultiSelect
+                id="policy-cameras"
+                options={cameras.map(c => ({ value: c.id, label: c.name, hint: c.zone ?? undefined }))}
+                value={form.scope_cameras}
+                onChange={(v) => setForm(f => ({ ...f, scope_cameras: v }))}
+                placeholder="All cameras"
+                searchPlaceholder="Search cameras…"
+                emptyText="No cameras added to this site yet."
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Leave empty to apply to every camera.</p>
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border bg-card/40 px-4 py-3">
