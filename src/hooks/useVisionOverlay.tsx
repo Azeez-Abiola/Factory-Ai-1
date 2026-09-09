@@ -84,13 +84,7 @@ function parseBox(raw: any, frame?: { width: number; height: number } | null): {
   }
   if (!v) return null;
 
-  // Gemini's native format is box_2d: [ymin, xmin, ymax, xmax] on a 0..1000 grid.
-  if (Array.isArray(raw) && (raw as any).length === 4 && !corners) {
-    yFirst = false;
-  }
-  if (raw && typeof raw === "object" && !Array.isArray(raw) && num((raw as any).box_2d) !== undefined) {
-    // handled below by the caller passing box_2d directly
-  }
+
 
   // Work out the unit the numbers are in.
   const max = Math.max(...v.map(Math.abs));
