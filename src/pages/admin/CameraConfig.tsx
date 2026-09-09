@@ -676,6 +676,26 @@ const CameraConfig = () => {
             </DialogDescription>
           </DialogHeader>
           {editing && (
+            <div className="space-y-1.5 rounded-lg border border-border bg-muted/20 p-3">
+              <Label>Site / tenant this camera belongs to *</Label>
+              <Select
+                value={editing.tenant_id ?? activeTenantId ?? undefined}
+                onValueChange={(v) => setEditing({ ...editing, tenant_id: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select a site" /></SelectTrigger>
+                <SelectContent>
+                  {tenants.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Alerts, AI spend and the operator wall for this camera all sit under the site chosen here.
+                It defaults to the site selected in the header.
+              </p>
+            </div>
+          )}
+          {editing && (
             <Tabs defaultValue="stream" className="w-full">
               <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="stream">Stream</TabsTrigger>
