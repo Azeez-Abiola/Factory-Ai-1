@@ -69,6 +69,12 @@ Deno.serve(async (req) => {
     }
 
     const bytes = new Uint8Array(await res.arrayBuffer());
+    // A readable frame is proof the camera is reachable — treat it as a heartbeat.
+    await admin
+      .from('cameras')
+      .update({ status: 'online', last_seen_at: new Date().toISOString() })
+      .eq('id', cam.id);
+
     return new Response(bytes, {
       headers: {
         ...corsHeaders,
