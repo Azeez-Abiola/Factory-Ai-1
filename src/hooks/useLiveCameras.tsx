@@ -51,7 +51,19 @@ function computeStatus(row: any): MockCamera["status"] {
   return row.status === "offline" ? "offline" : "online";
 }
 
-function normalize(row: any, detections: DetectionPing[]): LiveCamera {
+/**
+ * Recorder snapshots sit on plain http behind Digest auth, so the browser
+ * cannot load them directly — they are proxied through the backend over https.
+ */
+function snapshotProxyUrl(cameraId: string, token: string | null) {
+  if (!token) return null;
+  const base = import.meta.env.VITE_SUPABASE_URL;
+  if (!base) return null;
+  return `${base}/functions/v1/camera-snapshot?camera_id=${cameraId}&token=${encodeURIComponent(token)}`;
+}
+
+function normalize(row: any, detections: DetectionPing[], token: string | null): LiveCamera {
+  const snapshotPlayback = row.snapshot_url ? snapshotProxyUrl(row.id, token) : null;
   const camDetections = detections.filter((d) => d.cameraId === row.id);
   return {
     id: row.id,
@@ -81,8 +93,8 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
     clipAnalysisEnabled: !!row.clip_analysis_enabled,
     clipSeconds: row.clip_seconds ?? 5,
-    playbackUrl: row.stream_url ?? row.snapshot_url ?? null,
-    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : row.snapshot_url ? "snapshot" : null,
+    playbackUrl: row.stream_url ?? snapshotPlayback ?? null,
+    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : snapshotPlayback ? "snapshot" : null,
     isLive: !!(row.stream_url || row.snapshot_url),
     isDbBacked: true,
 
@@ -102,6 +114,17 @@ export function useLiveCameras() {
   const [detections, setDetections] = useState<DetectionPing[]>([]);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const [token, setToken] = useState<string | null>(null);
+
+  // Snapshot playback goes through an authenticated backend proxy.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
 
   // Re-evaluate offline heartbeat every 15s
   useEffect(() => {
@@ -174,8 +197,8 @@ export function useLiveCameras() {
 
   const cameras = useMemo<LiveCamera[]>(() => {
     void tick;
-    return rows.map((r) => normalize(r, detections));
-  }, [rows, detections, tick, loading]);
+    return rows.map((r) => normalize(r, detections, token));
+  }, [rows, detections, tick, loading, token]);
 
   return { cameras, loading, hasLiveStreams: cameras.some((c) => c.isLive) };
 }

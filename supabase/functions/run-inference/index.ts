@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { fetchWithAuth } from '../_shared/digestFetch.ts';
 
 /**
  * run-inference: pulls a real still frame from every due camera, sends it to
@@ -41,13 +42,11 @@ function snapshotCandidate(cam: Record<string, any>): string | null {
 
 async function fetchFrame(url: string, credentials: Record<string, any> | null) {
   const headers: Record<string, string> = { Accept: 'image/*' };
-  if (credentials?.username) {
-    headers.Authorization = `Basic ${btoa(`${credentials.username}:${credentials.password ?? ''}`)}`;
-  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12_000);
   try {
-    const res = await fetch(url, { headers, signal: controller.signal });
+    // Recorders (Hikvision/Dahua) answer with Digest auth, not Basic.
+    const res = await fetchWithAuth(url, credentials as any, { headers, signal: controller.signal });
     if (!res.ok) return { ok: false as const, reason: `snapshot_http_${res.status}` };
     const ct = res.headers.get('content-type') ?? 'image/jpeg';
     if (!ct.startsWith('image/') && !ct.startsWith('multipart/')) {
