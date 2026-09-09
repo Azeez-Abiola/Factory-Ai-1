@@ -614,21 +614,35 @@ const RulesPolicy = () => {
   const load = async () => {
     setLoading(true);
     if (!activeTenantId) {
-      setPolicies([]); setRules([]); setLoading(false);
+      setPolicies([]); setRules([]); setCameras([]); setZones([]); setLoading(false);
       return;
     }
-    const [{ data: pd, error: pe }, { data: rd, error: re }] = await Promise.all([
+    const [{ data: pd, error: pe }, { data: rd, error: re }, { data: cd }, { data: zd }] = await Promise.all([
       supabase.from("policies").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
       supabase.from("alert_rules").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
+      supabase.from("cameras").select("id, name, zone").eq("tenant_id", activeTenantId).order("name"),
+      supabase.from("site_zones").select("name").eq("tenant_id", activeTenantId).order("name"),
     ]);
     if (pe) toast.error(pe.message);
     if (re) toast.error(re.message);
     setPolicies((pd ?? []) as Policy[]);
     setRules((rd ?? []) as AlertRule[]);
+    setCameras((cd ?? []) as ScopeCamera[]);
+    setZones(((zd ?? []) as { name: string }[]).map(z => z.name));
     setLoading(false);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTenantId]);
+
+  // Zones come from the mapped floor plan plus any zone already set on a camera.
+  const zoneOptions = useMemo(() => {
+    const set = new Set<string>(zones);
+    cameras.forEach(c => c.zone && set.add(c.zone));
+    policies.forEach(p => (p.scope_zones ?? []).forEach(z => set.add(z)));
+    return Array.from(set).sort();
+  }, [zones, cameras, policies]);
+
+  const cameraLabel = (id: string) => cameras.find(c => c.id === id)?.name ?? id;
 
   const togglePolicy = async (p: Policy) => {
     const { error } = await supabase.from("policies").update({ enabled: !p.enabled }).eq("id", p.id);
