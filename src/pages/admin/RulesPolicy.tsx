@@ -70,7 +70,7 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, seed, onSaved, categories,
+  open, onOpenChange, editing, seed, onSaved, categories, tenantId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -78,6 +78,7 @@ function PolicyDialog({
   seed?: PolicyTemplate | null;
   onSaved: () => void;
   categories: string[];
+  tenantId: string | null;
 }) {
   const [form, setForm] = useState({
     name: "", description: "", natural_language: "",
@@ -158,6 +159,10 @@ function PolicyDialog({
       toast.error("Name and policy statement are required.");
       return;
     }
+    if (!editing && !tenantId) {
+      toast.error("Select a site first — policies are scoped to a site.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -174,7 +179,7 @@ function PolicyDialog({
       };
       const { error } = editing
         ? await supabase.from("policies").update(payload).eq("id", editing.id)
-        : await supabase.from("policies").insert(payload);
+        : await supabase.from("policies").insert({ ...payload, tenant_id: tenantId });
       if (error) throw error;
       toast.success(editing ? "Policy updated." : "Policy created.");
       onSaved();
@@ -317,13 +322,14 @@ function PolicyDialog({
 
 // ── Alert Rule Dialog ──
 function AlertRuleDialog({
-  open, onOpenChange, editing, policies, onSaved,
+  open, onOpenChange, editing, policies, onSaved, tenantId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing?: AlertRule | null;
   policies: Policy[];
   onSaved: () => void;
+  tenantId: string | null;
 }) {
   const [form, setForm] = useState<{
     name: string; description: string; policy_id: string | null;
@@ -377,6 +383,7 @@ function AlertRuleDialog({
 
   const save = async () => {
     if (!form.name.trim()) { toast.error("Name is required."); return; }
+    if (!editing && !tenantId) { toast.error("Select a site first — alert rules are scoped to a site."); return; }
     setSaving(true);
     try {
       const payload = {
@@ -394,7 +401,7 @@ function AlertRuleDialog({
       };
       const { error } = editing
         ? await supabase.from("alert_rules").update(payload).eq("id", editing.id)
-        : await supabase.from("alert_rules").insert(payload);
+        : await supabase.from("alert_rules").insert({ ...payload, tenant_id: tenantId });
       if (error) throw error;
       toast.success(editing ? "Alert rule updated." : "Alert rule created.");
       onSaved();
@@ -528,6 +535,7 @@ const RulesPolicy = () => {
   const [tplCategory, setTplCategory] = useState<string>("all");
   const [tab, setTab] = useState<string>("policies");
   const [catSearch, setCatSearch] = useState("");
+  const [policyCategory, setPolicyCategory] = useState<string>("all");
   const [renaming, setRenaming] = useState<{ old: string; next: string } | null>(null);
   const [savingRename, setSavingRename] = useState(false);
 
@@ -575,9 +583,13 @@ const RulesPolicy = () => {
 
   const load = async () => {
     setLoading(true);
+    if (!activeTenantId) {
+      setPolicies([]); setRules([]); setLoading(false);
+      return;
+    }
     const [{ data: pd, error: pe }, { data: rd, error: re }] = await Promise.all([
-      supabase.from("policies").select("*").order("created_at", { ascending: false }),
-      supabase.from("alert_rules").select("*").order("created_at", { ascending: false }),
+      supabase.from("policies").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
+      supabase.from("alert_rules").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
     ]);
     if (pe) toast.error(pe.message);
     if (re) toast.error(re.message);
@@ -586,7 +598,7 @@ const RulesPolicy = () => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTenantId]);
 
   const togglePolicy = async (p: Policy) => {
     const { error } = await supabase.from("policies").update({ enabled: !p.enabled }).eq("id", p.id);
@@ -642,6 +654,7 @@ const RulesPolicy = () => {
     }
   };
 
+  const visiblePolicies = policyCategory === "all" ? policies : policies.filter(p => p.category === policyCategory);
   const activePolicies = policies.filter(p => p.enabled).length;
   const compiled = policies.filter(p => p.compiled_prompt).length;
   const activeRules = rules.filter(r => r.enabled).length;
@@ -772,6 +785,12 @@ const RulesPolicy = () => {
         {/* Policies */}
         <TabsContent value="policies" className="mt-4 space-y-3">
           {loading && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>}
+          {!loading && policies.length > 0 && visiblePolicies.length === 0 && (
+            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
+              No policies in “{policyCategory}”.{" "}
+              <button className="text-primary hover:underline" onClick={() => setPolicyCategory("all")}>Clear filter</button>
+            </CardContent></Card>
+          )}
           {!loading && policies.length === 0 && (
             <Card><CardContent className="py-10 text-center">
               <ShieldCheck className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
@@ -782,7 +801,7 @@ const RulesPolicy = () => {
               </Button>
             </CardContent></Card>
           )}
-          {policies.map(p => (
+          {visiblePolicies.map(p => (
             <Card key={p.id} className="group">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
@@ -950,7 +969,7 @@ const RulesPolicy = () => {
                       {c.enabled}<span className="text-muted-foreground">/{c.policies}</span>
                     </div>
                     <div className="col-span-3 flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => { setTplCategory(c.name); setTab("policies"); }}
+                      <Button size="sm" variant="ghost" onClick={() => { setPolicyCategory(c.name); setTab("policies"); }}
                         disabled={c.policies === 0} title="View policies">
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Button>
@@ -1001,7 +1020,11 @@ const RulesPolicy = () => {
                 if (!next) return;
                 setSavingRename(true);
                 const affected = policies.filter(p => p.category === renaming.old).map(p => p.id);
-                const { error } = await supabase.from("policies").update({ category: next }).eq("category", renaming.old);
+                const { error } = await supabase
+                  .from("policies")
+                  .update({ category: next })
+                  .eq("category", renaming.old)
+                  .eq("tenant_id", activeTenantId ?? "");
                 setSavingRename(false);
                 if (error) return toast.error(error.message);
                 toast.success(`Renamed to "${next}" (${affected.length} polic${affected.length === 1 ? "y" : "ies"} updated).`);
@@ -1029,8 +1052,9 @@ const RulesPolicy = () => {
         seed={seedTemplate}
         onSaved={load}
         categories={allCategories}
+        tenantId={activeTenantId}
       />
-      <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} />
+      <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} tenantId={activeTenantId} />
     </div>
   );
 };
