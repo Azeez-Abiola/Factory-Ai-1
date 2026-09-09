@@ -30,12 +30,12 @@ function requestHeaders(credentials?: { username?: string; password?: string } |
 
 class ProbeError extends Error {}
 
-async function fetchWithTimeout(url: string, init: RequestInit) {
+async function fetchWithTimeout(url: string, init: RequestInit, credentials?: { username?: string; password?: string } | null) {
   const controller = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 10_000);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await fetchWithAuth(url, credentials, { ...init, signal: controller.signal });
   } catch (e) {
     if (timedOut) {
       throw new ProbeError('The stream did not respond within 10 seconds. Check the address is reachable from the public internet (not a private LAN IP) and that any gateway/firewall allows it.');
