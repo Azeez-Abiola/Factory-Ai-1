@@ -160,6 +160,15 @@ const UserManagement = () => {
 
   const handleInvite = async () => {
     if (!activeTenantId || !inviteEmail.trim()) return;
+    const target = inviteEmail.trim().toLowerCase();
+    if (members.some((m) => (m.email ?? "").toLowerCase() === target)) {
+      toast.error("That person is already a member of this site.");
+      return;
+    }
+    if (pendingInvites.some((i) => i.email.toLowerCase() === target)) {
+      toast.error("An invitation for this email is already pending.");
+      return;
+    }
     setSubmitting(true);
     const { data, error } = await supabase
       .from("tenant_invitations")
