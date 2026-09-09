@@ -170,34 +170,36 @@ const Quality = () => {
     }
     return [...map.values()].sort((x, y) => y.total - x.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alerts, cameras]);
+  }, [visible, cameras]);
 
   const perType = useMemo(() => {
     const map = new Map<string, { type: string; count: number; severity: string }>();
-    for (const a of alerts) {
-      const key = prettify(a.type || "Unclassified defect");
-      const row = map.get(key) ?? { type: key, count: 0, severity: a.severity };
+    for (const a of visible) {
+      const configured = defectTypes.find((d) => matchesDefect(a, d));
+      const key = configured ? configured.label : prettify(a.type || "Unclassified defect");
+      const row = map.get(key) ?? { type: key, count: 0, severity: configured?.severity_hint || a.severity };
       row.count++;
       if (["critical", "high"].includes(a.severity)) row.severity = a.severity;
       map.set(key, row);
     }
     return [...map.values()].sort((x, y) => y.count - x.count).slice(0, 8);
-  }, [alerts]);
+  }, [visible, defectTypes]);
 
   const exportCsv = () => {
     downloadCSV(`quality-defects-${range}.csv`, [
       ["Detected", "Camera", "Zone", "Defect type", "Severity", "Status", "Resolved at"],
-      ...alerts.map((a) => [
+      ...visible.map((a) => [
         new Date(a.detected_at).toLocaleString(),
         cameraName(a.camera_id),
         a.zone ?? "—",
-        prettify(a.type),
+        defectTypes.find((d) => matchesDefect(a, d))?.label ?? prettify(a.type),
         a.severity,
         a.status,
         a.resolved_at ? new Date(a.resolved_at).toLocaleString() : "",
       ]),
     ]);
   };
+
 
   return (
     <div className="space-y-6">
