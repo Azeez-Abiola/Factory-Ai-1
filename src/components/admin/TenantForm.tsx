@@ -123,7 +123,7 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: Tena
     await onSubmit({
       ...values,
       id: tenant?.id,
-      parent_id: parentTenant?.id ?? tenant?.parent_id ?? null,
+      parent_id: parentId,
     });
     onOpenChange(false);
     form.reset();
