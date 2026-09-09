@@ -532,6 +532,90 @@ export type Database = {
           },
         ]
       }
+      equipment_assets: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          anomaly_type: string | null
+          asset_type: string
+          camera_id: string | null
+          created_at: string
+          created_by: string | null
+          estimated_time_to_failure: string | null
+          failure_probability: number
+          health_history: Json
+          health_score: number
+          id: string
+          last_service_at: string | null
+          metadata: Json
+          name: string
+          recommendation: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          zone: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          anomaly_type?: string | null
+          asset_type?: string
+          camera_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estimated_time_to_failure?: string | null
+          failure_probability?: number
+          health_history?: Json
+          health_score?: number
+          id?: string
+          last_service_at?: string | null
+          metadata?: Json
+          name: string
+          recommendation?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          zone?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          anomaly_type?: string | null
+          asset_type?: string
+          camera_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estimated_time_to_failure?: string | null
+          failure_probability?: number
+          health_history?: Json
+          health_score?: number
+          id?: string
+          last_service_at?: string | null
+          metadata?: Json
+          name?: string
+          recommendation?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_assets_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "cameras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_assets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escalation_policies: {
         Row: {
           created_at: string
@@ -1596,6 +1680,78 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      work_orders: {
+        Row: {
+          asset_id: string | null
+          assigned_to: string | null
+          assignee_name: string
+          completed_at: string | null
+          completion_notes: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          priority: string
+          reference: string
+          scheduled_date: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          assigned_to?: string | null
+          assignee_name: string
+          completed_at?: string | null
+          completion_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          reference: string
+          scheduled_date?: string | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          assigned_to?: string | null
+          assignee_name?: string
+          completed_at?: string | null
+          completion_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string
+          reference?: string
+          scheduled_date?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
