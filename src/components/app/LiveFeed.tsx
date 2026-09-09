@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 interface LiveFeedProps {
   url: string;
   type?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
+  /** Used automatically when the primary stream cannot be played (gateway down). */
+  fallbackUrl?: string | null;
+  fallbackType?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
   /** Refresh interval for snapshot playback (ms). */
   snapshotIntervalMs?: number;
   muted?: boolean;
@@ -25,19 +28,50 @@ interface LiveFeedProps {
  * - HLS via hls.js (with native Safari playback fallback).
  * - MJPEG via <img>.
  * - WebRTC/WHEP: attempts a minimal WHEP handshake (POST SDP offer, receive answer).
+ * - Falls back to a snapshot feed when the streaming gateway is unreachable, and
+ *   retries the live stream periodically.
  *
  * A real production deploy will front cameras with a media gateway (MediaMTX,
  * AWS KVS, Frigate, Ant Media, etc.) that exposes HLS/WHEP URLs per camera.
  * Store that URL in `cameras.stream_url` and this component plays it.
  */
-export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, recordRef, overlay, snapshotIntervalMs = 1000 }: LiveFeedProps) {
+export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallbackType = "snapshot", muted = true, className, poster, captureRef, recordRef, overlay, snapshotIntervalMs = 1000 }: LiveFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"loading" | "playing" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [attempt, setAttempt] = useState(0);
   const [snapshotTick, setSnapshotTick] = useState(0);
-  const isImageFeed = type === "mjpeg" || type === "snapshot";
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  const hasFallback = !!fallbackUrl && fallbackUrl !== url;
+  const activeUrl = usingFallback && fallbackUrl ? fallbackUrl : url;
+  const activeType = usingFallback ? fallbackType ?? "snapshot" : type;
+  const isImageFeed = activeType === "mjpeg" || activeType === "snapshot";
+
+  // Reset the fallback whenever the camera / primary address changes.
+  useEffect(() => { setUsingFallback(false); }, [url, type]);
+
+  // Stream failed → drop to snapshots instead of showing a dead tile.
+  useEffect(() => {
+    if (state === "error" && hasFallback && !usingFallback) {
+      setUsingFallback(true);
+      setState("loading");
+      setErrorMsg("");
+    }
+  }, [state, hasFallback, usingFallback]);
+
+  // While on snapshots, re-test the gateway every 60s so playback self-heals.
+  useEffect(() => {
+    if (!usingFallback || !hasFallback) return;
+    const t = window.setTimeout(() => {
+      setUsingFallback(false);
+      setState("loading");
+      setErrorMsg("");
+    }, 60000);
+    return () => window.clearTimeout(t);
+  }, [usingFallback, hasFallback, attempt]);
+
 
   // Snapshot playback: re-fetch the still image on a timer so the tile animates.
   useEffect(() => {
