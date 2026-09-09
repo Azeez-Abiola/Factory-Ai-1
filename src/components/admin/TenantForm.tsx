@@ -80,9 +80,13 @@ const SectionHeader = ({ icon: Icon, title, hint }: { icon: React.ElementType; t
   </div>
 );
 
-const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: TenantFormProps) => {
+const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [], onSubmit }: TenantFormProps) => {
   const isEdit = !!tenant;
   const isSubTenant = !!parentTenant;
+  const [parentId, setParentId] = useState<string | null>(
+    parentTenant?.id ?? tenant?.parent_id ?? null,
+  );
+  const parentOptions = eligibleParents(allTenants, tenant?.id).filter((t) => t.id !== tenant?.id);
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantSchema),
