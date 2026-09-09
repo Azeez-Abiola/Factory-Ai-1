@@ -1104,6 +1104,8 @@ const RulesPolicy = () => {
         onSaved={load}
         categories={allCategories}
         tenantId={activeTenantId}
+        cameras={cameras}
+        zoneOptions={zoneOptions}
       />
       <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} tenantId={activeTenantId} />
     </div>
