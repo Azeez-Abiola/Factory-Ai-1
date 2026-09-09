@@ -964,7 +964,7 @@ const RulesPolicy = () => {
                 </Button>
               </div>
 
-              <div className="rounded-lg border border-border divide-y divide-border">
+              <div className="rounded-lg border border-border divide-y divide-border overflow-x-auto [&>*]:min-w-[520px]">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
                   <div className="col-span-5">Category</div>
                   <div className="col-span-2 text-center">Policies</div>
