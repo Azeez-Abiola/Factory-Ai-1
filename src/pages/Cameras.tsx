@@ -465,7 +465,9 @@ const DetectionBoxes = ({ boxes, large }: { boxes: VisionBox[]; large: boolean }
 const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false, visionOn = true, tenantId = null, stagger = 0 }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean; visionOn?: boolean; tenantId?: string | null; stagger?: number }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
-  const showLive = cam.isLive && cam.streamUrl;
+  const playbackUrl = cam.playbackUrl ?? cam.streamUrl ?? cam.snapshotUrl ?? null;
+  const playbackType = cam.playbackType ?? (cam.streamUrl ? cam.streamType ?? "hls" : cam.snapshotUrl ? "snapshot" : null);
+  const showLive = !!playbackUrl;
   const captureRef = useRef<(() => string | null) | null>(null);
   const recordRef = useRef<((seconds: number) => Promise<string | null>) | null>(null);
 
@@ -499,6 +501,11 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           <config.icon className={cn(large ? "w-10 h-10" : "w-6 h-6", "mx-auto mb-1", config.text)} />
           <p className={cn("font-mono", large ? "text-sm" : "text-xs", config.text)}>{config.label}</p>
           <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.name}</p>
+          {cam.status !== "maintenance" && !showLive && (
+            <p className="mt-1 max-w-[220px] text-[9px] leading-tight text-muted-foreground">
+              No playback address yet — add a stream or snapshot URL in Cameras &amp; AI setup.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -511,8 +518,9 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
     <>
       <div className="absolute inset-0">
         <LiveFeed
-          url={cam.streamUrl}
-          type={cam.streamType ?? "hls"}
+          url={playbackUrl}
+          type={playbackType ?? "hls"}
+          snapshotIntervalMs={large || tileFocus ? 700 : 1500}
           muted={!canPlayAudio}
           captureRef={captureRef}
           recordRef={recordRef}
