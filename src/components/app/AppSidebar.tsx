@@ -27,7 +27,6 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
       { to: "/app/quality", icon: PackageSearch, label: "Quality" },
       { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
       { to: "/app/reports", icon: FileText, label: "Reports" },
-      
       { to: "/app/maintenance", icon: Wrench, label: "Maintenance" },
     ],
   },
