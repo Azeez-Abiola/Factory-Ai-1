@@ -800,6 +800,12 @@ const RulesPolicy = () => {
         {/* Policies */}
         <TabsContent value="policies" className="mt-4 space-y-3">
           {loading && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>}
+          {policyCategory !== "all" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline" className="border-primary/40 text-primary"><Tag className="w-3 h-3 mr-1" />{policyCategory}</Badge>
+              <button className="hover:underline" onClick={() => setPolicyCategory("all")}>Clear filter</button>
+            </div>
+          )}
           {!loading && policies.length > 0 && visiblePolicies.length === 0 && (
             <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
               No policies in “{policyCategory}”.{" "}
@@ -819,7 +825,7 @@ const RulesPolicy = () => {
           {visiblePolicies.map(p => (
             <Card key={p.id} className="group">
               <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold truncate">{p.name}</h3>
@@ -835,7 +841,7 @@ const RulesPolicy = () => {
                       {p.scope_cameras.length > 0 && <span>Cameras: {p.scope_cameras.join(", ")}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 sm:shrink-0">
                     <Switch checked={p.enabled} onCheckedChange={() => togglePolicy(p)} />
                     <Button variant="ghost" size="icon" onClick={() => { setEditingPolicy(p); setPolicyDialog(true); }}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => deletePolicy(p.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
@@ -864,7 +870,7 @@ const RulesPolicy = () => {
             return (
               <Card key={r.id}>
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{r.name}</h3>
@@ -881,7 +887,7 @@ const RulesPolicy = () => {
                         <span>via {r.notification_channels.join(", ")}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 sm:shrink-0">
                       <Switch checked={r.enabled} onCheckedChange={() => toggleRule(r)} />
                       <Button variant="ghost" size="icon" onClick={() => { setEditingRule(r); setRuleDialog(true); }}><Pencil className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteRule(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
