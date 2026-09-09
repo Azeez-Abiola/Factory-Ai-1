@@ -73,7 +73,7 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, seed, onSaved, categories, tenantId,
+  open, onOpenChange, editing, seed, onSaved, categories, tenantId, cameras, zoneOptions,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -82,11 +82,17 @@ function PolicyDialog({
   onSaved: () => void;
   categories: string[];
   tenantId: string | null;
+  cameras: ScopeCamera[];
+  zoneOptions: string[];
 }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string; description: string; natural_language: string;
+    category: string; severity: string; enabled: boolean;
+    scope_zones: string[]; scope_cameras: string[];
+  }>({
     name: "", description: "", natural_language: "",
     category: "safety", severity: "medium", enabled: true,
-    scope_zones: "", scope_cameras: "",
+    scope_zones: [], scope_cameras: [],
   });
   const [compiling, setCompiling] = useState(false);
   const [saving, setSaving] = useState(false);
