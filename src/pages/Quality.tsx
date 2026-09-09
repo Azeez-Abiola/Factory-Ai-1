@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { downloadCSV } from "@/lib/exporters";
 import { cn } from "@/lib/utils";
+import { DEFAULT_DEFECT_TYPES, matchesDefectType, type DefectType } from "@/lib/defectTypes";
 
 interface AlertRow {
   id: string;
@@ -55,19 +56,25 @@ const SEVERITY_COLOR: Record<string, string> = {
   low: "hsl(var(--muted-foreground))",
 };
 
+const matchesDefect = (a: AlertRow, d: DefectType) => matchesDefectType(a, d);
+
+
 const Quality = () => {
   const { activeTenantId } = useTenants();
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [cameras, setCameras] = useState<{ id: string; name: string; zone: string | null }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<DefectType[]>([]);
+  const [defectFilter, setDefectFilter] = useState<string>("all");
   const [range, setRange] = useState<keyof typeof RANGE_HOURS>("7d");
   const [loading, setLoading] = useState(true);
+
 
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
     setLoading(true);
     const since = new Date(Date.now() - RANGE_HOURS[range] * 3600 * 1000).toISOString();
-    const [a, c] = await Promise.all([
+    const [a, c, cfg] = await Promise.all([
       supabase.from("alerts")
         .select("id,camera_id,type,title,severity,status,zone,detected_at,resolved_at,metadata")
         .eq("tenant_id", activeTenantId)
@@ -75,11 +82,16 @@ const Quality = () => {
         .order("detected_at", { ascending: false })
         .limit(5000),
       supabase.from("cameras").select("id,name,zone").eq("tenant_id", activeTenantId),
+      supabase.from("ai_analysis_config").select("defect_types").eq("tenant_id", activeTenantId).maybeSingle(),
     ]);
     setAlerts(((a.data ?? []) as AlertRow[]).filter(isQualityAlert));
     setCameras((c.data ?? []) as any);
+    const defs = Array.isArray((cfg.data as any)?.defect_types) ? ((cfg.data as any).defect_types as DefectType[]) : [];
+    const enabled = defs.filter((d) => d?.label && d.enabled !== false);
+    setDefectTypes(enabled.length ? enabled : DEFAULT_DEFECT_TYPES);
     setLoading(false);
   }, [activeTenantId, range]);
+
 
   useEffect(() => { load(); }, [load]);
 
@@ -97,12 +109,27 @@ const Quality = () => {
   const cameraName = (id: string | null) =>
     cameras.find((c) => c.id === id)?.name ?? (id ? `Camera ${id.slice(0, 8)}` : "Unassigned");
 
+  /** Counts per configured defect type (drives the filter labels). */
+  const defectCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const d of defectTypes) map[d.id] = alerts.filter((a) => matchesDefect(a, d)).length;
+    map.__other = alerts.filter((a) => !defectTypes.some((d) => matchesDefect(a, d))).length;
+    return map;
+  }, [alerts, defectTypes]);
+
+  const visible = useMemo(() => {
+    if (defectFilter === "all") return alerts;
+    if (defectFilter === "__other") return alerts.filter((a) => !defectTypes.some((d) => matchesDefect(a, d)));
+    const d = defectTypes.find((x) => x.id === defectFilter);
+    return d ? alerts.filter((a) => matchesDefect(a, d)) : alerts;
+  }, [alerts, defectFilter, defectTypes]);
+
   const stats = useMemo(() => {
-    const total = alerts.length;
-    const open = alerts.filter((a) => OPEN.includes(a.status)).length;
-    const inProgress = alerts.filter((a) => ACK.includes(a.status)).length;
-    const resolved = alerts.filter((a) => isResolved(a.status)).length;
-    const times = alerts
+    const total = visible.length;
+    const open = visible.filter((a) => OPEN.includes(a.status)).length;
+    const inProgress = visible.filter((a) => ACK.includes(a.status)).length;
+    const resolved = visible.filter((a) => isResolved(a.status)).length;
+    const times = visible
       .filter((a) => a.resolved_at)
       .map((a) => (new Date(a.resolved_at!).getTime() - new Date(a.detected_at).getTime()) / 60000);
     const mttr = times.length ? Math.round(times.reduce((s, n) => s + n, 0) / times.length) : 0;
@@ -110,13 +137,14 @@ const Quality = () => {
       total, open, inProgress, resolved, mttr,
       resolutionRate: total ? Math.round((resolved / total) * 100) : 100,
     };
-  }, [alerts]);
+  }, [visible]);
 
   const perCamera = useMemo(() => {
     const map = new Map<string, { name: string; total: number; open: number; resolved: number; critical: number }>();
-    for (const a of alerts) {
+    for (const a of visible) {
       const key = a.camera_id ?? "unassigned";
       const row = map.get(key) ?? { name: cameraName(a.camera_id), total: 0, open: 0, resolved: 0, critical: 0 };
+
       row.total++;
       if (isResolved(a.status)) row.resolved++;
       else row.open++;
@@ -125,34 +153,36 @@ const Quality = () => {
     }
     return [...map.values()].sort((x, y) => y.total - x.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alerts, cameras]);
+  }, [visible, cameras]);
 
   const perType = useMemo(() => {
     const map = new Map<string, { type: string; count: number; severity: string }>();
-    for (const a of alerts) {
-      const key = prettify(a.type || "Unclassified defect");
-      const row = map.get(key) ?? { type: key, count: 0, severity: a.severity };
+    for (const a of visible) {
+      const configured = defectTypes.find((d) => matchesDefect(a, d));
+      const key = configured ? configured.label : prettify(a.type || "Unclassified defect");
+      const row = map.get(key) ?? { type: key, count: 0, severity: configured?.severity_hint || a.severity };
       row.count++;
       if (["critical", "high"].includes(a.severity)) row.severity = a.severity;
       map.set(key, row);
     }
     return [...map.values()].sort((x, y) => y.count - x.count).slice(0, 8);
-  }, [alerts]);
+  }, [visible, defectTypes]);
 
   const exportCsv = () => {
     downloadCSV(`quality-defects-${range}.csv`, [
       ["Detected", "Camera", "Zone", "Defect type", "Severity", "Status", "Resolved at"],
-      ...alerts.map((a) => [
+      ...visible.map((a) => [
         new Date(a.detected_at).toLocaleString(),
         cameraName(a.camera_id),
         a.zone ?? "—",
-        prettify(a.type),
+        defectTypes.find((d) => matchesDefect(a, d))?.label ?? prettify(a.type),
         a.severity,
         a.status,
         a.resolved_at ? new Date(a.resolved_at).toLocaleString() : "",
       ]),
     ]);
   };
+
 
   return (
     <div className="space-y-6">
@@ -163,6 +193,20 @@ const Quality = () => {
         description="Defects detected per camera, the defect types driving them, and how quickly your team is closing them out."
         actions={
           <>
+            <Select value={defectFilter} onValueChange={setDefectFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All defect types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All defect types ({alerts.length})</SelectItem>
+                {defectTypes.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label} ({defectCounts[d.id] ?? 0})
+                  </SelectItem>
+                ))}
+                <SelectItem value="__other">Uncategorised ({defectCounts.__other ?? 0})</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={range} onValueChange={(v) => setRange(v as keyof typeof RANGE_HOURS)}>
               <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -174,12 +218,19 @@ const Quality = () => {
             <Button variant="outline" className="gap-2" onClick={load} disabled={loading}>
               <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
             </Button>
-            <Button variant="outline" className="gap-2" onClick={exportCsv} disabled={!alerts.length}>
+            <Button variant="outline" className="gap-2" onClick={exportCsv} disabled={!visible.length}>
               <Download className="w-4 h-4" /> Export
             </Button>
           </>
         }
       />
+
+      {defectTypes.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          No defect types configured yet — set them up under Admin → AI Model &amp; Categories to filter by your own product defects.
+        </p>
+      )}
+
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Defects detected" value={stats.total} subtitle={`Across ${perCamera.length} camera${perCamera.length === 1 ? "" : "s"}`} icon={PackageSearch} />
