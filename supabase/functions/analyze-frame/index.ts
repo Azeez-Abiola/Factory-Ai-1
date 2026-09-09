@@ -162,6 +162,7 @@ Analyze the provided camera frame and return a STRICT JSON object with this sche
 }
 "bbox" is REQUIRED for every detection and must be normalised to the image size as fractions between 0 and 1:
 x = left edge, y = top edge, width and height are the box size (x + width <= 1, y + height <= 1).
+Coordinates are always measured against the FULL frame you were given (top-left = 0,0; bottom-right = 1,1) — never against a crop, an inspection area or the original camera resolution.
 Draw one box per distinct person, vehicle, machine or hazard you flag — boxes must tightly enclose the subject.
 Return ONLY the JSON object — no markdown, no prose.`;
 
