@@ -126,12 +126,27 @@ const Quality = () => {
   const cameraName = (id: string | null) =>
     cameras.find((c) => c.id === id)?.name ?? (id ? `Camera ${id.slice(0, 8)}` : "Unassigned");
 
+  /** Counts per configured defect type (drives the filter labels). */
+  const defectCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const d of defectTypes) map[d.id] = alerts.filter((a) => matchesDefect(a, d)).length;
+    map.__other = alerts.filter((a) => !defectTypes.some((d) => matchesDefect(a, d))).length;
+    return map;
+  }, [alerts, defectTypes]);
+
+  const visible = useMemo(() => {
+    if (defectFilter === "all") return alerts;
+    if (defectFilter === "__other") return alerts.filter((a) => !defectTypes.some((d) => matchesDefect(a, d)));
+    const d = defectTypes.find((x) => x.id === defectFilter);
+    return d ? alerts.filter((a) => matchesDefect(a, d)) : alerts;
+  }, [alerts, defectFilter, defectTypes]);
+
   const stats = useMemo(() => {
-    const total = alerts.length;
-    const open = alerts.filter((a) => OPEN.includes(a.status)).length;
-    const inProgress = alerts.filter((a) => ACK.includes(a.status)).length;
-    const resolved = alerts.filter((a) => isResolved(a.status)).length;
-    const times = alerts
+    const total = visible.length;
+    const open = visible.filter((a) => OPEN.includes(a.status)).length;
+    const inProgress = visible.filter((a) => ACK.includes(a.status)).length;
+    const resolved = visible.filter((a) => isResolved(a.status)).length;
+    const times = visible
       .filter((a) => a.resolved_at)
       .map((a) => (new Date(a.resolved_at!).getTime() - new Date(a.detected_at).getTime()) / 60000);
     const mttr = times.length ? Math.round(times.reduce((s, n) => s + n, 0) / times.length) : 0;
@@ -139,13 +154,14 @@ const Quality = () => {
       total, open, inProgress, resolved, mttr,
       resolutionRate: total ? Math.round((resolved / total) * 100) : 100,
     };
-  }, [alerts]);
+  }, [visible]);
 
   const perCamera = useMemo(() => {
     const map = new Map<string, { name: string; total: number; open: number; resolved: number; critical: number }>();
-    for (const a of alerts) {
+    for (const a of visible) {
       const key = a.camera_id ?? "unassigned";
       const row = map.get(key) ?? { name: cameraName(a.camera_id), total: 0, open: 0, resolved: 0, critical: 0 };
+
       row.total++;
       if (isResolved(a.status)) row.resolved++;
       else row.open++;
