@@ -299,7 +299,7 @@ const Maintenance = () => {
               <span className="text-sm text-muted-foreground">Filters:</span>
             </div>
             <Select value={riskFilter} onValueChange={setRiskFilter}>
-              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Risk Level" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs"><SelectValue placeholder="Risk Level" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Levels</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
@@ -308,14 +308,14 @@ const Maintenance = () => {
               </SelectContent>
             </Select>
             <Select value={zoneFilter} onValueChange={setZoneFilter}>
-              <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs"><SelectValue placeholder="Zone" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Zones</SelectItem>
                 {zones.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as "risk" | "probability")}>
-              <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="risk">Sort by Risk</SelectItem>
                 <SelectItem value="probability">Sort by Probability</SelectItem>

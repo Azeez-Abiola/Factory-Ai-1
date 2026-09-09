@@ -659,7 +659,7 @@ const RulesPolicy = () => {
               <BookOpen className="w-4 h-4 mr-1.5" /> Browse Templates
             </Button>
             <Select disabled={provisioning} onValueChange={applyStarterPack}>
-              <SelectTrigger className="w-[240px]">
+              <SelectTrigger className="w-full sm:w-[240px]">
                 <SelectValue placeholder={provisioning ? "Applying starter pack…" : "Apply compliance starter pack"} />
               </SelectTrigger>
               <SelectContent>

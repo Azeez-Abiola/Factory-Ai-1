@@ -594,7 +594,7 @@ const CameraConfig = () => {
                     <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
                       <Camera className="h-6 w-6 text-muted-foreground" />
                       <p className="text-[11px] text-muted-foreground">No playback address yet</p>
-                      <p className="max-w-[240px] text-[10px] text-muted-foreground/80">
+                      <p className="max-w-full sm:w-[240px] text-[10px] text-muted-foreground/80">
                         Add a gateway stream or snapshot URL below to see this camera live.
                       </p>
                     </div>

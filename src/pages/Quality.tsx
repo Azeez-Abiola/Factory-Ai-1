@@ -194,7 +194,7 @@ const Quality = () => {
         actions={
           <>
             <Select value={defectFilter} onValueChange={setDefectFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="All defect types" />
               </SelectTrigger>
               <SelectContent>
@@ -208,7 +208,7 @@ const Quality = () => {
               </SelectContent>
             </Select>
             <Select value={range} onValueChange={(v) => setRange(v as keyof typeof RANGE_HOURS)}>
-              <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="24h">Last 24 hours</SelectItem>
                 <SelectItem value="7d">Last 7 days</SelectItem>
@@ -328,7 +328,7 @@ const Quality = () => {
                 <th className="text-right px-5 py-2.5">Critical</th>
                 <th className="text-right px-5 py-2.5">Outstanding</th>
                 <th className="text-right px-5 py-2.5">Closed</th>
-                <th className="text-right px-5 py-2.5 w-[180px]">Progress</th>
+                <th className="text-right px-5 py-2.5 w-full sm:w-[180px]">Progress</th>
               </tr>
             </thead>
             <tbody>

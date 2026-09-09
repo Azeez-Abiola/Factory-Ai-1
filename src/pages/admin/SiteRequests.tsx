@@ -130,7 +130,7 @@ const SiteRequests = () => {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-10 md:w-[180px]" aria-label="Status filter"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 md:w-full sm:w-[180px]" aria-label="Status filter"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
