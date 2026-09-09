@@ -410,6 +410,86 @@ const AIConfig = () => {
               </div>
             ))}
           </div>
+
+          <div className="glass rounded-xl border border-border p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Defect types</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                The specific product faults this site cares about. They are sent to the model with the
+                Quality / Defect category and drive the defect breakdown on the Quality page.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <Input
+                placeholder="New defect type (e.g. Label misaligned)"
+                value={newDefectLabel}
+                onChange={(e) => setNewDefectLabel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDefectType(); } }}
+                className="max-w-sm"
+              />
+              <Button variant="outline" onClick={addDefectType} className="gap-2"><Plus className="w-4 h-4" /> Add defect type</Button>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {defectTypes.filter((d) => d.enabled !== false).length} active · {defectTypes.length} total
+              </span>
+            </div>
+
+            {defectTypes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No defect types yet — add the faults your line inspects for, or{" "}
+                <button type="button" className="text-primary underline" onClick={() => setDefectTypes(DEFAULT_DEFECT_TYPES)}>
+                  start from the standard list
+                </button>.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {defectTypes.map((d) => (
+                  <div key={d.id} className="rounded-lg border border-border p-3 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Input
+                          value={d.label}
+                          onChange={(e) => updateDefectType(d.id, { label: e.target.value })}
+                          className="max-w-xs font-medium"
+                        />
+                        <Badge variant="outline" className="text-[10px] font-mono">{d.id}</Badge>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <Switch checked={d.enabled !== false} onCheckedChange={(v) => updateDefectType(d.id, { enabled: v })} />
+                        <Button size="icon" variant="ghost" onClick={() => removeDefectType(d.id)} aria-label="Delete defect type">
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-3">
+                      <div>
+                        <Label className="text-xs">What it looks like</Label>
+                        <Textarea
+                          value={d.description}
+                          onChange={(e) => updateDefectType(d.id, { description: e.target.value })}
+                          rows={2}
+                          className="text-sm"
+                          placeholder="Describe the fault so the model can recognise it…"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Default severity</Label>
+                        <Select value={d.severity_hint ?? "medium"} onValueChange={(v) => updateDefectType(d.id, { severity_hint: v as DefectType["severity_hint"] })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="model" className="space-y-4">
