@@ -199,7 +199,7 @@ const Settings = () => {
                       </div>
                       <div className="space-y-3 pt-2">
                         <Label className="text-xs text-muted-foreground">Subscription Events</Label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {availableEvents.map((event) => (
                             <div key={event} className="flex items-center space-x-2">
                               <Checkbox

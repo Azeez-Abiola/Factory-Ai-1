@@ -594,7 +594,7 @@ const CameraConfig = () => {
                     <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
                       <Camera className="h-6 w-6 text-muted-foreground" />
                       <p className="text-[11px] text-muted-foreground">No playback address yet</p>
-                      <p className="max-w-[240px] text-[10px] text-muted-foreground/80">
+                      <p className="max-w-full sm:max-w-[240px] text-[10px] text-muted-foreground/80">
                         Add a gateway stream or snapshot URL below to see this camera live.
                       </p>
                     </div>
@@ -602,7 +602,7 @@ const CameraConfig = () => {
                 </div>
 
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
                     <p className="text-muted-foreground">Resolution</p>
                     <p className="text-foreground">{cam.resolution} · {cam.fps}fps</p>
@@ -728,12 +728,12 @@ const CameraConfig = () => {
 
 
               <TabsContent value="stream" className="space-y-4 pt-4">
-                <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-card text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 overflow-hidden rounded-lg border border-border bg-card text-xs">
                   <div className="flex items-center gap-2 border-r border-border p-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">1</span><span>Camera details</span></div>
                   <div className="flex items-center gap-2 border-r border-border p-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">2</span><span>Connect & test</span></div>
                   <div className="flex items-center gap-2 p-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">3</span><span>Enable AI</span></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Camera Name *</Label>
                     <Input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Zone B – Assembly" />
@@ -885,7 +885,7 @@ const CameraConfig = () => {
                        else toast.error(result.reason ?? "Camera connection failed");
                     }} className="shrink-0 gap-2"><Wifi className="h-4 w-4" />{testing === "draft" ? "Testing…" : "Test connection"}</Button>
                   </div>
-                  <div className="col-span-2 grid grid-cols-3 gap-3">
+                  <div className="col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <Label>Frame Rate: {editing.fps} fps</Label>
                       <Slider value={[editing.fps ?? 25]} min={5} max={60} step={5} onValueChange={(v) => setEditing({ ...editing, fps: v[0] })} />

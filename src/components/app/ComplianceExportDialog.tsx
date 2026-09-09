@@ -111,7 +111,7 @@ export default function ComplianceExportDialog({ open, onOpenChange }: Props) {
           <DialogTitle className="flex items-center gap-2"><Download className="w-5 h-5 text-primary" /> Compliance Audit Export</DialogTitle>
           <DialogDescription>Resolution outcomes + linked audit records for {activeTenant?.name ?? "the active tenant"}.</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-background border-border" /></div>
           <div><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-background border-border" /></div>
         </div>

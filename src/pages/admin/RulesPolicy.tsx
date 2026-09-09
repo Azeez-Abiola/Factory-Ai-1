@@ -70,7 +70,7 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, seed, onSaved, categories,
+  open, onOpenChange, editing, seed, onSaved, categories, tenantId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -78,6 +78,7 @@ function PolicyDialog({
   seed?: PolicyTemplate | null;
   onSaved: () => void;
   categories: string[];
+  tenantId: string | null;
 }) {
   const [form, setForm] = useState({
     name: "", description: "", natural_language: "",
@@ -158,6 +159,10 @@ function PolicyDialog({
       toast.error("Name and policy statement are required.");
       return;
     }
+    if (!editing && !tenantId) {
+      toast.error("Select a site first — policies are scoped to a site.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -174,7 +179,7 @@ function PolicyDialog({
       };
       const { error } = editing
         ? await supabase.from("policies").update(payload).eq("id", editing.id)
-        : await supabase.from("policies").insert(payload);
+        : await supabase.from("policies").insert({ ...payload, tenant_id: tenantId });
       if (error) throw error;
       toast.success(editing ? "Policy updated." : "Policy created.");
       onSaved();
@@ -200,10 +205,10 @@ function PolicyDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Hard hat compliance – Zone A" />
+              <Label htmlFor="policy-name">Name *</Label>
+              <Input id="policy-name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Hard hat compliance – Zone A" />
             </div>
             <div>
               <Label>Category</Label>
@@ -238,15 +243,16 @@ function PolicyDialog({
             <Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional internal note" />
           </div>
           <div>
-            <Label>Policy statement (plain English) *</Label>
+            <Label htmlFor="policy-statement">Policy statement (plain English) *</Label>
             <Textarea
+              id="policy-statement"
               rows={4}
               value={form.natural_language}
               onChange={(e) => setForm(f => ({ ...f, natural_language: e.target.value }))}
               placeholder="Example: All personnel entering Zone A between 06:00 and 22:00 must wear a hard hat and a high-visibility vest."
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label>Severity</Label>
               <Select value={form.severity} onValueChange={(v) => setForm(f => ({ ...f, severity: v }))}>
@@ -317,13 +323,14 @@ function PolicyDialog({
 
 // ── Alert Rule Dialog ──
 function AlertRuleDialog({
-  open, onOpenChange, editing, policies, onSaved,
+  open, onOpenChange, editing, policies, onSaved, tenantId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing?: AlertRule | null;
   policies: Policy[];
   onSaved: () => void;
+  tenantId: string | null;
 }) {
   const [form, setForm] = useState<{
     name: string; description: string; policy_id: string | null;
@@ -377,6 +384,7 @@ function AlertRuleDialog({
 
   const save = async () => {
     if (!form.name.trim()) { toast.error("Name is required."); return; }
+    if (!editing && !tenantId) { toast.error("Select a site first — alert rules are scoped to a site."); return; }
     setSaving(true);
     try {
       const payload = {
@@ -394,7 +402,7 @@ function AlertRuleDialog({
       };
       const { error } = editing
         ? await supabase.from("alert_rules").update(payload).eq("id", editing.id)
-        : await supabase.from("alert_rules").insert(payload);
+        : await supabase.from("alert_rules").insert({ ...payload, tenant_id: tenantId });
       if (error) throw error;
       toast.success(editing ? "Alert rule updated." : "Alert rule created.");
       onSaved();
@@ -414,10 +422,10 @@ function AlertRuleDialog({
           <DialogDescription>Define how a policy fires: triggers, debounce, escalation, and channels.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
+              <Label htmlFor="rule-name">Name *</Label>
+              <Input id="rule-name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
             <div>
               <Label>Linked policy</Label>
@@ -434,7 +442,7 @@ function AlertRuleDialog({
             <Label>Description</Label>
             <Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Trigger source</Label>
               <Select value={form.trigger_source} onValueChange={(v) => setForm(f => ({ ...f, trigger_source: v }))}>
@@ -462,7 +470,7 @@ function AlertRuleDialog({
               <Slider min={0.3} max={1} step={0.05} value={[form.confidence_threshold]} onValueChange={([v]) => setForm(f => ({ ...f, confidence_threshold: v }))} />
               <p className="text-xs text-muted-foreground mt-1">Detections below this confidence are dropped.</p>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs uppercase tracking-wider">Debounce (s)</Label>
                 <Input type="number" value={form.debounce_seconds} onChange={(e) => setForm(f => ({ ...f, debounce_seconds: parseInt(e.target.value) || 0 }))} />
@@ -528,6 +536,7 @@ const RulesPolicy = () => {
   const [tplCategory, setTplCategory] = useState<string>("all");
   const [tab, setTab] = useState<string>("policies");
   const [catSearch, setCatSearch] = useState("");
+  const [policyCategory, setPolicyCategory] = useState<string>("all");
   const [renaming, setRenaming] = useState<{ old: string; next: string } | null>(null);
   const [savingRename, setSavingRename] = useState(false);
 
@@ -575,9 +584,13 @@ const RulesPolicy = () => {
 
   const load = async () => {
     setLoading(true);
+    if (!activeTenantId) {
+      setPolicies([]); setRules([]); setLoading(false);
+      return;
+    }
     const [{ data: pd, error: pe }, { data: rd, error: re }] = await Promise.all([
-      supabase.from("policies").select("*").order("created_at", { ascending: false }),
-      supabase.from("alert_rules").select("*").order("created_at", { ascending: false }),
+      supabase.from("policies").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
+      supabase.from("alert_rules").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
     ]);
     if (pe) toast.error(pe.message);
     if (re) toast.error(re.message);
@@ -586,7 +599,7 @@ const RulesPolicy = () => {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTenantId]);
 
   const togglePolicy = async (p: Policy) => {
     const { error } = await supabase.from("policies").update({ enabled: !p.enabled }).eq("id", p.id);
@@ -642,6 +655,7 @@ const RulesPolicy = () => {
     }
   };
 
+  const visiblePolicies = policyCategory === "all" ? policies : policies.filter(p => p.category === policyCategory);
   const activePolicies = policies.filter(p => p.enabled).length;
   const compiled = policies.filter(p => p.compiled_prompt).length;
   const activeRules = rules.filter(r => r.enabled).length;
@@ -659,7 +673,7 @@ const RulesPolicy = () => {
               <BookOpen className="w-4 h-4 mr-1.5" /> Browse Templates
             </Button>
             <Select disabled={provisioning} onValueChange={applyStarterPack}>
-              <SelectTrigger className="w-[240px]">
+              <SelectTrigger className="w-full sm:w-[240px]">
                 <SelectValue placeholder={provisioning ? "Applying starter pack…" : "Apply compliance starter pack"} />
               </SelectTrigger>
               <SelectContent>
@@ -679,6 +693,21 @@ const RulesPolicy = () => {
           </>
         }
       />
+
+      {!activeTenantId && (
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="py-4 text-sm">
+            Pick a site at the top of the page. Policies and alert rules belong to a single site, so nothing can be
+            listed or created until one is selected.
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTenant && (
+        <p className="text-xs text-muted-foreground">
+          Showing governance for <span className="font-medium text-foreground">{activeTenant.name}</span>.
+        </p>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -772,6 +801,18 @@ const RulesPolicy = () => {
         {/* Policies */}
         <TabsContent value="policies" className="mt-4 space-y-3">
           {loading && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>}
+          {policyCategory !== "all" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline" className="border-primary/40 text-primary"><Tag className="w-3 h-3 mr-1" />{policyCategory}</Badge>
+              <button className="hover:underline" onClick={() => setPolicyCategory("all")}>Clear filter</button>
+            </div>
+          )}
+          {!loading && policies.length > 0 && visiblePolicies.length === 0 && (
+            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
+              No policies in “{policyCategory}”.{" "}
+              <button className="text-primary hover:underline" onClick={() => setPolicyCategory("all")}>Clear filter</button>
+            </CardContent></Card>
+          )}
           {!loading && policies.length === 0 && (
             <Card><CardContent className="py-10 text-center">
               <ShieldCheck className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
@@ -782,10 +823,10 @@ const RulesPolicy = () => {
               </Button>
             </CardContent></Card>
           )}
-          {policies.map(p => (
+          {visiblePolicies.map(p => (
             <Card key={p.id} className="group">
               <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold truncate">{p.name}</h3>
@@ -801,7 +842,7 @@ const RulesPolicy = () => {
                       {p.scope_cameras.length > 0 && <span>Cameras: {p.scope_cameras.join(", ")}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 sm:shrink-0">
                     <Switch checked={p.enabled} onCheckedChange={() => togglePolicy(p)} />
                     <Button variant="ghost" size="icon" onClick={() => { setEditingPolicy(p); setPolicyDialog(true); }}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => deletePolicy(p.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
@@ -830,7 +871,7 @@ const RulesPolicy = () => {
             return (
               <Card key={r.id}>
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{r.name}</h3>
@@ -847,7 +888,7 @@ const RulesPolicy = () => {
                         <span>via {r.notification_channels.join(", ")}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 sm:shrink-0">
                       <Switch checked={r.enabled} onCheckedChange={() => toggleRule(r)} />
                       <Button variant="ghost" size="icon" onClick={() => { setEditingRule(r); setRuleDialog(true); }}><Pencil className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteRule(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
@@ -924,7 +965,7 @@ const RulesPolicy = () => {
                 </Button>
               </div>
 
-              <div className="rounded-lg border border-border divide-y divide-border">
+              <div className="rounded-lg border border-border divide-y divide-border overflow-x-auto [&>*]:min-w-[520px]">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/30">
                   <div className="col-span-5">Category</div>
                   <div className="col-span-2 text-center">Policies</div>
@@ -950,7 +991,7 @@ const RulesPolicy = () => {
                       {c.enabled}<span className="text-muted-foreground">/{c.policies}</span>
                     </div>
                     <div className="col-span-3 flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => { setTplCategory(c.name); setTab("policies"); }}
+                      <Button size="sm" variant="ghost" onClick={() => { setPolicyCategory(c.name); setTab("policies"); }}
                         disabled={c.policies === 0} title="View policies">
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Button>
@@ -1001,7 +1042,11 @@ const RulesPolicy = () => {
                 if (!next) return;
                 setSavingRename(true);
                 const affected = policies.filter(p => p.category === renaming.old).map(p => p.id);
-                const { error } = await supabase.from("policies").update({ category: next }).eq("category", renaming.old);
+                const { error } = await supabase
+                  .from("policies")
+                  .update({ category: next })
+                  .eq("category", renaming.old)
+                  .eq("tenant_id", activeTenantId ?? "");
                 setSavingRename(false);
                 if (error) return toast.error(error.message);
                 toast.success(`Renamed to "${next}" (${affected.length} polic${affected.length === 1 ? "y" : "ies"} updated).`);
@@ -1029,8 +1074,9 @@ const RulesPolicy = () => {
         seed={seedTemplate}
         onSaved={load}
         categories={allCategories}
+        tenantId={activeTenantId}
       />
-      <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} />
+      <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} tenantId={activeTenantId} />
     </div>
   );
 };

@@ -412,7 +412,7 @@ const KpiConfig = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex-1 min-w-[140px]">
+                      <div className="flex-1 min-w-0 sm:min-w-[140px]">
                         <Progress value={pct} className="h-2" />
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground whitespace-nowrap">
@@ -483,7 +483,7 @@ const KpiConfig = () => {
               <Label className="text-xs text-muted-foreground">Description</Label>
               <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="mt-1" placeholder="What does this KPI measure?" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">Category</Label>
                 <Select value={formData.category} onValueChange={(v) => setFormData({ ...formData, category: v as KpiCategory })}>
@@ -518,7 +518,7 @@ const KpiConfig = () => {
                   ? "Target ≥ Warning > Critical (values below warning trigger alerts)"
                   : "Target ≤ Warning < Critical (values above warning trigger alerts)"}
               </p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-emerald-500 font-medium">Target</Label>
                   <Input type="number" value={formData.target} onChange={(e) => setFormData({ ...formData, target: Number(e.target.value) })} className="mt-1" />

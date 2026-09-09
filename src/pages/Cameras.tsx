@@ -166,7 +166,7 @@ const Cameras = () => {
 
       {/* Controls bar */}
       <div className="glass rounded-xl border border-border p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             ref={searchRef}
@@ -178,7 +178,7 @@ const Cameras = () => {
         </div>
 
         <Select value={zone} onValueChange={setZone}>
-          <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Zone" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] h-9"><SelectValue placeholder="Zone" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All zones</SelectItem>
             {zones.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
@@ -186,7 +186,7 @@ const Cameras = () => {
         </Select>
 
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="online">Online</SelectItem>
@@ -502,7 +502,7 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
           <p className={cn("font-mono", large ? "text-sm" : "text-xs", config.text)}>{config.label}</p>
           <p className="text-[10px] text-muted-foreground mt-1 font-mono">{cam.name}</p>
           {cam.status !== "maintenance" && !showLive && (
-            <p className="mt-1 max-w-[220px] text-[9px] leading-tight text-muted-foreground">
+            <p className="mt-1 max-w-full sm:max-w-[220px] text-[9px] leading-tight text-muted-foreground">
               No playback address yet — add a stream or snapshot URL in Cameras &amp; AI setup.
             </p>
           )}
