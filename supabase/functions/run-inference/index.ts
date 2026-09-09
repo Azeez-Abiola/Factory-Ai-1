@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { fetchWithAuth } from '../_shared/digestFetch.ts';
 
 /**
  * run-inference: pulls a real still frame from every due camera, sends it to
