@@ -101,6 +101,8 @@ const AIConfig = () => {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
   const [model, setModel] = useState("google/gemini-2.5-pro");
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [defectTypes, setDefectTypes] = useState<DefectType[]>(DEFAULT_DEFECT_TYPES);
+  const [newDefectLabel, setNewDefectLabel] = useState("");
   const [testOpen, setTestOpen] = useState(false);
   const [testImage, setTestImage] = useState(SAMPLE_IMAGE);
   const [testMode, setTestMode] = useState<"image" | "video">("image");
