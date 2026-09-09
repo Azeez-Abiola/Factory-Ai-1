@@ -114,6 +114,17 @@ export function useLiveCameras() {
   const [detections, setDetections] = useState<DetectionPing[]>([]);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const [token, setToken] = useState<string | null>(null);
+
+  // Snapshot playback goes through an authenticated backend proxy.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
 
   // Re-evaluate offline heartbeat every 15s
   useEffect(() => {
