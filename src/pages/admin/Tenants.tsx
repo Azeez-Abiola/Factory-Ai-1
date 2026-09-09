@@ -30,6 +30,7 @@ const planLabels: Record<string, string> = {
 };
 
 const Tenants = () => {
+  const [tab, setTab] = useState("directory");
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
