@@ -280,7 +280,7 @@ const CameraConfig = () => {
     }
 
     const payload = {
-      tenant_id: activeTenantId,
+      tenant_id: e.tenant_id ?? activeTenantId,
       name: e.name.trim(),
       zone: e.zone ?? null,
       type: e.type ?? "Vision",
