@@ -23,6 +23,9 @@ interface Props {
 export default function AlertEvidence({ metadata, cameraId, variant = "full", className, title }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   const evidencePath = typeof metadata?.evidence_path === "string" ? (metadata.evidence_path as string) : null;
   const boxes: VisionBox[] = useMemo(() => detectionsToBoxes(metadata ?? {}), [metadata]);
@@ -32,6 +35,7 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
     const resolve = async () => {
       setLoading(true);
       setUrl(null);
+      setNatural(null);
       if (evidencePath) {
         const { data } = await supabase.storage.from("alert-evidence").createSignedUrl(evidencePath, 3600);
         if (active && data?.signedUrl) {
@@ -55,7 +59,37 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
     return () => { active = false; };
   }, [evidencePath, cameraId]);
 
+  // Track the drawn size of the frame so the boxes can be pinned to the exact
+  // area the picture occupies (letterboxing included) rather than the box.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => setFrameSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [url]);
+
   const isThumb = variant === "thumb";
+
+  /**
+   * The image is rendered with object-contain so nothing is cropped; the
+   * overlay is inset to the painted rectangle so every box lands exactly where
+   * the model saw it.
+   */
+  const painted = useMemo(() => {
+    if (!natural || !frameSize || !frameSize.w || !frameSize.h) return { left: 0, top: 0, width: 100, height: 100 };
+    const imgAR = natural.w / natural.h;
+    const boxAR = frameSize.w / frameSize.h;
+    if (imgAR > boxAR) {
+      const height = (boxAR / imgAR) * 100;
+      return { left: 0, top: (100 - height) / 2, width: 100, height };
+    }
+    const width = (imgAR / boxAR) * 100;
+    return { left: (100 - width) / 2, top: 0, width, height: 100 };
+  }, [natural, frameSize]);
+
 
   if (loading) {
     return (
