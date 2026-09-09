@@ -31,7 +31,6 @@ import UserManagement from "./pages/admin/UserManagement.tsx";
 import SystemMonitoring from "./pages/admin/SystemMonitoring.tsx";
 import Billing from "./pages/admin/Billing.tsx";
 import AuditLog from "./pages/admin/AuditLog.tsx";
-import Onboarding from "./pages/admin/Onboarding.tsx";
 import Settings from "./pages/admin/Settings.tsx";
 import KpiConfig from "./pages/admin/KpiConfig.tsx";
 import TenantDetail from "./pages/admin/TenantDetail.tsx";

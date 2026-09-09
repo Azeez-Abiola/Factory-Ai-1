@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
   Factory, ChevronLeft, ChevronRight, ArrowLeft,
-  ScrollText, Rocket, Settings2, Target, Camera, ShieldCheck, Timer, Bell, Sparkles, Wallet, MapPinPlus, Database
+  ScrollText, Settings2, Target, Camera, ShieldCheck, Timer, Bell, Sparkles, Wallet, MapPinPlus, Database
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
