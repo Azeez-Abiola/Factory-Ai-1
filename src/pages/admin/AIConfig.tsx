@@ -171,6 +171,7 @@ const AIConfig = () => {
       categories: categories as unknown as never,
       custom_models: customModels as unknown as never,
       reference_images: referenceImages as unknown as never,
+      defect_types: defectTypes as unknown as never,
       updated_by: userRes.user?.id,
     };
     const { error } = await supabase
