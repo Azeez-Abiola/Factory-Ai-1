@@ -8,6 +8,9 @@ import type { Region, ReferenceSample } from "@/lib/visionMatch";
 export interface LiveCamera extends MockCamera {
   streamUrl?: string | null;
   streamType?: "hls" | "webrtc" | "mjpeg" | null;
+  /** Actual URL the player should use (stream URL, or the snapshot poller fallback). */
+  playbackUrl?: string | null;
+  playbackType?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
   lastSeenAt?: string | null;
   heartbeatSeconds?: number;
   audioEnabled?: boolean;
@@ -78,7 +81,9 @@ function normalize(row: any, detections: DetectionPing[]): LiveCamera {
     referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
     clipAnalysisEnabled: !!row.clip_analysis_enabled,
     clipSeconds: row.clip_seconds ?? 5,
-    isLive: !!row.stream_url,
+    playbackUrl: row.stream_url ?? row.snapshot_url ?? null,
+    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : row.snapshot_url ? "snapshot" : null,
+    isLive: !!(row.stream_url || row.snapshot_url),
     isDbBacked: true,
 
   };

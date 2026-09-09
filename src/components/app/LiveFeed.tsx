@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 
 interface LiveFeedProps {
   url: string;
-  type?: "hls" | "webrtc" | "mjpeg" | null;
+  type?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
+  /** Refresh interval for snapshot playback (ms). */
+  snapshotIntervalMs?: number;
   muted?: boolean;
   className?: string;
   poster?: string;
@@ -28,19 +30,29 @@ interface LiveFeedProps {
  * AWS KVS, Frigate, Ant Media, etc.) that exposes HLS/WHEP URLs per camera.
  * Store that URL in `cameras.stream_url` and this component plays it.
  */
-export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, recordRef, overlay }: LiveFeedProps) {
+export default function LiveFeed({ url, type = "hls", muted = true, className, poster, captureRef, recordRef, overlay, snapshotIntervalMs = 1000 }: LiveFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [state, setState] = useState<"loading" | "playing" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [attempt, setAttempt] = useState(0);
+  const [snapshotTick, setSnapshotTick] = useState(0);
+  const isImageFeed = type === "mjpeg" || type === "snapshot";
+
+  // Snapshot playback: re-fetch the still image on a timer so the tile animates.
+  useEffect(() => {
+    if (type !== "snapshot") return;
+    const ms = Math.max(250, snapshotIntervalMs);
+    const t = window.setInterval(() => setSnapshotTick((n) => n + 1), ms);
+    return () => window.clearInterval(t);
+  }, [type, snapshotIntervalMs, attempt]);
 
   // Expose a frame grabber so the AI vision loop can read the live picture.
   useEffect(() => {
     if (!captureRef) return;
     captureRef.current = () => {
       const source: HTMLVideoElement | HTMLImageElement | null =
-        type === "mjpeg" ? imgRef.current : videoRef.current;
+        isImageFeed ? imgRef.current : videoRef.current;
       if (!source) return null;
       const width = source instanceof HTMLVideoElement ? source.videoWidth : source.naturalWidth;
       const height = source instanceof HTMLVideoElement ? source.videoHeight : source.naturalHeight;
@@ -69,7 +81,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     recordRef.current = (seconds: number) =>
       new Promise((resolve) => {
         const source: HTMLVideoElement | HTMLImageElement | null =
-          type === "mjpeg" ? imgRef.current : videoRef.current;
+          isImageFeed ? imgRef.current : videoRef.current;
         if (!source || typeof MediaRecorder === "undefined") return resolve(null);
         const width = source instanceof HTMLVideoElement ? source.videoWidth : source.naturalWidth;
         const height = source instanceof HTMLVideoElement ? source.videoHeight : source.naturalHeight;
@@ -119,7 +131,7 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     setErrorMsg("");
     const video = videoRef.current;
 
-    if (type === "mjpeg") {
+    if (isImageFeed) {
       return;
     }
 
@@ -197,18 +209,26 @@ export default function LiveFeed({ url, type = "hls", muted = true, className, p
     };
   }, [url, type, attempt]);
 
-  if (type === "mjpeg") {
+  if (isImageFeed) {
+    const src =
+      type === "snapshot"
+        ? `${url}${url.includes("?") ? "&" : "?"}_t=${snapshotTick}`
+        : url;
     return (
       <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
         <img
           ref={imgRef}
-          key={attempt}
-          src={url}
+          key={type === "snapshot" ? attempt : attempt}
+          src={src}
           alt="Live camera feed"
           crossOrigin="anonymous"
           className="h-full w-full object-cover"
           onLoad={() => setState("playing")}
-          onError={() => { setErrorMsg("MJPEG stream could not be loaded by this browser"); setState("error"); }}
+          onError={() => {
+            if (type === "snapshot" && state === "playing") return; // one dropped frame is not a failure
+            setErrorMsg(type === "snapshot" ? "Snapshot image could not be loaded" : "MJPEG stream could not be loaded by this browser");
+            setState("error");
+          }}
         />
         {state === "playing" && overlay}
         {state === "loading" && <FeedLoading />}

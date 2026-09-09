@@ -25,6 +25,7 @@ import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
 import NvrImportDialog from "@/components/admin/NvrImportDialog";
 
 import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
+import LiveFeed from "@/components/app/LiveFeed";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
 
@@ -579,6 +580,25 @@ const CameraConfig = () => {
                     )}
                   </div>
                 </div>
+
+                <div className="relative h-40 overflow-hidden rounded-lg border border-border bg-muted/30">
+                  {cam.stream_url || cam.snapshot_url ? (
+                    <LiveFeed
+                      url={(cam.stream_url ?? cam.snapshot_url) as string}
+                      type={cam.stream_url ? (cam.stream_type as "hls" | "webrtc" | "mjpeg") : "snapshot"}
+                      snapshotIntervalMs={1500}
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+                      <Camera className="h-6 w-6 text-muted-foreground" />
+                      <p className="text-[11px] text-muted-foreground">No playback address yet</p>
+                      <p className="max-w-[240px] text-[10px] text-muted-foreground/80">
+                        Add a gateway stream or snapshot URL below to see this camera live.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
