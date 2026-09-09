@@ -303,8 +303,13 @@ Deno.serve(async (req) => {
     const violations: any[] = Array.isArray(analysis.safety_violations) ? analysis.safety_violations : [];
     const detections: any[] = Array.isArray(analysis.detections) ? analysis.detections : [];
 
+    // Site alert rules add their own confidence bar and cooldown on top of the camera's.
+    const gateRules = await loadGateRules(supabase, cam.tenant_id);
+    const decisions = new Map<any, ReturnType<typeof gateViolation>>();
+    for (const v of violations) decisions.set(v, gateViolation(v, detections, threshold, gateRules));
+
     // Cooldown: don't re-raise the same violation type for the same camera.
-    const cooldownSeconds = Math.max((cam.inference_interval_seconds ?? 30) * 3, 300);
+    const cooldownSeconds = effectiveCooldown(gateRules, Math.max((cam.inference_interval_seconds ?? 30) * 3, 300));
     const since = new Date(Date.now() - cooldownSeconds * 1000).toISOString();
     const { data: recent } = await supabase
       .from('alerts')
@@ -314,10 +319,8 @@ Deno.serve(async (req) => {
     const recentTypes = new Set((recent ?? []).map((r) => r.type));
 
     const rows = violations
-      .filter((v) => {
-        const match = detections.find((d) => String(d.label ?? '').toLowerCase().includes(String(v.type ?? '').toLowerCase()));
-        const conf = typeof match?.confidence === 'number' ? match.confidence : 1;
-        return conf >= threshold;
+      .filter((v) => decisions.get(v)!.pass)
+
       })
       .map((v) => {
         const type = String(v.type ?? 'anomaly').toLowerCase().replace(/\s+/g, '_').slice(0, 60);
