@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { fetchWithAuth } from '../_shared/digestFetch.ts';
 
 /**
  * test-stream: validates a stream URL before a camera is persisted.
@@ -47,7 +48,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, credentials?: { 
 }
 
 async function probeHls(url: string, credentials?: { username?: string; password?: string } | null) {
-  const res = await fetchWithTimeout(url, { method: 'GET', headers: requestHeaders(credentials, 'application/vnd.apple.mpegurl') });
+  const res = await fetchWithTimeout(url, { method: 'GET', headers: requestHeaders(credentials, 'application/vnd.apple.mpegurl') }, credentials);
   if (!res.ok) return { ok: false, reason: `HLS playlist returned HTTP ${res.status}` };
   const text = (await res.text()).slice(0, 512);
   if (!text.includes('#EXTM3U')) return { ok: false, reason: 'Response is not a valid HLS playlist (#EXTM3U missing)' };
@@ -55,13 +56,13 @@ async function probeHls(url: string, credentials?: { username?: string; password
 }
 
 async function probeWhep(url: string, credentials?: { username?: string; password?: string } | null) {
-  const res = await fetchWithTimeout(url, { method: 'OPTIONS', headers: requestHeaders(credentials) });
+  const res = await fetchWithTimeout(url, { method: 'OPTIONS', headers: requestHeaders(credentials) }, credentials);
   if (res.status === 404) return { ok: false, reason: 'WHEP endpoint returned 404' };
   return { ok: true, detail: `WHEP endpoint reachable (HTTP ${res.status})` };
 }
 
 async function probeMjpeg(url: string, credentials?: { username?: string; password?: string } | null) {
-  const res = await fetchWithTimeout(url, { method: 'GET', headers: { ...requestHeaders(credentials, 'image/*'), Range: 'bytes=0-1023' } });
+  const res = await fetchWithTimeout(url, { method: 'GET', headers: { ...requestHeaders(credentials, 'image/*'), Range: 'bytes=0-1023' } }, credentials);
   if (res.status === 404) {
     return {
       ok: false,
