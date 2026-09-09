@@ -73,8 +73,9 @@ const NvrImportDialog = ({ open, onOpenChange, tenantId, gatewayBase, gatewayVen
 
   const rtspFor = (ch: number) =>
     brand === "custom"
-      ? customRtsp.replaceAll("{host}", host).replaceAll("{channel}", String(ch))
+      ? customRtsp.replace(/\{host\}/g, host).replace(/\{channel\}/g, String(ch))
       : template.rtsp(host, ch);
+
 
   const selectedCount = useMemo(() => channels?.filter((c) => c.include).length ?? 0, [channels]);
 
