@@ -22,6 +22,8 @@ import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
+import NvrImportDialog from "@/components/admin/NvrImportDialog";
+
 import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
@@ -142,6 +144,8 @@ const CameraConfig = () => {
   const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
 
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
+  const [nvrOpen, setNvrOpen] = useState(false);
+
   const [connectionTested, setConnectionTested] = useState(false);
 
   const load = async () => {
@@ -441,12 +445,28 @@ const CameraConfig = () => {
             <Button variant="outline" onClick={load} className="gap-2">
               <RefreshCw className="w-4 h-4" /> Refresh
             </Button>
+            <Button variant="outline" onClick={() => setNvrOpen(true)} className="gap-2">
+              <Router className="w-4 h-4" /> Bulk NVR Import
+            </Button>
             <Button onClick={() => { setConnectionTested(false); setEditing(emptyCam(activeTenantId)); }} className="gap-2">
               <Plus className="w-4 h-4" /> Add Camera
             </Button>
           </div>
+
         }
       />
+
+      {activeTenantId && (
+        <NvrImportDialog
+          open={nvrOpen}
+          onOpenChange={setNvrOpen}
+          tenantId={activeTenantId}
+          gatewayBase={gatewayBase}
+          gatewayVendor={gatewayVendor}
+          onImported={load}
+        />
+      )}
+
 
       {/* Fleet strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
