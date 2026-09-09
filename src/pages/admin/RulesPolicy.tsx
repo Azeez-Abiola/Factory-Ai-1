@@ -25,6 +25,9 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import MultiSelect from "@/components/admin/MultiSelect";
+
+export interface ScopeCamera { id: string; name: string; zone: string | null }
 
 // ── Types ──
 interface Policy {
@@ -70,7 +73,7 @@ const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
 function PolicyDialog({
-  open, onOpenChange, editing, seed, onSaved, categories, tenantId,
+  open, onOpenChange, editing, seed, onSaved, categories, tenantId, cameras, zoneOptions,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -79,11 +82,17 @@ function PolicyDialog({
   onSaved: () => void;
   categories: string[];
   tenantId: string | null;
+  cameras: ScopeCamera[];
+  zoneOptions: string[];
 }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string; description: string; natural_language: string;
+    category: string; severity: string; enabled: boolean;
+    scope_zones: string[]; scope_cameras: string[];
+  }>({
     name: "", description: "", natural_language: "",
     category: "safety", severity: "medium", enabled: true,
-    scope_zones: "", scope_cameras: "",
+    scope_zones: [], scope_cameras: [],
   });
   const [compiling, setCompiling] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -98,8 +107,8 @@ function PolicyDialog({
         category: editing.category,
         severity: editing.severity,
         enabled: editing.enabled,
-        scope_zones: editing.scope_zones.join(", "),
-        scope_cameras: editing.scope_cameras.join(", "),
+        scope_zones: editing.scope_zones ?? [],
+        scope_cameras: editing.scope_cameras ?? [],
       });
       setCompiled(
         editing.compiled_prompt || editing.compiled_rule
@@ -114,18 +123,20 @@ function PolicyDialog({
         category: seed.category,
         severity: seed.severity,
         enabled: true,
-        scope_zones: seed.scope_zones.join(", "),
-        scope_cameras: "",
+        // Only keep template zones that actually exist on this site.
+        scope_zones: seed.scope_zones.filter(z => zoneOptions.includes(z)),
+        scope_cameras: [],
       });
       setCompiled(null);
     } else {
       setForm({
         name: "", description: "", natural_language: "",
         category: "safety", severity: "medium", enabled: true,
-        scope_zones: "", scope_cameras: "",
+        scope_zones: [], scope_cameras: [],
       });
       setCompiled(null);
     }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [editing, seed, open]);
 
   const compileWithAI = async () => {
@@ -172,8 +183,8 @@ function PolicyDialog({
         category: form.category,
         severity: form.severity,
         enabled: form.enabled,
-        scope_zones: form.scope_zones.split(",").map(s => s.trim()).filter(Boolean),
-        scope_cameras: form.scope_cameras.split(",").map(s => s.trim()).filter(Boolean),
+        scope_zones: form.scope_zones,
+        scope_cameras: form.scope_cameras,
         compiled_prompt: compiled?.vision_prompt ?? null,
         compiled_rule: compiled?.rule ?? null,
       };
@@ -261,12 +272,30 @@ function PolicyDialog({
               </Select>
             </div>
             <div>
-              <Label>Scope zones (comma-separated)</Label>
-              <Input value={form.scope_zones} onChange={(e) => setForm(f => ({ ...f, scope_zones: e.target.value }))} placeholder="Zone A, Loading Bay" />
+              <Label htmlFor="policy-zones">Scope zones</Label>
+              <MultiSelect
+                id="policy-zones"
+                options={zoneOptions.map(z => ({ value: z, label: z }))}
+                value={form.scope_zones}
+                onChange={(v) => setForm(f => ({ ...f, scope_zones: v }))}
+                placeholder="All zones"
+                searchPlaceholder="Search zones…"
+                emptyText="No zones defined for this site yet."
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Leave empty to apply to every zone.</p>
             </div>
             <div>
-              <Label>Scope cameras</Label>
-              <Input value={form.scope_cameras} onChange={(e) => setForm(f => ({ ...f, scope_cameras: e.target.value }))} placeholder="cam-01, cam-02" />
+              <Label htmlFor="policy-cameras">Scope cameras</Label>
+              <MultiSelect
+                id="policy-cameras"
+                options={cameras.map(c => ({ value: c.id, label: c.name, hint: c.zone ?? undefined }))}
+                value={form.scope_cameras}
+                onChange={(v) => setForm(f => ({ ...f, scope_cameras: v }))}
+                placeholder="All cameras"
+                searchPlaceholder="Search cameras…"
+                emptyText="No cameras added to this site yet."
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">Leave empty to apply to every camera.</p>
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border bg-card/40 px-4 py-3">
@@ -527,6 +556,8 @@ const RulesPolicy = () => {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cameras, setCameras] = useState<ScopeCamera[]>([]);
+  const [zones, setZones] = useState<string[]>([]);
   const [policyDialog, setPolicyDialog] = useState(false);
   const [ruleDialog, setRuleDialog] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
@@ -585,21 +616,35 @@ const RulesPolicy = () => {
   const load = async () => {
     setLoading(true);
     if (!activeTenantId) {
-      setPolicies([]); setRules([]); setLoading(false);
+      setPolicies([]); setRules([]); setCameras([]); setZones([]); setLoading(false);
       return;
     }
-    const [{ data: pd, error: pe }, { data: rd, error: re }] = await Promise.all([
+    const [{ data: pd, error: pe }, { data: rd, error: re }, { data: cd }, { data: zd }] = await Promise.all([
       supabase.from("policies").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
       supabase.from("alert_rules").select("*").eq("tenant_id", activeTenantId).order("created_at", { ascending: false }),
+      supabase.from("cameras").select("id, name, zone").eq("tenant_id", activeTenantId).order("name"),
+      supabase.from("site_zones").select("name").eq("tenant_id", activeTenantId).order("name"),
     ]);
     if (pe) toast.error(pe.message);
     if (re) toast.error(re.message);
     setPolicies((pd ?? []) as Policy[]);
     setRules((rd ?? []) as AlertRule[]);
+    setCameras((cd ?? []) as ScopeCamera[]);
+    setZones(((zd ?? []) as { name: string }[]).map(z => z.name));
     setLoading(false);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeTenantId]);
+
+  // Zones come from the mapped floor plan plus any zone already set on a camera.
+  const zoneOptions = useMemo(() => {
+    const set = new Set<string>(zones);
+    cameras.forEach(c => c.zone && set.add(c.zone));
+    policies.forEach(p => (p.scope_zones ?? []).forEach(z => set.add(z)));
+    return Array.from(set).sort();
+  }, [zones, cameras, policies]);
+
+  const cameraLabel = (id: string) => cameras.find(c => c.id === id)?.name ?? id;
 
   const togglePolicy = async (p: Policy) => {
     const { error } = await supabase.from("policies").update({ enabled: !p.enabled }).eq("id", p.id);
@@ -838,8 +883,14 @@ const RulesPolicy = () => {
                     {p.description && <p className="text-xs text-muted-foreground mt-1">{p.description}</p>}
                     <p className="text-sm mt-2 line-clamp-2">{p.natural_language}</p>
                     <div className="flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground">
-                      {p.scope_zones.length > 0 && <span>Zones: {p.scope_zones.join(", ")}</span>}
-                      {p.scope_cameras.length > 0 && <span>Cameras: {p.scope_cameras.join(", ")}</span>}
+                      <span>Zones: {p.scope_zones.length > 0 ? p.scope_zones.join(", ") : "All zones"}</span>
+                      <span>Cameras: {p.scope_cameras.length > 0 ? p.scope_cameras.map(cameraLabel).join(", ") : "All cameras"}</span>
+                      {(() => {
+                        const linked = rules.filter(r => r.policy_id === p.id);
+                        return linked.length > 0
+                          ? <span>Alert rules: {linked.map(r => r.name).join(", ")}</span>
+                          : <span className="text-warning">No alert rule linked</span>;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 sm:shrink-0">
@@ -1075,6 +1126,8 @@ const RulesPolicy = () => {
         onSaved={load}
         categories={allCategories}
         tenantId={activeTenantId}
+        cameras={cameras}
+        zoneOptions={zoneOptions}
       />
       <AlertRuleDialog open={ruleDialog} onOpenChange={setRuleDialog} editing={editingRule} policies={policies} onSaved={load} tenantId={activeTenantId} />
     </div>

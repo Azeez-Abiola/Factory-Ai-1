@@ -235,16 +235,21 @@ Deno.serve(async (req) => {
     // Tenant policies steer what the model looks for on this frame.
     const { data: policies } = await supabase
       .from('policies')
-      .select('name, natural_language, compiled_prompt, severity, scope_zones')
+      .select('name, natural_language, compiled_prompt, severity, scope_zones, scope_cameras')
       .eq('tenant_id', cam.tenant_id)
       .eq('enabled', true)
       .limit(20);
 
-    const relevant = (policies ?? []).filter((p) =>
-      !p.scope_zones?.length ||
-      p.scope_zones.includes('All zones') ||
-      (cam.zone && p.scope_zones.includes(cam.zone))
-    );
+    const relevant = (policies ?? []).filter((p) => {
+      const zoneOk = !p.scope_zones?.length ||
+        p.scope_zones.includes('All zones') ||
+        (cam.zone && p.scope_zones.includes(cam.zone));
+      // Camera scope stores camera ids; older rows may hold names.
+      const camOk = !p.scope_cameras?.length ||
+        p.scope_cameras.includes(cam.id) ||
+        p.scope_cameras.includes(cam.name);
+      return zoneOk && camOk;
+    });
 
     const context = relevant.length
       ? `Enforce these tenant policies and reference them by name in violations:\n${
