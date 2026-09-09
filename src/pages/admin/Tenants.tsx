@@ -244,6 +244,8 @@ const Tenants = () => {
           </TableBody>
         </Table>
       </div>
+        </TabsContent>
+      </Tabs>
 
       <TenantForm
         key={editingTenant?.id ?? parentForSubTenant?.id ?? "new"}
