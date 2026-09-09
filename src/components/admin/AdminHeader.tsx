@@ -1,6 +1,7 @@
 import { Shield, Activity } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import UserMenu from "@/components/app/UserMenu";
+import TenantSwitcher from "@/components/admin/TenantSwitcher";
 
 const AdminHeader = () => {
   return (
