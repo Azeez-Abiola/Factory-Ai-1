@@ -874,6 +874,71 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          created_at: string
+          data: Json
+          findings_count: number
+          generated_by: string | null
+          generated_by_name: string
+          id: string
+          period_end: string | null
+          period_start: string | null
+          reference: string
+          score: number
+          status: string
+          summary: string | null
+          tenant_id: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          findings_count?: number
+          generated_by?: string | null
+          generated_by_name?: string
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          reference: string
+          score?: number
+          status?: string
+          summary?: string | null
+          tenant_id: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          findings_count?: number
+          generated_by?: string | null
+          generated_by_name?: string
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          reference?: string
+          score?: number
+          status?: string
+          summary?: string | null
+          tenant_id?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resolution_tasks: {
         Row: {
           alert_id: string | null
