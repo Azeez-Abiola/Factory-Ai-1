@@ -264,6 +264,11 @@ Deno.serve(async (req) => {
     }
 
     let finalSystemPrompt = buildSystemPrompt(systemPrompt, categories);
+    if (defectTypes.length) {
+      finalSystemPrompt += `\n\nProduct defect types this site inspects for (use these exact labels when reporting a quality issue):\n${defectTypes
+        .map((d: any) => `• ${d.label}${d.description ? `: ${d.description}` : ""}${d.severity_hint ? ` [default severity: ${d.severity_hint}]` : ""}`)
+        .join("\n")}`;
+    }
     if (exemplars.length) {
       finalSystemPrompt += `\n\nThis site has provided ${exemplars.length} of its OWN labelled PPE reference photos, supplied before the live frame. Treat them as the ground truth for what correct and incorrect PPE looks like at this factory (uniform colour, helmet style, vest type, local rules). Judge the live frame against these examples rather than generic PPE assumptions, and never report the reference photos themselves as detections.`;
     }
