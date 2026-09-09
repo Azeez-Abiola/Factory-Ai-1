@@ -311,7 +311,7 @@ const UserManagement = () => {
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search members…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder="Search by name, email or position…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
              <Select value={roleFilter} onValueChange={setRoleFilter}>
                <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
@@ -359,7 +359,7 @@ const UserManagement = () => {
                             </Avatar>
                             <div className="min-w-0">
                               <p className="font-semibold text-foreground truncate">{m.display_name ?? "Unnamed user"}</p>
-                              <p className="text-xs text-muted-foreground truncate">{m.job_title ?? `Member ID ${m.user_id.slice(0, 8)}`}</p>
+                              <p className="text-xs text-muted-foreground truncate">{m.email ?? m.job_title ?? `Member ID ${m.user_id.slice(0, 8)}`}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -511,6 +511,7 @@ const UserManagement = () => {
                     <h3 className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Member details</h3>
                     <dl className="divide-y divide-border rounded-lg border border-border bg-card">
                       <div className="flex items-center gap-3 p-4"><BriefcaseBusiness className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Position</dt><dd className="text-sm font-medium">{selectedMember.job_title ?? "Not provided"}</dd></div></div>
+                      <div className="flex items-center gap-3 p-4"><Mail className="h-4 w-4 text-muted-foreground" /><div className="min-w-0"><dt className="text-xs text-muted-foreground">Email</dt><dd className="truncate text-sm font-medium">{selectedMember.email ?? "Not available"}</dd></div></div>
                       <div className="flex items-center gap-3 p-4"><Phone className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Phone</dt><dd className="text-sm font-medium">{selectedMember.phone ?? "Not provided"}</dd></div></div>
                       <div className="flex items-center gap-3 p-4"><CalendarDays className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Joined organization</dt><dd className="text-sm font-medium">{new Date(selectedMember.created_at).toLocaleDateString(undefined, { dateStyle: "long" })}</dd></div></div>
                       <div className="flex items-center gap-3 p-4"><Fingerprint className="h-4 w-4 text-muted-foreground" /><div className="min-w-0"><dt className="text-xs text-muted-foreground">Member ID</dt><dd className="truncate font-mono text-xs text-foreground">{selectedMember.user_id}</dd></div></div>
