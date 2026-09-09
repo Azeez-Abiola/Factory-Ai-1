@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { downloadCSV } from "@/lib/exporters";
 import { cn } from "@/lib/utils";
+import { DEFAULT_DEFECT_TYPES, matchesDefectType, type DefectType } from "@/lib/defectTypes";
 
 interface AlertRow {
   id: string;
@@ -86,7 +87,8 @@ const Quality = () => {
     setAlerts(((a.data ?? []) as AlertRow[]).filter(isQualityAlert));
     setCameras((c.data ?? []) as any);
     const defs = Array.isArray((cfg.data as any)?.defect_types) ? ((cfg.data as any).defect_types as DefectType[]) : [];
-    setDefectTypes(defs.filter((d) => d?.label && d.enabled !== false));
+    const enabled = defs.filter((d) => d?.label && d.enabled !== false);
+    setDefectTypes(enabled.length ? enabled : DEFAULT_DEFECT_TYPES);
     setLoading(false);
   }, [activeTenantId, range]);
 
