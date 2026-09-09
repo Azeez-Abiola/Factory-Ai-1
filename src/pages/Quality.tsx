@@ -92,7 +92,7 @@ const Quality = () => {
     if (!activeTenantId) { setLoading(false); return; }
     setLoading(true);
     const since = new Date(Date.now() - RANGE_HOURS[range] * 3600 * 1000).toISOString();
-    const [a, c] = await Promise.all([
+    const [a, c, cfg] = await Promise.all([
       supabase.from("alerts")
         .select("id,camera_id,type,title,severity,status,zone,detected_at,resolved_at,metadata")
         .eq("tenant_id", activeTenantId)
@@ -100,11 +100,15 @@ const Quality = () => {
         .order("detected_at", { ascending: false })
         .limit(5000),
       supabase.from("cameras").select("id,name,zone").eq("tenant_id", activeTenantId),
+      supabase.from("ai_analysis_config").select("defect_types").eq("tenant_id", activeTenantId).maybeSingle(),
     ]);
     setAlerts(((a.data ?? []) as AlertRow[]).filter(isQualityAlert));
     setCameras((c.data ?? []) as any);
+    const defs = Array.isArray((cfg.data as any)?.defect_types) ? ((cfg.data as any).defect_types as DefectType[]) : [];
+    setDefectTypes(defs.filter((d) => d?.label && d.enabled !== false));
     setLoading(false);
   }, [activeTenantId, range]);
+
 
   useEffect(() => { load(); }, [load]);
 
