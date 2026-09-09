@@ -39,6 +39,7 @@ interface MemberRow {
   job_title: string | null;
   phone: string | null;
   updated_at: string | null;
+  email: string | null;
 }
 
 interface InvitationRow {
@@ -98,6 +99,13 @@ const UserManagement = () => {
       profiles = Object.fromEntries((pRows ?? []).map((p) => [p.id, p]));
     }
 
+    // Email addresses live in the auth store; a guarded helper exposes them to site admins.
+    let emails: Record<string, string> = {};
+    const { data: eRows } = await (supabase as unknown as {
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { user_id: string; email: string }[] | null }>;
+    }).rpc("tenant_member_emails", { _tenant_id: activeTenantId });
+    emails = Object.fromEntries((eRows ?? []).map((e) => [e.user_id, e.email]));
+
     setMembers(
       (mRows ?? []).map((r) => ({
         ...r,
@@ -107,6 +115,7 @@ const UserManagement = () => {
         job_title: profiles[r.user_id]?.job_title ?? null,
         phone: profiles[r.user_id]?.phone ?? null,
         updated_at: profiles[r.user_id]?.updated_at ?? null,
+        email: emails[r.user_id] ?? null,
       })),
     );
     setInvitations((iRows ?? []) as InvitationRow[]);
@@ -117,10 +126,26 @@ const UserManagement = () => {
     load();
   }, [load]);
 
+  // Keep the list live when membership or invitations change elsewhere.
+  useEffect(() => {
+    if (!activeTenantId) return;
+    const channel = supabase
+      .channel(`user-management-${activeTenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenant_members", filter: `tenant_id=eq.${activeTenantId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenant_invitations", filter: `tenant_id=eq.${activeTenantId}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeTenantId, load]);
+
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
       const q = search.toLowerCase();
-      const matchSearch = !q || (m.display_name ?? "").toLowerCase().includes(q) || m.user_id.includes(q);
+      const matchSearch =
+        !q ||
+        (m.display_name ?? "").toLowerCase().includes(q) ||
+        (m.email ?? "").toLowerCase().includes(q) ||
+        (m.job_title ?? "").toLowerCase().includes(q) ||
+        m.user_id.includes(q);
       const matchRole = roleFilter === "all" || m.role === roleFilter;
       return matchSearch && matchRole;
     });
@@ -135,6 +160,15 @@ const UserManagement = () => {
 
   const handleInvite = async () => {
     if (!activeTenantId || !inviteEmail.trim()) return;
+    const target = inviteEmail.trim().toLowerCase();
+    if (members.some((m) => (m.email ?? "").toLowerCase() === target)) {
+      toast.error("That person is already a member of this site.");
+      return;
+    }
+    if (pendingInvites.some((i) => i.email.toLowerCase() === target)) {
+      toast.error("An invitation for this email is already pending.");
+      return;
+    }
     setSubmitting(true);
     const { data, error } = await supabase
       .from("tenant_invitations")
@@ -286,7 +320,7 @@ const UserManagement = () => {
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search members…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder="Search by name, email or position…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
              <Select value={roleFilter} onValueChange={setRoleFilter}>
                <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
@@ -334,7 +368,7 @@ const UserManagement = () => {
                             </Avatar>
                             <div className="min-w-0">
                               <p className="font-semibold text-foreground truncate">{m.display_name ?? "Unnamed user"}</p>
-                              <p className="text-xs text-muted-foreground truncate">{m.job_title ?? `Member ID ${m.user_id.slice(0, 8)}`}</p>
+                              <p className="text-xs text-muted-foreground truncate">{m.email ?? m.job_title ?? `Member ID ${m.user_id.slice(0, 8)}`}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -486,6 +520,7 @@ const UserManagement = () => {
                     <h3 className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Member details</h3>
                     <dl className="divide-y divide-border rounded-lg border border-border bg-card">
                       <div className="flex items-center gap-3 p-4"><BriefcaseBusiness className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Position</dt><dd className="text-sm font-medium">{selectedMember.job_title ?? "Not provided"}</dd></div></div>
+                      <div className="flex items-center gap-3 p-4"><Mail className="h-4 w-4 text-muted-foreground" /><div className="min-w-0"><dt className="text-xs text-muted-foreground">Email</dt><dd className="truncate text-sm font-medium">{selectedMember.email ?? "Not available"}</dd></div></div>
                       <div className="flex items-center gap-3 p-4"><Phone className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Phone</dt><dd className="text-sm font-medium">{selectedMember.phone ?? "Not provided"}</dd></div></div>
                       <div className="flex items-center gap-3 p-4"><CalendarDays className="h-4 w-4 text-muted-foreground" /><div><dt className="text-xs text-muted-foreground">Joined organization</dt><dd className="text-sm font-medium">{new Date(selectedMember.created_at).toLocaleDateString(undefined, { dateStyle: "long" })}</dd></div></div>
                       <div className="flex items-center gap-3 p-4"><Fingerprint className="h-4 w-4 text-muted-foreground" /><div className="min-w-0"><dt className="text-xs text-muted-foreground">Member ID</dt><dd className="truncate font-mono text-xs text-foreground">{selectedMember.user_id}</dd></div></div>

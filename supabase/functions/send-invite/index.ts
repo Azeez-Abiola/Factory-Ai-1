@@ -40,7 +40,8 @@ Deno.serve(async (req) => {
 
     const { data: tenantRole } = await admin.rpc('tenant_role', { _tenant_id: invite.tenant_id, _user_id: uid });
     const { data: superAdmin } = await admin.rpc('has_role', { _user_id: uid, _role: 'super_admin' });
-    if (tenantRole !== 'tenant_admin' && !superAdmin) return json({ error: 'forbidden' }, 403);
+    const isTenantAdmin = tenantRole === 'owner' || tenantRole === 'admin' || tenantRole === 'tenant_admin';
+    if (!isTenantAdmin && !superAdmin) return json({ error: 'forbidden' }, 403);
 
     const { data: tenant } = await admin.from('tenants').select('name').eq('id', invite.tenant_id).maybeSingle();
     const base = (typeof app_url === 'string' && app_url.startsWith('http') ? app_url : '').replace(/\/$/, '');
