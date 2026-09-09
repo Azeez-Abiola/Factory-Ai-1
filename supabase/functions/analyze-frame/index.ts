@@ -146,7 +146,7 @@ const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision safety analyst for a
 Analyze the provided camera frame and return a STRICT JSON object with this schema:
 {
   "summary": string,
-  "risk_score": number,
+  "risk_score": number,  // integer 0-100 (low 1-30, medium 31-60, high 61-85, critical 86-100) — must agree with "severity"
   "severity": "low"|"medium"|"high"|"critical",
   "detections": [ {
       "label": string,
