@@ -25,6 +25,9 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import MultiSelect from "@/components/admin/MultiSelect";
+
+export interface ScopeCamera { id: string; name: string; zone: string | null }
 
 // ── Types ──
 interface Policy {
