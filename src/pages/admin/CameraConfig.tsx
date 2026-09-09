@@ -441,10 +441,14 @@ const CameraConfig = () => {
             <Button variant="outline" onClick={load} className="gap-2">
               <RefreshCw className="w-4 h-4" /> Refresh
             </Button>
+            <Button variant="outline" onClick={() => setNvrOpen(true)} className="gap-2">
+              <Router className="w-4 h-4" /> Bulk NVR Import
+            </Button>
             <Button onClick={() => { setConnectionTested(false); setEditing(emptyCam(activeTenantId)); }} className="gap-2">
               <Plus className="w-4 h-4" /> Add Camera
             </Button>
           </div>
+
         }
       />
 
