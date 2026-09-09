@@ -169,10 +169,34 @@ const Tenants = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Organizations" icon={Building2} title="Tenant Management"
-        description="Manage every organization on the platform — hierarchy, membership, and camera deployments."
-        actions={<Button onClick={openAdd}><Plus className="w-4 h-4 mr-2" /> Add Tenant</Button>} />
+      <PageHeader eyebrow="Organizations" icon={Building2} title="Sites & Tenants"
+        description="Every organization on the platform — directory, hierarchy, membership, and full site setup."
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setTab("setup")} className="gap-2">
+              <Rocket className="w-4 h-4" /> Set up new site
+            </Button>
+            <Button onClick={openAdd}><Plus className="w-4 h-4 mr-2" /> Add Tenant</Button>
+          </div>
+        } />
 
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="directory">Directory ({tenants.length})</TabsTrigger>
+          <TabsTrigger value="setup" className="gap-1.5"><Rocket className="w-3.5 h-3.5" /> Set up new site</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="setup">
+          <div className="rounded-xl border border-border p-4 md:p-5">
+            <p className="text-sm text-muted-foreground mb-4">
+              Guided setup for a brand new factory site — organization details, cameras, floor areas,
+              AI spend cap and team invites. The site appears in the directory as soon as you finish.
+            </p>
+            <Onboarding embedded />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="directory" className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
           { label: "Total Tenants", value: tenants.length, sub: `${activeCount} active` },
