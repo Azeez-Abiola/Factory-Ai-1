@@ -693,6 +693,21 @@ const RulesPolicy = () => {
         }
       />
 
+      {!activeTenantId && (
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="py-4 text-sm">
+            Pick a site at the top of the page. Policies and alert rules belong to a single site, so nothing can be
+            listed or created until one is selected.
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTenant && (
+        <p className="text-xs text-muted-foreground">
+          Showing governance for <span className="font-medium text-foreground">{activeTenant.name}</span>.
+        </p>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardContent className="pt-5 pb-4">
