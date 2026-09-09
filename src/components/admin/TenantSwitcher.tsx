@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTenants } from "@/hooks/useTenants";
+import { buildTenantTree, flattenTree } from "@/lib/tenantTree";
 import { cn } from "@/lib/utils";
 
 /**
