@@ -51,7 +51,19 @@ function computeStatus(row: any): MockCamera["status"] {
   return row.status === "offline" ? "offline" : "online";
 }
 
-function normalize(row: any, detections: DetectionPing[]): LiveCamera {
+/**
+ * Recorder snapshots sit on plain http behind Digest auth, so the browser
+ * cannot load them directly — they are proxied through the backend over https.
+ */
+function snapshotProxyUrl(cameraId: string, token: string | null) {
+  if (!token) return null;
+  const base = import.meta.env.VITE_SUPABASE_URL;
+  if (!base) return null;
+  return `${base}/functions/v1/camera-snapshot?camera_id=${cameraId}&token=${encodeURIComponent(token)}`;
+}
+
+function normalize(row: any, detections: DetectionPing[], token: string | null): LiveCamera {
+  const snapshotPlayback = row.snapshot_url ? snapshotProxyUrl(row.id, token) : null;
   const camDetections = detections.filter((d) => d.cameraId === row.id);
   return {
     id: row.id,
