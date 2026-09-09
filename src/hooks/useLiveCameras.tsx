@@ -93,8 +93,8 @@ function normalize(row: any, detections: DetectionPing[], token: string | null):
     referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
     clipAnalysisEnabled: !!row.clip_analysis_enabled,
     clipSeconds: row.clip_seconds ?? 5,
-    playbackUrl: row.stream_url ?? row.snapshot_url ?? null,
-    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : row.snapshot_url ? "snapshot" : null,
+    playbackUrl: row.stream_url ?? snapshotPlayback ?? null,
+    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : snapshotPlayback ? "snapshot" : null,
     isLive: !!(row.stream_url || row.snapshot_url),
     isDbBacked: true,
 
