@@ -347,7 +347,9 @@ Deno.serve(async (req) => {
             frame_bytes: frame.bytes,
             scene_changed: true,
             scene_delta: sceneDelta === null ? null : Number(sceneDelta.toFixed(3)),
+            confidence_gate: decisions.get(v) ?? null,
           },
+
         };
       })
       .filter((r) => !recentTypes.has(r.type));
