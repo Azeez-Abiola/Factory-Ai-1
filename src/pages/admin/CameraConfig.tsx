@@ -22,6 +22,8 @@ import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
+import NvrImportDialog from "@/components/admin/NvrImportDialog";
+
 import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
