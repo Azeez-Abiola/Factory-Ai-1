@@ -203,6 +203,7 @@ Deno.serve(async (req) => {
     let categories = DEFAULT_CATEGORIES;
     let referenceImages: { path: string; label?: string; kind?: string; note?: string }[] = [];
     let siteModel = false;
+    let defectTypes: { label: string; description?: string; severity_hint?: string }[] = [];
 
     const supabase = body.tenantId
       ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
