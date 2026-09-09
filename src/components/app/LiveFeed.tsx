@@ -75,11 +75,11 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
 
   // Snapshot playback: re-fetch the still image on a timer so the tile animates.
   useEffect(() => {
-    if (type !== "snapshot") return;
+    if (activeType !== "snapshot") return;
     const ms = Math.max(250, snapshotIntervalMs);
     const t = window.setInterval(() => setSnapshotTick((n) => n + 1), ms);
     return () => window.clearInterval(t);
-  }, [type, snapshotIntervalMs, attempt]);
+  }, [activeType, snapshotIntervalMs, attempt]);
 
   // Expose a frame grabber so the AI vision loop can read the live picture.
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
       }
     };
     return () => { if (captureRef) captureRef.current = null; };
-  }, [captureRef, type, attempt]);
+  }, [captureRef, activeType, attempt]);
 
   // Expose a short-clip recorder for quality checks that need motion, not a still.
   useEffect(() => {
@@ -156,7 +156,7 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
         }
       });
     return () => { if (recordRef) recordRef.current = null; };
-  }, [recordRef, type, attempt]);
+  }, [recordRef, activeType, attempt]);
 
 
 
@@ -195,7 +195,7 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
         };
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        const res = await fetch(url, {
+        const res = await fetch(activeUrl, {
           method: "POST",
           headers: { "Content-Type": "application/sdp" },
           body: offer.sdp ?? "",
@@ -212,11 +212,11 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
       }
     }
 
-    if (type === "webrtc") {
+    if (activeType === "webrtc") {
       startWhep();
     } else if (Hls.isSupported()) {
       hls = new Hls({ lowLatencyMode: true, backBufferLength: 15, maxBufferLength: 6 });
-      hls.loadSource(url);
+      hls.loadSource(activeUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().then(() => setState("playing")).catch(() => setState("playing"));
@@ -225,7 +225,7 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
         if (data.fatal) { setErrorMsg(data.details ?? "stream error"); setState("error"); }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = url;
+      video.src = activeUrl;
       video.addEventListener("loadedmetadata", () => {
         video.play().then(() => setState("playing")).catch(() => setState("playing"));
       });
@@ -241,32 +241,32 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
       if (pc) { pc.close(); }
       if (video) { video.srcObject = null; video.removeAttribute("src"); video.load(); }
     };
-  }, [url, type, attempt]);
+  }, [activeUrl, activeType, attempt]);
 
   if (isImageFeed) {
     const src =
-      type === "snapshot"
-        ? `${url}${url.includes("?") ? "&" : "?"}_t=${snapshotTick}`
-        : url;
+      activeType === "snapshot"
+        ? `${activeUrl}${activeUrl.includes("?") ? "&" : "?"}_t=${snapshotTick}`
+        : activeUrl;
     return (
       <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
         <img
           ref={imgRef}
-          key={type === "snapshot" ? attempt : attempt}
+          key={`${activeUrl}-${attempt}`}
           src={src}
           alt="Live camera feed"
           crossOrigin="anonymous"
           className="h-full w-full object-cover"
           onLoad={() => setState("playing")}
           onError={() => {
-            if (type === "snapshot" && state === "playing") return; // one dropped frame is not a failure
-            setErrorMsg(type === "snapshot" ? "Snapshot image could not be loaded" : "MJPEG stream could not be loaded by this browser");
+            if (activeType === "snapshot" && state === "playing") return; // one dropped frame is not a failure
+            setErrorMsg(activeType === "snapshot" ? "Snapshot image could not be loaded" : "MJPEG stream could not be loaded by this browser");
             setState("error");
           }}
         />
         {state === "playing" && overlay}
         {state === "loading" && <FeedLoading />}
-        {state === "error" && <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />}
+        {state === "error" && <FeedError message={errorMsg} onRetry={() => { setUsingFallback(false); setAttempt((value) => value + 1); }} />}
       </div>
     );
   }
@@ -287,7 +287,7 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
         <FeedLoading />
       )}
       {state === "error" && (
-        <FeedError message={errorMsg} onRetry={() => setAttempt((value) => value + 1)} />
+        <FeedError message={errorMsg} onRetry={() => { setUsingFallback(false); setAttempt((value) => value + 1); }} />
       )}
     </div>
   );
