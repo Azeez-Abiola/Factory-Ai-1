@@ -55,13 +55,38 @@ const SEVERITY_COLOR: Record<string, string> = {
   low: "hsl(var(--muted-foreground))",
 };
 
+interface DefectType {
+  id: string;
+  label: string;
+  description?: string;
+  severity_hint?: string;
+  enabled?: boolean;
+}
+
+const normalise = (s: string) => s.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+
+/** Does this alert belong to the configured defect type? */
+const matchesDefect = (a: AlertRow, d: DefectType) => {
+  const label = normalise(d.label);
+  if (!label) return false;
+  const hay = normalise(`${a.type} ${a.title}`);
+  if (hay.includes(label) || normalise(a.type) === normalise(d.id)) return true;
+  const dets = a.metadata?.detections;
+  return Array.isArray(dets) && dets.some((x: any) =>
+    normalise(String(x?.label ?? "")).includes(label) ||
+    normalise(String(x?.defect_type ?? "")).includes(label));
+};
+
 const Quality = () => {
   const { activeTenantId } = useTenants();
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [cameras, setCameras] = useState<{ id: string; name: string; zone: string | null }[]>([]);
+  const [defectTypes, setDefectTypes] = useState<DefectType[]>([]);
+  const [defectFilter, setDefectFilter] = useState<string>("all");
   const [range, setRange] = useState<keyof typeof RANGE_HOURS>("7d");
   const [loading, setLoading] = useState(true);
+
 
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
