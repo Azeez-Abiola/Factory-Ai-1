@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import AddressFields from "@/components/forms/AddressFields";
 import type { TenantRow } from "@/hooks/useTenants";
+import { eligibleParents, tenantPath } from "@/lib/tenantTree";
 
 const tenantSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
