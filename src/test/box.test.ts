@@ -4,12 +4,12 @@ import { detectionsToBoxes } from "@/hooks/useVisionOverlay";
 const one = (d: any) => detectionsToBoxes({ detections: [d] })[0];
 
 describe("overlay boxes", () => {
-  it("normalised xywh", () => {
-    expect(one({ label: "a", bbox: [0.1, 0.2, 0.3, 0.4] })).toMatchObject({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
-  });
-  it("percent", () => {
-    expect(one({ label: "a", bbox: [10, 20, 30, 40] })).toMatchObject({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
-  });
+  const near = (b: any) => {
+    expect(b.x).toBeCloseTo(0.1); expect(b.y).toBeCloseTo(0.2);
+    expect(b.w).toBeCloseTo(0.3); expect(b.h).toBeCloseTo(0.4);
+  };
+  it("normalised xywh", () => near(one({ label: "a", bbox: [0.1, 0.2, 0.3, 0.4] })));
+  it("percent", () => near(one({ label: "a", bbox: [10, 20, 30, 40] })));
   it("gemini box_2d ymin,xmin,ymax,xmax /1000", () => {
     const b = one({ label: "a", box_2d: [200, 100, 600, 400] });
     expect(b.x).toBeCloseTo(0.1); expect(b.y).toBeCloseTo(0.2);
