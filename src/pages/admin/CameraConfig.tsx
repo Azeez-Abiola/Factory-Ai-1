@@ -144,6 +144,8 @@ const CameraConfig = () => {
   const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
 
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
+  const [nvrOpen, setNvrOpen] = useState(false);
+
   const [connectionTested, setConnectionTested] = useState(false);
 
   const load = async () => {
