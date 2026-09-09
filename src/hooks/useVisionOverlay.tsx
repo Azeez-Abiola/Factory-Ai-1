@@ -146,7 +146,7 @@ export function detectionsToBoxes(analysis: any): VisionBox[] {
   const boxes: VisionBox[] = [];
 
   detections.forEach((d, i) => {
-    const box = parseBox(d?.bbox ?? d?.box ?? d?.bounding_box);
+    const box = parseBox2d(d?.box_2d) ?? parseBox(d?.bbox ?? d?.box ?? d?.bounding_box ?? d?.boundingBox);
     if (!box) return;
     const label = String(d?.label ?? "Detection");
     const category = guessCategory(d?.category, label);
