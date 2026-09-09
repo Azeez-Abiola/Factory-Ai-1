@@ -162,6 +162,7 @@ Analyze the provided camera frame and return a STRICT JSON object with this sche
 }
 "bbox" is REQUIRED for every detection and must be normalised to the image size as fractions between 0 and 1:
 x = left edge, y = top edge, width and height are the box size (x + width <= 1, y + height <= 1).
+Coordinates are always measured against the FULL frame you were given (top-left = 0,0; bottom-right = 1,1) — never against a crop, an inspection area or the original camera resolution.
 Draw one box per distinct person, vehicle, machine or hazard you flag — boxes must tightly enclose the subject.
 Return ONLY the JSON object — no markdown, no prose.`;
 
@@ -169,7 +170,7 @@ Return ONLY the JSON object — no markdown, no prose.`;
 const SITE_PPE_MODEL_ID = "site/ppe-reference";
 const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
 
-const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the image as fractions between 0 and 1 (x/y = top-left corner). One tight box per distinct subject you flag.`;
+const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the FULL frame as fractions between 0 and 1 (x/y = top-left corner, x+width <= 1, y+height <= 1). Never use pixels, percentages, 0-1000 units or crop-relative coordinates. One tight box per distinct subject you flag.`;
 
 function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
   const focus = categories.length

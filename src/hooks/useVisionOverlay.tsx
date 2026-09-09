@@ -52,22 +52,93 @@ function clamp01(n: number) {
   return Math.min(1, Math.max(0, n));
 }
 
-/** Accepts [x,y,w,h] or {x,y,width,height} in 0..1 or 0..100 / pixel-ish ranges. */
-function parseBox(raw: any): { x: number; y: number; w: number; h: number } | null {
+/**
+ * Normalises whatever shape the model returned into a 0..1 {x,y,w,h} box.
+ *
+ * Handles: [x,y,w,h], [x1,y1,x2,y2], Gemini's box_2d [ymin,xmin,ymax,xmax],
+ * object forms ({x,y,width,height} / {left,top,right,bottom} / {xmin,...}),
+ * and values expressed as fractions, percentages, 0..1000 units or raw pixels.
+ */
+function parseBox(raw: any, frame?: { width: number; height: number } | null): { x: number; y: number; w: number; h: number } | null {
   let v: number[] | null = null;
-  if (Array.isArray(raw) && raw.length >= 4 && raw.every((n) => typeof n === "number")) {
+  let corners = false;
+
+
+  const num = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? n : undefined);
+
+  if (Array.isArray(raw) && raw.length >= 4 && raw.slice(0, 4).every((n) => num(n) !== undefined)) {
     v = raw.slice(0, 4);
   } else if (raw && typeof raw === "object") {
-    const x = raw.x ?? raw.left, y = raw.y ?? raw.top;
-    const w = raw.w ?? raw.width, h = raw.h ?? raw.height;
-    if ([x, y, w, h].every((n) => typeof n === "number")) v = [x, y, w, h];
+    const x = num(raw.x) ?? num(raw.left) ?? num(raw.xmin) ?? num(raw.x1) ?? num(raw.x_min);
+    const y = num(raw.y) ?? num(raw.top) ?? num(raw.ymin) ?? num(raw.y1) ?? num(raw.y_min);
+    const w = num(raw.w) ?? num(raw.width);
+    const h = num(raw.h) ?? num(raw.height);
+    const x2 = num(raw.right) ?? num(raw.xmax) ?? num(raw.x2) ?? num(raw.x_max);
+    const y2 = num(raw.bottom) ?? num(raw.ymax) ?? num(raw.y2) ?? num(raw.y_max);
+    if (x !== undefined && y !== undefined && w !== undefined && h !== undefined) {
+      v = [x, y, w, h];
+    } else if (x !== undefined && y !== undefined && x2 !== undefined && y2 !== undefined) {
+      v = [x, y, x2, y2];
+      corners = true;
+    }
   }
   if (!v) return null;
-  const scale = v.some((n) => n > 1.5) ? (v.some((n) => n > 100) ? 1000 : 100) : 1;
-  const [x, y, w, h] = v.map((n) => n / scale);
-  if (!(w > 0.01) || !(h > 0.01)) return null;
-  return { x: clamp01(x), y: clamp01(y), w: clamp01(w), h: clamp01(h) };
+
+
+
+  // Work out the unit the numbers are in.
+  const max = Math.max(...v.map(Math.abs));
+  let sx = 1;
+  let sy = 1;
+  if (max > 1.5) {
+    if (frame && max > 1000) {
+      sx = frame.width;
+      sy = frame.height;
+    } else if (max <= 100) {
+      sx = sy = 100;
+    } else if (max <= 1000) {
+      sx = sy = 1000;
+    } else {
+      sx = sy = max;
+    }
+  }
+
+  const [a, b, c, d] = [v[0] / sx, v[1] / sy, v[2] / sx, v[3] / sy];
+
+
+  let x = a;
+  let y = b;
+  let w = corners ? c - a : c;
+  let h = corners ? d - b : d;
+
+  // Some models emit [x1,y1,x2,y2] while claiming [x,y,w,h]; a box that would
+  // spill far outside the frame is almost always corner form.
+  if (!corners && (x + w > 1.05 || y + h > 1.05) && c > a && d > b && c <= 1.05 && d <= 1.05) {
+    w = c - a;
+    h = d - b;
+  }
+
+  if (!(w > 0.005) || !(h > 0.005)) return null;
+
+  // Clip to the frame so a box never hangs off the picture.
+  const x0 = clamp01(x);
+  const y0 = clamp01(y);
+  const x1 = clamp01(x + w);
+  const y1 = clamp01(y + h);
+  const outW = x1 - x0;
+  const outH = y1 - y0;
+  if (!(outW > 0.005) || !(outH > 0.005)) return null;
+
+  return { x: x0, y: y0, w: outW, h: outH };
 }
+
+/** Gemini box_2d arrives as [ymin, xmin, ymax, xmax] on a 0..1000 grid. */
+function parseBox2d(raw: any): { x: number; y: number; w: number; h: number } | null {
+  if (!Array.isArray(raw) || raw.length < 4 || !raw.slice(0, 4).every((n) => typeof n === "number")) return null;
+  const [ymin, xmin, ymax, xmax] = raw as number[];
+  return parseBox({ xmin, ymin, xmax, ymax });
+}
+
 
 export function detectionsToBoxes(analysis: any): VisionBox[] {
   const detections: any[] = Array.isArray(analysis?.detections) ? analysis.detections : [];
@@ -75,7 +146,7 @@ export function detectionsToBoxes(analysis: any): VisionBox[] {
   const boxes: VisionBox[] = [];
 
   detections.forEach((d, i) => {
-    const box = parseBox(d?.bbox ?? d?.box ?? d?.bounding_box);
+    const box = parseBox2d(d?.box_2d) ?? parseBox(d?.bbox ?? d?.box ?? d?.bounding_box ?? d?.boundingBox);
     if (!box) return;
     const label = String(d?.label ?? "Detection");
     const category = guessCategory(d?.category, label);

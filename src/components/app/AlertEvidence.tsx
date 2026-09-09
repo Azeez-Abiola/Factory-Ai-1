@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, ImageOff, Loader2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,9 @@ interface Props {
 export default function AlertEvidence({ metadata, cameraId, variant = "full", className, title }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   const evidencePath = typeof metadata?.evidence_path === "string" ? (metadata.evidence_path as string) : null;
   const boxes: VisionBox[] = useMemo(() => detectionsToBoxes(metadata ?? {}), [metadata]);
@@ -32,6 +35,7 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
     const resolve = async () => {
       setLoading(true);
       setUrl(null);
+      setNatural(null);
       if (evidencePath) {
         const { data } = await supabase.storage.from("alert-evidence").createSignedUrl(evidencePath, 3600);
         if (active && data?.signedUrl) {
@@ -55,7 +59,37 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
     return () => { active = false; };
   }, [evidencePath, cameraId]);
 
+  // Track the drawn size of the frame so the boxes can be pinned to the exact
+  // area the picture occupies (letterboxing included) rather than the box.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => setFrameSize({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [url]);
+
   const isThumb = variant === "thumb";
+
+  /**
+   * The image is rendered with object-contain so nothing is cropped; the
+   * overlay is inset to the painted rectangle so every box lands exactly where
+   * the model saw it.
+   */
+  const painted = useMemo(() => {
+    if (!natural || !frameSize || !frameSize.w || !frameSize.h) return { left: 0, top: 0, width: 100, height: 100 };
+    const imgAR = natural.w / natural.h;
+    const boxAR = frameSize.w / frameSize.h;
+    if (imgAR > boxAR) {
+      const height = (boxAR / imgAR) * 100;
+      return { left: 0, top: (100 - height) / 2, width: 100, height };
+    }
+    const width = (imgAR / boxAR) * 100;
+    return { left: (100 - width) / 2, top: 0, width, height: 100 };
+  }, [natural, frameSize]);
+
 
   if (loading) {
     return (
@@ -76,31 +110,46 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className={cn("relative overflow-hidden rounded-lg border border-border bg-black", isThumb ? "h-16 w-24" : "aspect-video w-full")}>
-        <img src={url} alt={title ? `Camera frame for ${title}` : "Alert camera frame"} className="h-full w-full object-cover" loading="lazy" />
-        {boxes.map((b) => (
-          <div
-            key={b.id}
-            className="absolute rounded-[3px] border-2"
-            style={{
-              left: `${b.x * 100}%`,
-              top: `${b.y * 100}%`,
-              width: `${b.w * 100}%`,
-              height: `${b.h * 100}%`,
-              borderColor: categoryColor(b.category),
-              boxShadow: `0 0 0 1px hsl(var(--background) / 0.5)`,
-            }}
-          >
-            {!isThumb && (
-              <span
-                className="absolute -top-5 left-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-medium text-background"
-                style={{ background: categoryColor(b.category) }}
-              >
-                {b.label}{b.confidence ? ` ${Math.round(b.confidence * 100)}%` : ""}
-              </span>
-            )}
-          </div>
-        ))}
+      <div ref={frameRef} className={cn("relative overflow-hidden rounded-lg border border-border bg-black", isThumb ? "h-16 w-24" : "aspect-video w-full")}>
+        <img
+          src={url}
+          alt={title ? `Camera frame for ${title}` : "Alert camera frame"}
+          className="h-full w-full object-contain"
+          loading="lazy"
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) setNatural({ w: img.naturalWidth, h: img.naturalHeight });
+          }}
+        />
+        <div
+          className="pointer-events-none absolute"
+          style={{ left: `${painted.left}%`, top: `${painted.top}%`, width: `${painted.width}%`, height: `${painted.height}%` }}
+        >
+          {boxes.map((b) => (
+            <div
+              key={b.id}
+              className="absolute rounded-[3px] border-2"
+              style={{
+                left: `${b.x * 100}%`,
+                top: `${b.y * 100}%`,
+                width: `${b.w * 100}%`,
+                height: `${b.h * 100}%`,
+                borderColor: categoryColor(b.category),
+                boxShadow: `0 0 0 1px hsl(var(--background) / 0.5)`,
+              }}
+            >
+              {!isThumb && (
+                <span
+                  className="absolute -top-5 left-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-medium text-background"
+                  style={{ background: categoryColor(b.category) }}
+                >
+                  {b.label}{b.confidence ? ` ${Math.round(b.confidence * 100)}%` : ""}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
         {isThumb && boxes.length > 0 && (
           <span className="absolute bottom-0.5 right-0.5 rounded bg-background/80 px-1 text-[9px] font-mono text-foreground">
             {boxes.length}
