@@ -103,8 +103,8 @@ function parseBox(raw: any, frame?: { width: number; height: number } | null): {
     }
   }
 
-  let [a, b, c, d] = [v[0] / sx, v[1] / sy, v[2] / sx, v[3] / sy];
-  if (yFirst) [a, b, c, d] = [b, a, d, c];
+  const [a, b, c, d] = [v[0] / sx, v[1] / sy, v[2] / sx, v[3] / sy];
+
 
   let x = a;
   let y = b;
