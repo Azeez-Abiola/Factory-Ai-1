@@ -151,6 +151,7 @@ const AIConfig = () => {
         setSystemPrompt(DEFAULT_PROMPT);
         setModel("google/gemini-2.5-pro");
         setCategories(DEFAULT_CATEGORIES);
+        setDefectTypes(DEFAULT_DEFECT_TYPES);
         setCustomModels([]);
         setReferenceImages([]);
         setRefPreviews({});
