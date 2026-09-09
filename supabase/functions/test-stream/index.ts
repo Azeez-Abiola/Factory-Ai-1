@@ -28,11 +28,19 @@ function requestHeaders(credentials?: { username?: string; password?: string } |
   return headers;
 }
 
+class ProbeError extends Error {}
+
 async function fetchWithTimeout(url: string, init: RequestInit) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 10_000);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (timedOut) {
+      throw new ProbeError('The stream did not respond within 10 seconds. Check the address is reachable from the public internet (not a private LAN IP) and that any gateway/firewall allows it.');
+    }
+    throw new ProbeError(`Could not reach the stream: ${(e as Error).message}`);
   } finally {
     clearTimeout(timer);
   }
