@@ -39,6 +39,7 @@ interface MemberRow {
   job_title: string | null;
   phone: string | null;
   updated_at: string | null;
+  email: string | null;
 }
 
 interface InvitationRow {
@@ -98,6 +99,13 @@ const UserManagement = () => {
       profiles = Object.fromEntries((pRows ?? []).map((p) => [p.id, p]));
     }
 
+    // Email addresses live in the auth store; a guarded helper exposes them to site admins.
+    let emails: Record<string, string> = {};
+    const { data: eRows } = await (supabase as unknown as {
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: { user_id: string; email: string }[] | null }>;
+    }).rpc("tenant_member_emails", { _tenant_id: activeTenantId });
+    emails = Object.fromEntries((eRows ?? []).map((e) => [e.user_id, e.email]));
+
     setMembers(
       (mRows ?? []).map((r) => ({
         ...r,
@@ -107,6 +115,7 @@ const UserManagement = () => {
         job_title: profiles[r.user_id]?.job_title ?? null,
         phone: profiles[r.user_id]?.phone ?? null,
         updated_at: profiles[r.user_id]?.updated_at ?? null,
+        email: emails[r.user_id] ?? null,
       })),
     );
     setInvitations((iRows ?? []) as InvitationRow[]);
