@@ -1,0 +1,1 @@
+DELETE FROM public.cameras WHERE name LIKE 'QA NVR%' AND (metadata->>'source') = 'nvr_import';
