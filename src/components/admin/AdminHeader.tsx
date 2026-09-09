@@ -18,6 +18,7 @@ const AdminHeader = () => {
           <Activity className="w-3 h-3 text-success" />
           <span className="text-[11px] font-medium text-muted-foreground">All systems nominal</span>
         </div>
+        <TenantSwitcher />
         <ThemeToggle />
         <UserMenu />
       </div>
