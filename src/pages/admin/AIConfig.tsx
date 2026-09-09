@@ -252,6 +252,18 @@ const AIConfig = () => {
     toast.info("Reset to platform defaults — click Save to apply");
   };
 
+  const addDefectType = () => {
+    const label = newDefectLabel.trim();
+    if (!label) return;
+    const id = slugify(label);
+    if (defectTypes.some((d) => d.id === id)) { toast.error("That defect type already exists"); return; }
+    setDefectTypes((d) => [...d, { id, label, description: "", severity_hint: "medium", enabled: true }]);
+    setNewDefectLabel("");
+  };
+  const updateDefectType = (id: string, patch: Partial<DefectType>) =>
+    setDefectTypes((ds) => ds.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  const removeDefectType = (id: string) => setDefectTypes((ds) => ds.filter((d) => d.id !== id));
+
   const addCategory = () => {
     const label = newCatLabel.trim();
     if (!label) return;
