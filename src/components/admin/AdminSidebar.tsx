@@ -11,9 +11,8 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
   {
     label: "Organizations",
     items: [
-      { to: "/admin", icon: Building2, label: "Tenants", end: true },
+      { to: "/admin", icon: Building2, label: "Sites & Tenants", end: true },
       { to: "/admin/users", icon: Users, label: "User Management" },
-      { to: "/admin/onboarding", icon: Rocket, label: "Onboarding" },
       { to: "/admin/sites", icon: Factory, label: "Site Overview" },
       { to: "/admin/site-requests", icon: MapPinPlus, label: "Site Requests" },
     ],
