@@ -132,20 +132,21 @@ async function raiseAlerts(
 
 
 const DEFAULT_CATEGORIES = [
-  { id: "ppe",          label: "PPE Compliance",       description: "hard hats, hi-vis vests, gloves, goggles, hearing/respiratory protection" },
-  { id: "intrusion",    label: "Restricted Zone Entry",description: "unauthorized personnel in cordoned or hazardous areas" },
-  { id: "downtime",     label: "Machine Downtime",     description: "idle machinery, stalled lines, missing operators at stations" },
-  { id: "ergonomics",   label: "Ergonomic Risk",       description: "unsafe lifts, awkward postures, repetitive strain indicators" },
-  { id: "quality",      label: "Quality / Defect",     description: "visible defects, misalignment, damaged product, packaging errors" },
-  { id: "housekeeping", label: "Housekeeping",         description: "spills, obstructions, blocked exits, poor 5S" },
-  { id: "forklift",     label: "Forklift / Pedestrian",description: "pedestrian in forklift zone, no spotter, unsafe speed" },
+  { id: "ppe",          label: "PPE Compliance",       description: "missing or incorrectly worn hard hats, hi-vis vests, gloves, goggles, hearing or respiratory protection — flag the person missing the item, not people who are fully compliant" },
+  { id: "intrusion",    label: "Restricted Zone Entry",description: "people inside cordoned, guarded or hazardous areas; reaching into a running machine; bypassed guarding or interlocks" },
+  { id: "downtime",     label: "Machine Downtime",     description: "idle or stalled line, product backing up on a conveyor, station left unmanned while running" },
+  { id: "ergonomics",   label: "Ergonomic Risk",       description: "bending at the waist, twisting under load, overhead or two-handed heavy lifts, repeated strain at one station — report the station once, not every repetition" },
+  { id: "quality",      label: "Quality / Defect",     description: "visible product or packaging defects: crushed, torn, leaking, mislabelled, open flaps, misaligned or missing items on the line" },
+  { id: "housekeeping", label: "Housekeeping",         description: "spills, debris, trailing cables, stock stacked in walkways, blocked exits, extinguishers or panels obstructed" },
+  { id: "forklift",     label: "Forklift / Pedestrian",description: "forklift and pedestrian sharing an unsegregated path, no spotter, raised load in motion, unsafe speed or reversing without visibility" },
 ];
+
 
 const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision safety analyst for a factory floor monitoring platform.
 Analyze the provided camera frame and return a STRICT JSON object with this schema:
 {
   "summary": string,
-  "risk_score": number,
+  "risk_score": number,  // integer 0-100 (low 1-30, medium 31-60, high 61-85, critical 86-100) — must agree with "severity"
   "severity": "low"|"medium"|"high"|"critical",
   "detections": [ {
       "label": string,
@@ -349,12 +350,28 @@ Deno.serve(async (req) => {
     const raw: string = payload?.choices?.[0]?.message?.content ?? "";
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
-    let analysis: unknown = null;
+    let analysis: any = null;
     try { analysis = JSON.parse(cleaned); }
     catch {
       const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) { try { analysis = JSON.parse(match[0]); } catch { /* noop */ } }
     }
+
+    // Models sometimes answer on a 0-10 scale. Normalise to 0-100 and keep the
+    // score consistent with the severity word so the UI never disagrees itself.
+    if (analysis && typeof analysis === "object") {
+      const sev = String(analysis.severity ?? "").toLowerCase();
+      let score = typeof analysis.risk_score === "number" ? analysis.risk_score : NaN;
+      if (Number.isFinite(score) && score <= 10 && sev && sev !== "low") score *= 10;
+      if (!Number.isFinite(score)) score = SEVERITY_SCORE[sev] ?? 50;
+      const band: Record<string, [number, number]> = {
+        low: [1, 30], medium: [31, 60], high: [61, 85], critical: [86, 100],
+      };
+      const range = band[sev];
+      if (range) score = Math.min(range[1], Math.max(range[0], score));
+      analysis.risk_score = Math.round(Math.min(100, Math.max(0, score)));
+    }
+
 
     const media = body.videoUrl ? "video" as const : "image" as const;
     if (body.tenantId && supabase) {
