@@ -175,8 +175,8 @@ function PolicyDialog({
         category: form.category,
         severity: form.severity,
         enabled: form.enabled,
-        scope_zones: form.scope_zones.split(",").map(s => s.trim()).filter(Boolean),
-        scope_cameras: form.scope_cameras.split(",").map(s => s.trim()).filter(Boolean),
+        scope_zones: form.scope_zones,
+        scope_cameras: form.scope_cameras,
         compiled_prompt: compiled?.vision_prompt ?? null,
         compiled_rule: compiled?.rule ?? null,
       };
