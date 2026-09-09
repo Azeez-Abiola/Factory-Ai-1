@@ -101,8 +101,8 @@ function PolicyDialog({
         category: editing.category,
         severity: editing.severity,
         enabled: editing.enabled,
-        scope_zones: editing.scope_zones.join(", "),
-        scope_cameras: editing.scope_cameras.join(", "),
+        scope_zones: editing.scope_zones ?? [],
+        scope_cameras: editing.scope_cameras ?? [],
       });
       setCompiled(
         editing.compiled_prompt || editing.compiled_rule
@@ -117,18 +117,20 @@ function PolicyDialog({
         category: seed.category,
         severity: seed.severity,
         enabled: true,
-        scope_zones: seed.scope_zones.join(", "),
-        scope_cameras: "",
+        // Only keep template zones that actually exist on this site.
+        scope_zones: seed.scope_zones.filter(z => zoneOptions.includes(z)),
+        scope_cameras: [],
       });
       setCompiled(null);
     } else {
       setForm({
         name: "", description: "", natural_language: "",
         category: "safety", severity: "medium", enabled: true,
-        scope_zones: "", scope_cameras: "",
+        scope_zones: [], scope_cameras: [],
       });
       setCompiled(null);
     }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [editing, seed, open]);
 
   const compileWithAI = async () => {
