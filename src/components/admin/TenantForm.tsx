@@ -43,6 +43,8 @@ interface TenantFormProps {
   onOpenChange: (open: boolean) => void;
   tenant?: TenantRow | null;
   parentTenant?: TenantRow | null;
+  /** Full tenant list — used to offer/move a parent site. */
+  allTenants?: TenantRow[];
   onSubmit: (data: TenantFormValues & { parent_id?: string | null; id?: string }) => Promise<void> | void;
 }
 
