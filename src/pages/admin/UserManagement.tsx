@@ -126,10 +126,26 @@ const UserManagement = () => {
     load();
   }, [load]);
 
+  // Keep the list live when membership or invitations change elsewhere.
+  useEffect(() => {
+    if (!activeTenantId) return;
+    const channel = supabase
+      .channel(`user-management-${activeTenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenant_members", filter: `tenant_id=eq.${activeTenantId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "tenant_invitations", filter: `tenant_id=eq.${activeTenantId}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeTenantId, load]);
+
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
       const q = search.toLowerCase();
-      const matchSearch = !q || (m.display_name ?? "").toLowerCase().includes(q) || m.user_id.includes(q);
+      const matchSearch =
+        !q ||
+        (m.display_name ?? "").toLowerCase().includes(q) ||
+        (m.email ?? "").toLowerCase().includes(q) ||
+        (m.job_title ?? "").toLowerCase().includes(q) ||
+        m.user_id.includes(q);
       const matchRole = roleFilter === "all" || m.role === roleFilter;
       return matchSearch && matchRole;
     });
