@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
       try {
         const { data } = await supabase
           .from("ai_analysis_config")
-          .select("system_prompt, model, categories, reference_images")
+          .select("system_prompt, model, categories, reference_images, defect_types")
           .eq("tenant_id", body.tenantId)
           .maybeSingle();
         if (data) {
