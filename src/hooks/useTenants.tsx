@@ -20,6 +20,7 @@ export interface TenantRow {
 }
 
 const ACTIVE_KEY = "factoryai.activeTenantId";
+const ACTIVE_EVENT = "factoryai:active-tenant-changed";
 
 /**
  * Loads all tenants the current user can access (RLS-scoped),
