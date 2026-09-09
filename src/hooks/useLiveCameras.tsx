@@ -11,6 +11,9 @@ export interface LiveCamera extends MockCamera {
   /** Actual URL the player should use (stream URL, or the snapshot poller fallback). */
   playbackUrl?: string | null;
   playbackType?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
+  /** Snapshot feed used when the streaming gateway is unreachable. */
+  fallbackUrl?: string | null;
+  fallbackType?: "snapshot" | null;
   lastSeenAt?: string | null;
   heartbeatSeconds?: number;
   audioEnabled?: boolean;
@@ -96,6 +99,8 @@ function normalize(row: any, detections: DetectionPing[], token: string | null):
     referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
     clipAnalysisEnabled: !!row.clip_analysis_enabled,
     clipSeconds: row.clip_seconds ?? 5,
+    fallbackUrl: row.stream_url ? snapshotPlayback : null,
+    fallbackType: row.stream_url && snapshotPlayback ? "snapshot" : null,
     playbackUrl: row.stream_url ?? snapshotPlayback ?? null,
     playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : snapshotPlayback ? "snapshot" : null,
     isLive: !!(row.stream_url || row.snapshot_url),

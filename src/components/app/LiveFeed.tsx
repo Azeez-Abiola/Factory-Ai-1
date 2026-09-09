@@ -265,6 +265,7 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
           }}
         />
         {state === "playing" && overlay}
+        {state === "playing" && usingFallback && <SnapshotBadge />}
         {state === "loading" && <FeedLoading />}
         {state === "error" && <FeedError message={errorMsg} onRetry={() => { setUsingFallback(false); setAttempt((value) => value + 1); }} />}
       </div>
@@ -293,6 +294,12 @@ export default function LiveFeed({ url, type = "hls", fallbackUrl = null, fallba
   );
 }
 
+
+const SnapshotBadge = () => (
+  <span className="pointer-events-none absolute bottom-1 left-1 rounded-sm bg-background/80 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+    Snapshot fallback
+  </span>
+);
 
 const FeedLoading = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-sm">
