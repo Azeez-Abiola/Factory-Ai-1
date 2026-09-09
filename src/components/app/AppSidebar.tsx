@@ -2,7 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Bell, Camera, FileText,
   Shield, Factory, ChevronLeft, ChevronRight,
-  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck, Map, Gauge
+  ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck, Map, Gauge, PackageSearch
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
   {
     label: "Analyze",
     items: [
+      { to: "/app/quality", icon: PackageSearch, label: "Quality" },
       { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
       { to: "/app/reports", icon: FileText, label: "Reports" },
       { to: "/app/shift-reports", icon: ClipboardList, label: "Shift Handover" },

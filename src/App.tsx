@@ -23,6 +23,7 @@ import InsightDetail from "./pages/InsightDetail.tsx";
 import Maintenance from "./pages/Maintenance.tsx";
 import MaintenanceDetail from "./pages/MaintenanceDetail.tsx";
 import Help from "./pages/Help.tsx";
+import Quality from "./pages/Quality.tsx";
 import ReportDetail from "./pages/ReportDetail.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import Tenants from "./pages/admin/Tenants.tsx";
@@ -40,6 +41,7 @@ import RulesPolicy from "./pages/admin/RulesPolicy.tsx";
 import EscalationPolicies from "./pages/admin/EscalationPolicies.tsx";
 import NotificationSettings from "./pages/admin/NotificationSettings.tsx";
 import AIConfig from "./pages/admin/AIConfig.tsx";
+import QualityDataset from "./pages/admin/QualityDataset.tsx";
 import AIBudget from "./pages/admin/AIBudget.tsx";
 import SiteOverview from "./pages/admin/SiteOverview.tsx";
 import SiteRequests from "./pages/admin/SiteRequests.tsx";
@@ -77,6 +79,7 @@ const App = () => (
               <Route path="incidents" element={<Navigate to="/app/investigations" replace />} />
               <Route path="cameras" element={<Cameras />} />
               <Route path="floor-plan" element={<FloorPlan />} />
+              <Route path="quality" element={<Quality />} />
 
               <Route path="reports" element={<Reports />} />
               <Route path="reports/:reportId" element={<ReportDetail />} />
@@ -126,6 +129,7 @@ const App = () => (
               <Route path="escalation" element={<EscalationPolicies />} />
               <Route path="notifications" element={<NotificationSettings />} />
               <Route path="ai-config" element={<AIConfig />} />
+              <Route path="quality-dataset" element={<QualityDataset />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
