@@ -28,11 +28,19 @@ function requestHeaders(credentials?: { username?: string; password?: string } |
   return headers;
 }
 
+class ProbeError extends Error {}
+
 async function fetchWithTimeout(url: string, init: RequestInit) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 10_000);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (timedOut) {
+      throw new ProbeError('The stream did not respond within 10 seconds. Check the address is reachable from the public internet (not a private LAN IP) and that any gateway/firewall allows it.');
+    }
+    throw new ProbeError(`Could not reach the stream: ${(e as Error).message}`);
   } finally {
     clearTimeout(timer);
   }
@@ -118,6 +126,12 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, reason: (e as Error).message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const err = e as Error;
+    // Unreachable / slow streams are an expected test outcome, not a server fault.
+    const expected = err instanceof ProbeError || err.name === 'AbortError' || /aborted|timed out|timeout/i.test(err.message);
+    return new Response(
+      JSON.stringify({ ok: false, reason: expected ? err.message : `Unexpected error: ${err.message}` }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
 });
