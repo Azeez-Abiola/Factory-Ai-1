@@ -53,7 +53,7 @@ const defaultCameras: CameraEntry[] = [];
 
 const RTSP_RE = /^rtsp:\/\/[^\s]+$/i;
 
-const Onboarding = () => {
+const Onboarding = ({ embedded = false }: { embedded?: boolean }) => {
   const { user } = useAuth();
   const { reload: reloadTenants, setActiveTenantId } = useTenants();
   const navigate = useNavigate();
