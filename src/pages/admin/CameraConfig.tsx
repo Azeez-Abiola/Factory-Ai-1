@@ -456,6 +456,18 @@ const CameraConfig = () => {
         }
       />
 
+      {activeTenantId && (
+        <NvrImportDialog
+          open={nvrOpen}
+          onOpenChange={setNvrOpen}
+          tenantId={activeTenantId}
+          gatewayBase={gatewayBase}
+          gatewayVendor={gatewayVendor}
+          onImported={load}
+        />
+      )}
+
+
       {/* Fleet strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
