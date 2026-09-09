@@ -14,6 +14,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
     label: "Operate",
     items: [
       { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
+      { to: "/app/shift-reports", icon: ClipboardList, label: "Shift & Handover" },
       { to: "/app/alerts", icon: Bell, label: "Alerts" },
       { to: "/app/investigations", icon: ShieldCheck, label: "Investigations" },
       { to: "/app/cameras", icon: Camera, label: "Camera Feeds" },
@@ -26,7 +27,6 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
       { to: "/app/quality", icon: PackageSearch, label: "Quality" },
       { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
       { to: "/app/reports", icon: FileText, label: "Reports" },
-      { to: "/app/shift-reports", icon: ClipboardList, label: "Shift Handover" },
       { to: "/app/maintenance", icon: Wrench, label: "Maintenance" },
     ],
   },

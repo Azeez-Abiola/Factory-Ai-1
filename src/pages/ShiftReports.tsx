@@ -319,7 +319,7 @@ const ShiftReports = () => {
       <PageHeader
         eyebrow="Handover"
         icon={ClipboardList}
-        title="Shift Handover"
+        title="Shift & Handover"
         description="Start a shift, capture what happened, and hand the floor over with an auditable sign-off."
         actions={
           <Button variant="outline" className="border-border" onClick={handleExportAll}>
