@@ -244,7 +244,7 @@ const AuditLog = () => {
 
       {/* Filters */}
       <div className="glass rounded-xl border border-border p-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-full sm:w-[220px]">
+        <div className="relative flex-1 min-w-0 sm:min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search actions, entities, metadata, actor…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -320,7 +320,7 @@ const AuditLog = () => {
                       <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium shrink-0">
                         {(actorName(r.actor_id) ?? "?").slice(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-sm text-foreground truncate max-w-full sm:w-[160px]">{actorName(r.actor_id)}</span>
+                      <span className="text-sm text-foreground truncate max-w-full sm:max-w-[160px]">{actorName(r.actor_id)}</span>
                     </div>
                   </td>
                   <td className="p-3">
@@ -328,7 +328,7 @@ const AuditLog = () => {
                   </td>
                   <td className="p-3 text-sm text-foreground">{r.entity_type}</td>
                   <td className="p-3 text-xs font-mono text-muted-foreground">AUD-{r.id.slice(0, 8).toUpperCase()}</td>
-                  <td className="p-3 text-xs text-muted-foreground truncate max-w-full sm:w-[140px]">{tenantName(r.tenant_id)}</td>
+                  <td className="p-3 text-xs text-muted-foreground truncate max-w-full sm:max-w-[140px]">{tenantName(r.tenant_id)}</td>
                   <td className="p-3 text-right">
                     <Button variant="ghost" size="sm" className="h-7"><ExternalLink className="w-3.5 h-3.5" /></Button>
                   </td>

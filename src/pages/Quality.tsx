@@ -328,7 +328,7 @@ const Quality = () => {
                 <th className="text-right px-5 py-2.5">Critical</th>
                 <th className="text-right px-5 py-2.5">Outstanding</th>
                 <th className="text-right px-5 py-2.5">Closed</th>
-                <th className="text-right px-5 py-2.5 w-full sm:w-[180px]">Progress</th>
+                <th className="text-right px-5 py-2.5 w-[180px]">Progress</th>
               </tr>
             </thead>
             <tbody>

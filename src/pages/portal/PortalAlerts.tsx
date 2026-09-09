@@ -125,7 +125,7 @@ const PortalAlerts = () => {
           />
         </div>
         <Select value={severity} onValueChange={setSeverity}>
-          <SelectTrigger className="h-10 md:w-full sm:w-[150px]" aria-label="Severity"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 w-full sm:w-[150px]" aria-label="Severity"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All severities</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
@@ -135,7 +135,7 @@ const PortalAlerts = () => {
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="h-10 md:w-full sm:w-[150px]" aria-label="Status"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 w-full sm:w-[150px]" aria-label="Status"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="open">Open</SelectItem>
@@ -144,7 +144,7 @@ const PortalAlerts = () => {
           </SelectContent>
         </Select>
         <Select value={range} onValueChange={setRange}>
-          <SelectTrigger className="h-10 md:w-full sm:w-[150px]" aria-label="Time range"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-10 w-full sm:w-[150px]" aria-label="Time range"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="1">Last 24 hours</SelectItem>
             <SelectItem value="7">Last 7 days</SelectItem>

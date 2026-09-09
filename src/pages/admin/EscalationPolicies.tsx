@@ -118,7 +118,7 @@ export default function EscalationPolicies() {
         {policies.map((p) => (
           <div key={p.id} className="glass rounded-xl border border-border p-5 space-y-4">
             <div className="flex items-start gap-3 flex-wrap">
-              <div className="flex-1 min-w-full sm:w-[240px] space-y-2">
+              <div className="flex-1 min-w-0 sm:min-w-[240px] space-y-2">
                 <Label className="text-xs">Policy name</Label>
                 <Input value={p.name} onChange={(e) => setPolicies((ps) => ps.map((x) => x.id === p.id ? { ...x, name: e.target.value } : x))}
                   onBlur={(e) => update(p.id, { name: e.target.value })} className="bg-background border-border" />

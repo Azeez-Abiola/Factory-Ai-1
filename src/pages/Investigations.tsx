@@ -227,7 +227,7 @@ export default function Investigations() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-full sm:w-[220px] max-w-sm">
+        <div className="relative flex-1 min-w-0 sm:min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search title, notes, id…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
         </div>

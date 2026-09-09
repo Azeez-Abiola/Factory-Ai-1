@@ -412,7 +412,7 @@ const KpiConfig = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex-1 min-w-full sm:w-[140px]">
+                      <div className="flex-1 min-w-0 sm:min-w-[140px]">
                         <Progress value={pct} className="h-2" />
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground whitespace-nowrap">

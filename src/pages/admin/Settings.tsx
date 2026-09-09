@@ -168,7 +168,7 @@ const Settings = () => {
         </TabsList>
 
         <TabsContent value="webhooks" className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -330,14 +330,14 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="whitelabel" className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-1 sm:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="border-border">
               <CardHeader>
                 <CardTitle className="text-lg font-bold text-foreground">Branding Configuration</CardTitle>
                 <CardDescription className="text-xs">Saved against {activeTenant?.name ?? "the selected tenant"}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="col-span-1 sm:col-span-2">
                     <Label className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">Company Display Name</Label>
                     <Input value={branding.companyName} onChange={(e) => setBranding({ ...branding, companyName: e.target.value })} className="bg-background border-border" />
