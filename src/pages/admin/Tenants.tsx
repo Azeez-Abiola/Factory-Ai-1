@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Search, Plus, MoreHorizontal, Pencil, Ban, RotateCcw, GitBranch, Loader2 } from "lucide-react";
+import { Building2, Search, Plus, MoreHorizontal, Pencil, Ban, RotateCcw, GitBranch, Loader2, Rocket } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Onboarding from "./Onboarding";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
