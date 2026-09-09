@@ -160,9 +160,9 @@ const NvrImportDialog = ({ open, onOpenChange, tenantId, gatewayBase, gatewayVen
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Recorder brand</Label>
+              <Label htmlFor="nvr-brand">Recorder brand</Label>
               <Select value={brand} onValueChange={(v) => setBrand(v as Brand)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="nvr-brand"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(RTSP_TEMPLATES).map(([k, v]) => (
                     <SelectItem key={k} value={k}>{v.label}</SelectItem>
@@ -171,39 +171,39 @@ const NvrImportDialog = ({ open, onOpenChange, tenantId, gatewayBase, gatewayVen
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>NVR address <span className="text-destructive">*</span></Label>
-              <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="10.20.0.5" />
+              <Label htmlFor="nvr-host">NVR address <span className="text-destructive">*</span></Label>
+              <Input id="nvr-host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="10.20.0.5" />
             </div>
             <div className="space-y-1.5">
-              <Label>Username</Label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+              <Label htmlFor="nvr-user">Username</Label>
+              <Input id="nvr-user" value={username} onChange={(e) => setUsername(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Password</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              <Label htmlFor="nvr-pass">Password</Label>
+              <Input id="nvr-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
             <div className="space-y-1.5">
-              <Label>First channel</Label>
-              <Input type="number" min={1} value={first} onChange={(e) => setFirst(Number(e.target.value) || 1)} />
+              <Label htmlFor="nvr-first">First channel</Label>
+              <Input id="nvr-first" type="number" min={1} value={first} onChange={(e) => setFirst(Number(e.target.value) || 1)} />
             </div>
             <div className="space-y-1.5">
-              <Label>How many channels</Label>
-              <Input type="number" min={1} max={64} value={count} onChange={(e) => setCount(Number(e.target.value) || 1)} />
+              <Label htmlFor="nvr-count">How many channels</Label>
+              <Input id="nvr-count" type="number" min={1} max={64} value={count} onChange={(e) => setCount(Number(e.target.value) || 1)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Name prefix</Label>
-              <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="Line A Camera" />
+              <Label htmlFor="nvr-prefix">Name prefix</Label>
+              <Input id="nvr-prefix" value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="Line A Camera" />
             </div>
             <div className="space-y-1.5">
-              <Label>Default zone</Label>
-              <Input value={zone} onChange={(e) => setZone(e.target.value)} placeholder="Packing Hall" />
+              <Label htmlFor="nvr-zone">Default zone</Label>
+              <Input id="nvr-zone" value={zone} onChange={(e) => setZone(e.target.value)} placeholder="Packing Hall" />
             </div>
           </div>
 
           {brand === "custom" && (
             <div className="space-y-1.5">
-              <Label>RTSP template</Label>
-              <Input value={customRtsp} onChange={(e) => setCustomRtsp(e.target.value)} />
+              <Label htmlFor="nvr-tpl">RTSP template</Label>
+              <Input id="nvr-tpl" value={customRtsp} onChange={(e) => setCustomRtsp(e.target.value)} />
               <p className="text-[11px] text-muted-foreground">
                 Use <code>{"{host}"}</code> and <code>{"{channel}"}</code> — they are replaced per channel.
               </p>
