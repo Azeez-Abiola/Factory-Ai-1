@@ -1,6 +1,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
+import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
