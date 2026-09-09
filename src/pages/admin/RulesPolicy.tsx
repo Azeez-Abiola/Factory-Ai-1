@@ -207,8 +207,8 @@ function PolicyDialog({
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Hard hat compliance – Zone A" />
+              <Label htmlFor="policy-name">Name *</Label>
+              <Input id="policy-name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Hard hat compliance – Zone A" />
             </div>
             <div>
               <Label>Category</Label>
@@ -243,8 +243,9 @@ function PolicyDialog({
             <Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional internal note" />
           </div>
           <div>
-            <Label>Policy statement (plain English) *</Label>
+            <Label htmlFor="policy-statement">Policy statement (plain English) *</Label>
             <Textarea
+              id="policy-statement"
               rows={4}
               value={form.natural_language}
               onChange={(e) => setForm(f => ({ ...f, natural_language: e.target.value }))}
@@ -423,8 +424,8 @@ function AlertRuleDialog({
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
+              <Label htmlFor="rule-name">Name *</Label>
+              <Input id="rule-name" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
             <div>
               <Label>Linked policy</Label>
