@@ -110,31 +110,46 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className={cn("relative overflow-hidden rounded-lg border border-border bg-black", isThumb ? "h-16 w-24" : "aspect-video w-full")}>
-        <img src={url} alt={title ? `Camera frame for ${title}` : "Alert camera frame"} className="h-full w-full object-cover" loading="lazy" />
-        {boxes.map((b) => (
-          <div
-            key={b.id}
-            className="absolute rounded-[3px] border-2"
-            style={{
-              left: `${b.x * 100}%`,
-              top: `${b.y * 100}%`,
-              width: `${b.w * 100}%`,
-              height: `${b.h * 100}%`,
-              borderColor: categoryColor(b.category),
-              boxShadow: `0 0 0 1px hsl(var(--background) / 0.5)`,
-            }}
-          >
-            {!isThumb && (
-              <span
-                className="absolute -top-5 left-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-medium text-background"
-                style={{ background: categoryColor(b.category) }}
-              >
-                {b.label}{b.confidence ? ` ${Math.round(b.confidence * 100)}%` : ""}
-              </span>
-            )}
-          </div>
-        ))}
+      <div ref={frameRef} className={cn("relative overflow-hidden rounded-lg border border-border bg-black", isThumb ? "h-16 w-24" : "aspect-video w-full")}>
+        <img
+          src={url}
+          alt={title ? `Camera frame for ${title}` : "Alert camera frame"}
+          className="h-full w-full object-contain"
+          loading="lazy"
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) setNatural({ w: img.naturalWidth, h: img.naturalHeight });
+          }}
+        />
+        <div
+          className="pointer-events-none absolute"
+          style={{ left: `${painted.left}%`, top: `${painted.top}%`, width: `${painted.width}%`, height: `${painted.height}%` }}
+        >
+          {boxes.map((b) => (
+            <div
+              key={b.id}
+              className="absolute rounded-[3px] border-2"
+              style={{
+                left: `${b.x * 100}%`,
+                top: `${b.y * 100}%`,
+                width: `${b.w * 100}%`,
+                height: `${b.h * 100}%`,
+                borderColor: categoryColor(b.category),
+                boxShadow: `0 0 0 1px hsl(var(--background) / 0.5)`,
+              }}
+            >
+              {!isThumb && (
+                <span
+                  className="absolute -top-5 left-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-medium text-background"
+                  style={{ background: categoryColor(b.category) }}
+                >
+                  {b.label}{b.confidence ? ` ${Math.round(b.confidence * 100)}%` : ""}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
         {isThumb && boxes.length > 0 && (
           <span className="absolute bottom-0.5 right-0.5 rounded bg-background/80 px-1 text-[9px] font-mono text-foreground">
             {boxes.length}
