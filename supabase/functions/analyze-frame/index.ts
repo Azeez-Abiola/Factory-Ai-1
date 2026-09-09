@@ -224,6 +224,9 @@ Deno.serve(async (req) => {
           if (Array.isArray((data as any).reference_images)) {
             referenceImages = (data as any).reference_images.filter((r: any) => r?.path);
           }
+          if (Array.isArray((data as any).defect_types)) {
+            defectTypes = (data as any).defect_types.filter((d: any) => d?.label && d?.enabled !== false);
+          }
         }
       } catch (e) {
         console.warn("failed to load tenant ai_analysis_config", (e as Error).message);
