@@ -556,6 +556,8 @@ const RulesPolicy = () => {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cameras, setCameras] = useState<ScopeCamera[]>([]);
+  const [zones, setZones] = useState<string[]>([]);
   const [policyDialog, setPolicyDialog] = useState(false);
   const [ruleDialog, setRuleDialog] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<Policy | null>(null);
