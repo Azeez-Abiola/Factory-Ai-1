@@ -62,7 +62,7 @@ function clamp01(n: number) {
 function parseBox(raw: any, frame?: { width: number; height: number } | null): { x: number; y: number; w: number; h: number } | null {
   let v: number[] | null = null;
   let corners = false;
-  let yFirst = false;
+
 
   const num = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? n : undefined);
 
