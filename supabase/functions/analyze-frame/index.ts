@@ -355,7 +355,30 @@ Deno.serve(async (req) => {
     if (!gwRes.ok) {
       const errText = await gwRes.text();
       console.error("AI gateway error", gwRes.status, errText);
-      return new Response(JSON.stringify({ error: "AI gateway failed", status: gwRes.status, details: errText }), {
+
+      let message = "AI analysis could not be completed.";
+      let code = "ai_gateway_error";
+      if (gwRes.status === 402) {
+        code = "ai_credits_exhausted";
+        message = "AI credits have run out for this workspace. Add credits in Lovable (Settings → Plans & credits) to resume analysis.";
+      } else if (gwRes.status === 403) {
+        code = "ai_blocked";
+        message = "AI analysis is blocked by a workspace policy or credit limit. An admin needs to re-enable it.";
+      } else if (gwRes.status === 429) {
+        code = "ai_rate_limited";
+        message = "Too many AI requests right now. Analysis will resume shortly — try again in a minute.";
+      } else if (gwRes.status >= 500) {
+        code = "ai_upstream_error";
+        message = "The AI service is temporarily unavailable. Please try again shortly.";
+      }
+
+      return new Response(JSON.stringify({
+        error: code,
+        message,
+        status: gwRes.status,
+        retryable: gwRes.status === 429 || gwRes.status >= 500,
+        details: errText,
+      }), {
         status: gwRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
