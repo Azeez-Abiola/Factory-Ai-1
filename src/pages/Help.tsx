@@ -63,6 +63,12 @@ const categories: Category[] = [
   { id: "admin", label: "Admin & Governance", icon: Settings, color: "text-rose-500", description: "Tenants, users, roles, KPI configuration, escalation, notifications and audit log." },
   { id: "rules", label: "Rules & Policies", icon: GitBranch, color: "text-indigo-500", description: "Best-practice templates, natural-language rules, AI guardrails and violations." },
   { id: "security", label: "Security & Compliance", icon: Layers, color: "text-fuchsia-500", description: "RLS, tenant isolation, audit records, exports and standards mapping (OSHA, ISO)." },
+  { id: "roles", label: "Role Playbooks", icon: Users, color: "text-sky-500", description: "Day-in-the-life guides for Operators, Supervisors, Factory Managers, Tenant Admins and Super Admins." },
+  { id: "quality", label: "Quality", icon: Activity, color: "text-orange-500", description: "Defect dashboards, defect types, per-camera datasets and resolution progress." },
+  { id: "floor", label: "Floor Plan & Zones", icon: Building2, color: "text-lime-500", description: "Site zones, clickable layout, live alert heat and unmapped-area warnings." },
+  { id: "portal", label: "Manager Portal", icon: Gauge, color: "text-purple-500", description: "The read-mostly workspace for factory managers: scores, alerts, spend and site requests." },
+  { id: "budget", label: "AI Budget & Cost", icon: Zap, color: "text-yellow-500", description: "Per-site inference spend caps, thresholds, alerts and what happens at the limit." },
+  { id: "streaming", label: "Streaming & Gateways", icon: Camera, color: "text-blue-400", description: "Snapshots vs continuous streams, NVR bulk import, MediaMTX gateway and fallbacks." },
 ];
 
 // ---------------------------------------------------------------------------
