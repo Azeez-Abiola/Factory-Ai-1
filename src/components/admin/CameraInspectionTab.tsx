@@ -154,13 +154,83 @@ const CameraInspectionTab = ({
     }
   };
 
-  const removeSample = async (sample: ReferenceSample) => {
-    onSamplesChange(samples.filter((s) => s.id !== sample.id));
-    await supabase.storage.from(BUCKET).remove([sample.path]);
+  const addVideoSamples = async (files: FileList | null, label: "good" | "defect") => {
+    if (!files?.length) return;
+    setUploading(true);
+    const added: ReferenceSample[] = [];
+    try {
+      for (const file of Array.from(files).slice(0, 5)) {
+        if (file.size > 60 * 1024 * 1024) {
+          toast.error(`${file.name} is too large — please trim it to under 60MB`);
+          continue;
+        }
+        const objectUrl = URL.createObjectURL(file);
+        let frames: { time: number; dataUrl: string }[] = [];
+        try {
+          frames = await extractVideoFrames(objectUrl, 8);
+        } catch {
+          toast.error(`${file.name} could not be read as a video`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        if (!frames.length) {
+          toast.error(`No usable frames found in ${file.name}`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        const path = `${tenantId}/cameras/${cameraId ?? "unassigned"}/${uid()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+        const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+        if (error) {
+          toast.error(`Upload failed: ${error.message}`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        const groupId = uid();
+        for (const frame of frames) {
+          const signature = await frameSignature(frame.dataUrl, regions);
+          if (!signature) continue;
+          added.push({
+            id: uid(), path, label, kind: "video", groupId, time: frame.time,
+            note: file.name, signature: toStoredSignature(signature),
+          });
+        }
+        setPreviews((p) => ({ ...p, [path]: p[path] ?? objectUrl }));
+      }
+      if (added.length) {
+        onSamplesChange([...samples, ...added]);
+        toast.success(`${added.length} frames learned from your process video`);
+      }
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const good = samples.filter((s) => s.label === "good").length;
-  const bad = samples.filter((s) => s.label === "defect").length;
+  const removeSample = async (sample: ReferenceSample) => {
+    const remaining = sample.groupId
+      ? samples.filter((s) => s.groupId !== sample.groupId)
+      : samples.filter((s) => s.id !== sample.id);
+    onSamplesChange(remaining);
+    if (!remaining.some((s) => s.path === sample.path)) {
+      await supabase.storage.from(BUCKET).remove([sample.path]);
+    }
+  };
+
+  /** One card per photo, one per uploaded video (not per extracted frame). */
+  const seenGroups = new Set<string>();
+  const cards = samples.filter((s) => {
+    if (!s.groupId) return true;
+    if (seenGroups.has(s.groupId)) return false;
+    seenGroups.add(s.groupId);
+    return true;
+  });
+  const frameCounts = samples.reduce<Record<string, number>>((acc, s) => {
+    if (s.groupId) acc[s.groupId] = (acc[s.groupId] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const good = cards.filter((s) => s.label === "good").length;
+  const bad = cards.filter((s) => s.label === "defect").length;
+
 
   return (
     <div className="space-y-6 pt-4">
