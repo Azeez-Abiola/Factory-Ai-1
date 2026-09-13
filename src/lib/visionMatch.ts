@@ -27,9 +27,66 @@ export interface ReferenceSample {
   path: string;
   label: "good" | "defect";
   note?: string;
+  /** "image" (default) or a frame taken from an uploaded process video. */
+  kind?: "image" | "video";
+  /** Groups all frames taken from the same video. */
+  groupId?: string;
+  /** Seconds into the video this frame was taken from. */
+  time?: number;
   /** SIGNATURE_SIZE² grayscale values, 0..1, rounded to 3dp. */
   signature: number[];
 }
+
+/**
+ * Pull evenly spaced still frames out of a process video, entirely in the
+ * browser. Each frame is returned as a JPEG data URL so it can be fingerprinted
+ * exactly like an uploaded photo.
+ */
+export async function extractVideoFrames(
+  src: string,
+  count = 8,
+): Promise<{ time: number; dataUrl: string }[]> {
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.crossOrigin = "anonymous";
+  video.src = src;
+
+  await new Promise<void>((resolve, reject) => {
+    video.onloadedmetadata = () => resolve();
+    video.onerror = () => reject(new Error("Could not read that video"));
+  });
+
+  const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+  if (!duration) throw new Error("Could not read that video");
+
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 360;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not read that video");
+
+  const out: { time: number; dataUrl: string }[] = [];
+  const n = Math.max(1, Math.min(count, 24));
+  for (let i = 0; i < n; i++) {
+    const time = Math.min(duration - 0.05, (duration * (i + 0.5)) / n);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const done = () => { video.onseeked = null; resolve(); };
+        video.onseeked = done;
+        video.onerror = () => reject(new Error("Could not read that video"));
+        video.currentTime = Math.max(0, time);
+      });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      out.push({ time, dataUrl: canvas.toDataURL("image/jpeg", 0.82) });
+    } catch {
+      break;
+    }
+  }
+  return out;
+}
+
 
 /** Union bounding box of the regions of interest, or the full frame. */
 export function regionBounds(regions: Region[] | undefined | null) {
