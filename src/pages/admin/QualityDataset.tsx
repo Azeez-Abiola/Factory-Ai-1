@@ -346,23 +346,39 @@ const QualityDataset = () => {
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {selected.reference_samples.map((s) => (
+                    {cards.map((s) => (
                       <div key={s.id} className="group relative rounded-md border border-border overflow-hidden bg-muted/30">
                         {previews[s.path] ? (
-                          <img src={previews[s.path]} alt={s.note ?? s.label} className="w-full h-28 object-cover" loading="lazy" />
+                          s.kind === "video" ? (
+                            <video
+                              src={previews[s.path]}
+                              className="w-full h-28 object-cover bg-black"
+                              muted playsInline controls preload="metadata"
+                            />
+                          ) : (
+                            <img src={previews[s.path]} alt={s.note ?? s.label} className="w-full h-28 object-cover" loading="lazy" />
+                          )
                         ) : (
                           <div className="w-full h-28 flex items-center justify-center">
                             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                           </div>
                         )}
                         <div className="flex items-center justify-between px-2 py-1.5">
-                          <Badge
-                            variant="outline"
-                            className={cn("text-[10px]", s.label === "good"
-                              ? "text-success border-success/30" : "text-destructive border-destructive/30")}
-                          >
-                            {s.label === "good" ? "Good" : "Defect"}
-                          </Badge>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Badge
+                              variant="outline"
+                              className={cn("text-[10px]", s.label === "good"
+                                ? "text-success border-success/30" : "text-destructive border-destructive/30")}
+                            >
+                              {s.label === "good" ? "Good" : "Defect"}
+                            </Badge>
+                            {s.kind === "video" && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                                <Video className="w-3 h-3" />
+                                {frameCounts[s.groupId ?? ""] ?? 1} frames
+                              </span>
+                            )}
+                          </div>
                           <Button
                             size="icon" variant="ghost" className="h-6 w-6"
                             aria-label="Remove example" title="Remove example"
@@ -374,6 +390,7 @@ const QualityDataset = () => {
                       </div>
                     ))}
                   </div>
+
                 )}
               </div>
             </div>
