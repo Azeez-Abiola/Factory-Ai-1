@@ -42,6 +42,9 @@ const QualityDataset = () => {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const goodInput = useRef<HTMLInputElement>(null);
   const defectInput = useRef<HTMLInputElement>(null);
+  const goodVideoInput = useRef<HTMLInputElement>(null);
+  const defectVideoInput = useRef<HTMLInputElement>(null);
+
 
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
