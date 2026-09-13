@@ -212,6 +212,26 @@ const QualityDataset = () => {
     defect: c.reference_samples.filter((s) => s.label === "defect").length,
   });
 
+  /** One card per photo, and one card per uploaded video (not per extracted frame). */
+  const cards = useMemo(() => {
+    const seen = new Set<string>();
+    return (selected?.reference_samples ?? []).filter((s) => {
+      if (!s.groupId) return true;
+      if (seen.has(s.groupId)) return false;
+      seen.add(s.groupId);
+      return true;
+    });
+  }, [selected]);
+
+  const frameCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of selected?.reference_samples ?? []) {
+      if (s.groupId) map[s.groupId] = (map[s.groupId] ?? 0) + 1;
+    }
+    return map;
+  }, [selected]);
+
+
   return (
     <div className="space-y-6">
       <PageHeader
