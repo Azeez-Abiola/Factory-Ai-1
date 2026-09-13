@@ -317,7 +317,34 @@ const QualityDataset = () => {
                       Add defect photos
                     </Button>
                   </div>
+                  <div>
+                    <input
+                      ref={goodVideoInput} type="file" accept="video/*" multiple className="hidden"
+                      onChange={(e) => addVideoExamples(e.target.files, "good")}
+                    />
+                    <Button variant="outline" className="w-full gap-2" disabled={uploading}
+                      onClick={() => goodVideoInput.current?.click()}>
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                      Add good process video
+                    </Button>
+                  </div>
+                  <div>
+                    <input
+                      ref={defectVideoInput} type="file" accept="video/*" multiple className="hidden"
+                      onChange={(e) => addVideoExamples(e.target.files, "defect")}
+                    />
+                    <Button variant="outline" className="w-full gap-2" disabled={uploading}
+                      onClick={() => defectVideoInput.current?.click()}>
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                      Add bad process video
+                    </Button>
+                  </div>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Videos are sampled into 8 still frames each, so a short clip of the line running well — or going
+                  wrong — teaches the system as much as a set of photos.
+                </p>
+
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
