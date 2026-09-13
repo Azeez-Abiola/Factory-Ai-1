@@ -124,11 +124,71 @@ const QualityDataset = () => {
     }
   };
 
+  const addVideoExamples = async (files: FileList | null, label: "good" | "defect") => {
+    if (!files?.length || !selected || !activeTenantId) return;
+    setUploading(true);
+    const added: ReferenceSample[] = [];
+    try {
+      for (const file of Array.from(files).slice(0, 5)) {
+        if (file.size > 60 * 1024 * 1024) {
+          toast.error(`${file.name} is too large — please trim it to under 60MB`);
+          continue;
+        }
+        const objectUrl = URL.createObjectURL(file);
+        let frames: { time: number; dataUrl: string }[] = [];
+        try {
+          frames = await extractVideoFrames(objectUrl, 8);
+        } catch {
+          toast.error(`${file.name} could not be read as a video`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        if (!frames.length) {
+          toast.error(`No usable frames found in ${file.name}`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        const path = `${activeTenantId}/quality/${selected.id}/${uid()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+        const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+        if (error) {
+          toast.error(`Upload failed: ${error.message}`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        const groupId = uid();
+        for (const frame of frames) {
+          const signature = await frameSignature(frame.dataUrl, selected.regions_of_interest);
+          if (!signature) continue;
+          added.push({
+            id: uid(), path, label, kind: "video", groupId, time: frame.time,
+            note: file.name, signature: toStoredSignature(signature),
+          });
+        }
+        setPreviews((p) => ({ ...p, [path]: p[path] ?? objectUrl }));
+      }
+      if (added.length) {
+        patchSelected({ reference_samples: [...selected.reference_samples, ...added] });
+        toast.success(`${added.length} frames learned from your process video — save to apply`);
+      }
+    } finally {
+      setUploading(false);
+      if (goodVideoInput.current) goodVideoInput.current.value = "";
+      if (defectVideoInput.current) defectVideoInput.current.value = "";
+    }
+  };
+
   const removeExample = async (sample: ReferenceSample) => {
     if (!selected) return;
-    patchSelected({ reference_samples: selected.reference_samples.filter((s) => s.id !== sample.id) });
-    await supabase.storage.from(BUCKET).remove([sample.path]);
+    const remaining = sample.groupId
+      ? selected.reference_samples.filter((s) => s.groupId !== sample.groupId)
+      : selected.reference_samples.filter((s) => s.id !== sample.id);
+    patchSelected({ reference_samples: remaining });
+    if (!remaining.some((s) => s.path === sample.path)) {
+      await supabase.storage.from(BUCKET).remove([sample.path]);
+    }
   };
+
+
 
   const save = async () => {
     if (!selected) return;
