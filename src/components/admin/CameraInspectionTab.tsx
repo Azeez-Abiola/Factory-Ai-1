@@ -316,7 +316,7 @@ const CameraInspectionTab = ({
           <div>
             <h4 className="text-sm font-medium">Reference check (no AI cost)</h4>
             <p className="text-xs text-muted-foreground">
-              Compares each frame with your own sample photos on the operator's machine. Clear matches are decided instantly and never reach the AI; only uncertain frames are sent on.
+              Compares each frame with your own samples on the operator's machine. Add photos or short process videos — videos are sampled into still frames automatically. Clear matches are decided instantly and never reach the AI; only uncertain frames are sent on.
             </p>
           </div>
           <Switch checked={referenceEnabled} onCheckedChange={onReferenceEnabledChange} />
@@ -338,24 +338,45 @@ const CameraInspectionTab = ({
               {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} Add faulty samples
             </span>
           </label>
+          <label className="inline-flex">
+            <input type="file" accept="video/*" multiple className="hidden" onChange={(e) => { addVideoSamples(e.target.files, "good"); e.target.value = ""; }} />
+            <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs hover:border-primary/50">
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />} Add good process video
+            </span>
+          </label>
+          <label className="inline-flex">
+            <input type="file" accept="video/*" multiple className="hidden" onChange={(e) => { addVideoSamples(e.target.files, "defect"); e.target.value = ""; }} />
+            <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs hover:border-primary/50">
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />} Add bad process video
+            </span>
+          </label>
         </div>
 
-        {samples.length > 0 && (
+        {cards.length > 0 && (
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-            {samples.map((s) => (
+            {cards.map((s) => (
               <div key={s.id} className="overflow-hidden rounded-lg border border-border">
                 <div className="relative aspect-video bg-muted/40">
                   {previews[s.path] ? (
-                    <img src={previews[s.path]} alt={s.note || `${s.label} reference sample`} className="h-full w-full object-cover" />
+                    s.kind === "video" ? (
+                      <video src={previews[s.path]} className="h-full w-full bg-black object-cover" muted playsInline controls preload="metadata" />
+                    ) : (
+                      <img src={previews[s.path]} alt={s.note || `${s.label} reference sample`} className="h-full w-full object-cover" />
+                    )
                   ) : (
                     <div className="flex h-full items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
                   )}
                   <Badge
                     variant="outline"
-                    className={cn("absolute left-1 top-1 text-[10px]", s.label === "good" ? "border-success/40 text-success" : "border-destructive/40 text-destructive")}
+                    className={cn("absolute left-1 top-1 bg-background/70 text-[10px]", s.label === "good" ? "border-success/40 text-success" : "border-destructive/40 text-destructive")}
                   >
                     {s.label === "good" ? "Correct" : "Faulty"}
                   </Badge>
+                  {s.kind === "video" && (
+                    <Badge variant="outline" className="absolute bottom-1 left-1 gap-1 bg-background/70 text-[10px]">
+                      <Video className="h-3 w-3" /> {frameCounts[s.groupId ?? ""] ?? 1} frames
+                    </Badge>
+                  )}
                   <Button type="button" size="icon" variant="ghost" className="absolute right-1 top-1 h-6 w-6 bg-background/70" onClick={() => removeSample(s)}>
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
@@ -364,10 +385,13 @@ const CameraInspectionTab = ({
                   value={s.note ?? ""}
                   placeholder="Note (e.g. crooked seal)"
                   className="h-8 rounded-none border-0 border-t text-xs"
-                  onChange={(e) => onSamplesChange(samples.map((x) => (x.id === s.id ? { ...x, note: e.target.value } : x)))}
+                  onChange={(e) => onSamplesChange(samples.map((x) =>
+                    (s.groupId ? x.groupId === s.groupId : x.id === s.id) ? { ...x, note: e.target.value } : x
+                  ))}
                 />
               </div>
             ))}
+
           </div>
         )}
 
