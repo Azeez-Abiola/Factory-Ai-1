@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Database, Upload, Loader2, Trash2, CheckCircle2, XCircle, Save, RefreshCw, Camera as CameraIcon,
+  Database, Upload, Loader2, Trash2, CheckCircle2, XCircle, Save, RefreshCw, Camera as CameraIcon, Video,
 } from "lucide-react";
 import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
-import { frameSignature, toStoredSignature, type ReferenceSample, type Region } from "@/lib/visionMatch";
+import { extractVideoFrames, frameSignature, toStoredSignature, type ReferenceSample, type Region } from "@/lib/visionMatch";
 import { cn } from "@/lib/utils";
+
 
 const BUCKET = "ppe-reference";
 
@@ -41,6 +42,9 @@ const QualityDataset = () => {
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const goodInput = useRef<HTMLInputElement>(null);
   const defectInput = useRef<HTMLInputElement>(null);
+  const goodVideoInput = useRef<HTMLInputElement>(null);
+  const defectVideoInput = useRef<HTMLInputElement>(null);
+
 
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
@@ -120,11 +124,71 @@ const QualityDataset = () => {
     }
   };
 
+  const addVideoExamples = async (files: FileList | null, label: "good" | "defect") => {
+    if (!files?.length || !selected || !activeTenantId) return;
+    setUploading(true);
+    const added: ReferenceSample[] = [];
+    try {
+      for (const file of Array.from(files).slice(0, 5)) {
+        if (file.size > 60 * 1024 * 1024) {
+          toast.error(`${file.name} is too large — please trim it to under 60MB`);
+          continue;
+        }
+        const objectUrl = URL.createObjectURL(file);
+        let frames: { time: number; dataUrl: string }[] = [];
+        try {
+          frames = await extractVideoFrames(objectUrl, 8);
+        } catch {
+          toast.error(`${file.name} could not be read as a video`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        if (!frames.length) {
+          toast.error(`No usable frames found in ${file.name}`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        const path = `${activeTenantId}/quality/${selected.id}/${uid()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+        const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+        if (error) {
+          toast.error(`Upload failed: ${error.message}`);
+          URL.revokeObjectURL(objectUrl);
+          continue;
+        }
+        const groupId = uid();
+        for (const frame of frames) {
+          const signature = await frameSignature(frame.dataUrl, selected.regions_of_interest);
+          if (!signature) continue;
+          added.push({
+            id: uid(), path, label, kind: "video", groupId, time: frame.time,
+            note: file.name, signature: toStoredSignature(signature),
+          });
+        }
+        setPreviews((p) => ({ ...p, [path]: p[path] ?? objectUrl }));
+      }
+      if (added.length) {
+        patchSelected({ reference_samples: [...selected.reference_samples, ...added] });
+        toast.success(`${added.length} frames learned from your process video — save to apply`);
+      }
+    } finally {
+      setUploading(false);
+      if (goodVideoInput.current) goodVideoInput.current.value = "";
+      if (defectVideoInput.current) defectVideoInput.current.value = "";
+    }
+  };
+
   const removeExample = async (sample: ReferenceSample) => {
     if (!selected) return;
-    patchSelected({ reference_samples: selected.reference_samples.filter((s) => s.id !== sample.id) });
-    await supabase.storage.from(BUCKET).remove([sample.path]);
+    const remaining = sample.groupId
+      ? selected.reference_samples.filter((s) => s.groupId !== sample.groupId)
+      : selected.reference_samples.filter((s) => s.id !== sample.id);
+    patchSelected({ reference_samples: remaining });
+    if (!remaining.some((s) => s.path === sample.path)) {
+      await supabase.storage.from(BUCKET).remove([sample.path]);
+    }
   };
+
+
 
   const save = async () => {
     if (!selected) return;
@@ -147,6 +211,26 @@ const QualityDataset = () => {
     good: c.reference_samples.filter((s) => s.label === "good").length,
     defect: c.reference_samples.filter((s) => s.label === "defect").length,
   });
+
+  /** One card per photo, and one card per uploaded video (not per extracted frame). */
+  const cards = useMemo(() => {
+    const seen = new Set<string>();
+    return (selected?.reference_samples ?? []).filter((s) => {
+      if (!s.groupId) return true;
+      if (seen.has(s.groupId)) return false;
+      seen.add(s.groupId);
+      return true;
+    });
+  }, [selected]);
+
+  const frameCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of selected?.reference_samples ?? []) {
+      if (s.groupId) map[s.groupId] = (map[s.groupId] ?? 0) + 1;
+    }
+    return map;
+  }, [selected]);
+
 
   return (
     <div className="space-y-6">
@@ -253,7 +337,34 @@ const QualityDataset = () => {
                       Add defect photos
                     </Button>
                   </div>
+                  <div>
+                    <input
+                      ref={goodVideoInput} type="file" accept="video/*" multiple className="hidden"
+                      onChange={(e) => addVideoExamples(e.target.files, "good")}
+                    />
+                    <Button variant="outline" className="w-full gap-2" disabled={uploading}
+                      onClick={() => goodVideoInput.current?.click()}>
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                      Add good process video
+                    </Button>
+                  </div>
+                  <div>
+                    <input
+                      ref={defectVideoInput} type="file" accept="video/*" multiple className="hidden"
+                      onChange={(e) => addVideoExamples(e.target.files, "defect")}
+                    />
+                    <Button variant="outline" className="w-full gap-2" disabled={uploading}
+                      onClick={() => defectVideoInput.current?.click()}>
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                      Add bad process video
+                    </Button>
+                  </div>
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Videos are sampled into 8 still frames each, so a short clip of the line running well — or going
+                  wrong — teaches the system as much as a set of photos.
+                </p>
+
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
@@ -282,23 +393,39 @@ const QualityDataset = () => {
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {selected.reference_samples.map((s) => (
+                    {cards.map((s) => (
                       <div key={s.id} className="group relative rounded-md border border-border overflow-hidden bg-muted/30">
                         {previews[s.path] ? (
-                          <img src={previews[s.path]} alt={s.note ?? s.label} className="w-full h-28 object-cover" loading="lazy" />
+                          s.kind === "video" ? (
+                            <video
+                              src={previews[s.path]}
+                              className="w-full h-28 object-cover bg-black"
+                              muted playsInline controls preload="metadata"
+                            />
+                          ) : (
+                            <img src={previews[s.path]} alt={s.note ?? s.label} className="w-full h-28 object-cover" loading="lazy" />
+                          )
                         ) : (
                           <div className="w-full h-28 flex items-center justify-center">
                             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                           </div>
                         )}
                         <div className="flex items-center justify-between px-2 py-1.5">
-                          <Badge
-                            variant="outline"
-                            className={cn("text-[10px]", s.label === "good"
-                              ? "text-success border-success/30" : "text-destructive border-destructive/30")}
-                          >
-                            {s.label === "good" ? "Good" : "Defect"}
-                          </Badge>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Badge
+                              variant="outline"
+                              className={cn("text-[10px]", s.label === "good"
+                                ? "text-success border-success/30" : "text-destructive border-destructive/30")}
+                            >
+                              {s.label === "good" ? "Good" : "Defect"}
+                            </Badge>
+                            {s.kind === "video" && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                                <Video className="w-3 h-3" />
+                                {frameCounts[s.groupId ?? ""] ?? 1} frames
+                              </span>
+                            )}
+                          </div>
                           <Button
                             size="icon" variant="ghost" className="h-6 w-6"
                             aria-label="Remove example" title="Remove example"
@@ -310,6 +437,7 @@ const QualityDataset = () => {
                       </div>
                     ))}
                   </div>
+
                 )}
               </div>
             </div>
