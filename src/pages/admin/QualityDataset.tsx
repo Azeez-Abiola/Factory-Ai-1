@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Database, Upload, Loader2, Trash2, CheckCircle2, XCircle, Save, RefreshCw, Camera as CameraIcon,
+  Database, Upload, Loader2, Trash2, CheckCircle2, XCircle, Save, RefreshCw, Camera as CameraIcon, Video,
 } from "lucide-react";
 import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
-import { frameSignature, toStoredSignature, type ReferenceSample, type Region } from "@/lib/visionMatch";
+import { extractVideoFrames, frameSignature, toStoredSignature, type ReferenceSample, type Region } from "@/lib/visionMatch";
 import { cn } from "@/lib/utils";
+
 
 const BUCKET = "ppe-reference";
 
