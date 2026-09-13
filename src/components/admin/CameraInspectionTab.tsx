@@ -10,8 +10,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
-  frameSignature, toStoredSignature, Region, ReferenceSample,
+  extractVideoFrames, frameSignature, toStoredSignature, Region, ReferenceSample,
 } from "@/lib/visionMatch";
+
 
 const BUCKET = "ppe-reference";
 
