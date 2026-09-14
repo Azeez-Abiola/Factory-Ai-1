@@ -1,3 +1,39 @@
 [functions.camera-heartbeat]
 # Gateways authenticate with each camera's ingest token rather than a user JWT.
 verify_jwt = false
+
+[auth]
+additional_redirect_urls = [
+  "https://factoryai.1879techhub.com/**",
+  "https://factory-ai-1.vercel.app/**",
+  "http://localhost:3000/**",
+]
+site_url = "https://factoryai.1879techhub.com"
+
+[auth.email]
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+[auth.email.smtp]
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "alerts@factoryai.1879techhub.com"
+sender_name = "FactoryAI"
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[db.pooler]
+default_pool_size = 15
+max_client_conn = 200
+
+[storage.analytics]
+enabled = true
+max_namespaces = 10
+
+[storage.image_transformation]
+enabled = true
