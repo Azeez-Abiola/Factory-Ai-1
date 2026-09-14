@@ -1,0 +1,212 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Camera as MockCamera } from "@/data/mockData";
+import { useTenants } from "@/hooks/useTenants";
+import type { Region, ReferenceSample } from "@/lib/visionMatch";
+
+
+export interface LiveCamera extends MockCamera {
+  streamUrl?: string | null;
+  streamType?: "hls" | "webrtc" | "mjpeg" | null;
+  /** Actual URL the player should use (stream URL, or the snapshot poller fallback). */
+  playbackUrl?: string | null;
+  playbackType?: "hls" | "webrtc" | "mjpeg" | "snapshot" | null;
+  /** Snapshot feed used when the streaming gateway is unreachable. */
+  fallbackUrl?: string | null;
+  fallbackType?: "snapshot" | null;
+  lastSeenAt?: string | null;
+  heartbeatSeconds?: number;
+  audioEnabled?: boolean;
+  resolution?: string | null;
+  fps?: number | null;
+  ptzEnabled?: boolean;
+  snapshotUrl?: string | null;
+  inferenceEnabled?: boolean;
+  inferenceIntervalSeconds?: number;
+  inferenceStatus?: string | null;
+  lastInferenceAt?: string | null;
+  lastInferenceError?: string | null;
+  regions?: Region[];
+  referenceMatchEnabled?: boolean;
+  referenceMatchThreshold?: number;
+  referenceSamples?: ReferenceSample[];
+  clipAnalysisEnabled?: boolean;
+  clipSeconds?: number;
+  isLive: boolean; // has a real playable stream_url
+  isDbBacked: boolean; // came from cameras table (not fallback mock)
+
+}
+
+interface DetectionPing {
+  cameraId: string;
+  label: string;
+  at: number;
+}
+
+const DETECTION_TTL_MS = 5 * 60 * 1000;
+
+function computeStatus(row: any): MockCamera["status"] {
+  if (row.status === "maintenance") return "maintenance";
+  const heartbeat = row.heartbeat_interval_seconds ?? 60;
+  const lastSeen = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
+  // Snapshot cameras only refresh while their tile is on screen, so give them a
+  // generous grace window instead of flipping to offline the moment you look away.
+  const graceMs = row.snapshot_url ? Math.max(heartbeat * 3, 900) * 1000 : heartbeat * 3 * 1000;
+  const stale = Date.now() - lastSeen > graceMs;
+  if (!lastSeen || stale) return "offline";
+  return row.status === "offline" ? "offline" : "online";
+}
+
+/**
+ * Recorder snapshots sit on plain http behind Digest auth, so the browser
+ * cannot load them directly — they are proxied through the backend over https.
+ */
+function snapshotProxyUrl(cameraId: string, token: string | null) {
+  if (!token) return null;
+  const base = import.meta.env.VITE_SUPABASE_URL;
+  if (!base) return null;
+  return `${base}/functions/v1/camera-snapshot?camera_id=${cameraId}&token=${encodeURIComponent(token)}`;
+}
+
+function normalize(row: any, detections: DetectionPing[], token: string | null): LiveCamera {
+  const snapshotPlayback = row.snapshot_url ? snapshotProxyUrl(row.id, token) : null;
+  const camDetections = detections.filter((d) => d.cameraId === row.id);
+  return {
+    id: row.id,
+    name: row.name,
+    zone: row.zone ?? "—",
+    type: row.type ?? "Vision",
+    status: computeStatus(row),
+    detections: camDetections.length,
+    lastDetection: camDetections[0]?.label,
+    streamUrl: row.stream_url ?? null,
+    streamType: (row.stream_type as any) ?? "hls",
+    lastSeenAt: row.last_seen_at ?? null,
+    heartbeatSeconds: row.heartbeat_interval_seconds ?? 60,
+    audioEnabled: !!row.audio_enabled,
+    resolution: row.resolution ?? null,
+    fps: row.fps ?? null,
+    ptzEnabled: !!row.ptz_enabled,
+    snapshotUrl: row.snapshot_url ?? null,
+    inferenceEnabled: !!row.inference_enabled,
+    inferenceIntervalSeconds: row.inference_interval_seconds ?? 30,
+    inferenceStatus: row.inference_status ?? null,
+    lastInferenceAt: row.last_inference_at ?? null,
+    lastInferenceError: row.last_inference_error ?? null,
+    regions: Array.isArray(row.regions_of_interest) ? (row.regions_of_interest as Region[]) : [],
+    referenceMatchEnabled: !!row.reference_match_enabled,
+    referenceMatchThreshold: Number(row.reference_match_threshold ?? 0.06),
+    referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
+    clipAnalysisEnabled: !!row.clip_analysis_enabled,
+    clipSeconds: row.clip_seconds ?? 5,
+    fallbackUrl: row.stream_url ? snapshotPlayback : null,
+    fallbackType: row.stream_url && snapshotPlayback ? "snapshot" : null,
+    playbackUrl: row.stream_url ?? snapshotPlayback ?? null,
+    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : snapshotPlayback ? "snapshot" : null,
+    isLive: !!(row.stream_url || row.snapshot_url),
+    isDbBacked: true,
+
+  };
+}
+
+/**
+ * Live camera feed with realtime updates.
+ * - Loads cameras from Supabase scoped to the active tenant.
+ * - Subscribes to `cameras` UPDATE/INSERT/DELETE for status + config changes.
+ * - Subscribes to `alerts` INSERT for live detection overlays (5-min TTL).
+ * - Falls back to mock cameras when the tenant has none configured yet.
+ */
+export function useLiveCameras() {
+  const { activeTenantId } = useTenants();
+  const [rows, setRows] = useState<any[]>([]);
+  const [detections, setDetections] = useState<DetectionPing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+  const [token, setToken] = useState<string | null>(null);
+
+  // Snapshot playback goes through an authenticated backend proxy.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setToken(session?.access_token ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+
+  // Re-evaluate offline heartbeat every 15s
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Prune stale detections
+  useEffect(() => {
+    const t = setInterval(() => {
+      const cutoff = Date.now() - DETECTION_TTL_MS;
+      setDetections((prev) => prev.filter((d) => d.at > cutoff));
+    }, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      // Never pull camera credentials or ingest tokens into the operator console.
+      let q = supabase.from("cameras").select(
+        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error, regions_of_interest, reference_match_enabled, reference_match_threshold, reference_samples, clip_analysis_enabled, clip_seconds"
+      ).order("name");
+      if (activeTenantId) q = q.eq("tenant_id", activeTenantId);
+      const { data, error } = await q;
+      if (!cancelled) {
+        if (error) console.warn("[useLiveCameras] load failed:", error.message);
+        setRows(data ?? []);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTenantId]);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    const channel = supabase
+      .channel(`cameras-live:${activeTenantId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cameras", filter: `tenant_id=eq.${activeTenantId}` },
+        (payload) => {
+          setRows((prev) => {
+            if (payload.eventType === "DELETE") return prev.filter((r) => r.id !== (payload.old as any).id);
+            const next = payload.new as any;
+            const idx = prev.findIndex((r) => r.id === next.id);
+            if (idx === -1) return [...prev, next];
+            const copy = prev.slice();
+            copy[idx] = next;
+            return copy;
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "alerts", filter: `tenant_id=eq.${activeTenantId}` },
+        (payload) => {
+          const a = payload.new as any;
+          if (!a?.camera_id) return;
+          setDetections((prev) => [
+            { cameraId: a.camera_id, label: a.title ?? "Detection", at: Date.now() },
+            ...prev,
+          ].slice(0, 200));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeTenantId]);
+
+  const cameras = useMemo<LiveCamera[]>(() => {
+    void tick;
+    return rows.map((r) => normalize(r, detections, token));
+  }, [rows, detections, tick, loading, token]);
+
+  return { cameras, loading, hasLiveStreams: cameras.some((c) => c.isLive) };
+}

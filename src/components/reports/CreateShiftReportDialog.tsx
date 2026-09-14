@@ -2,15 +2,16 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ShiftReport } from "@/data/extendedMockData";
 import { toast } from "sonner";
+import FieldLabel from "@/components/forms/FieldLabel";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -53,6 +54,10 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
       toast.error("Supervisor name is required");
       return;
     }
+    if (startTime >= endTime) {
+      toast.error("End time must be after start time");
+      return;
+    }
 
     const incidentCount = Math.max(0, Number(incidents) || 0);
 
@@ -82,23 +87,21 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border-border">
+      <DialogContent className="max-w-lg bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary" />
             Create Shift Report
           </DialogTitle>
-          <DialogDescription>Log a new shift handover report.</DialogDescription>
+          <DialogDescription>Log a new shift handover with key operational metrics.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Shift</Label>
+              <FieldLabel required>Shift</FieldLabel>
               <Select value={shiftName} onValueChange={setShiftName}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Morning Shift">Morning Shift</SelectItem>
                   <SelectItem value="Afternoon Shift">Afternoon Shift</SelectItem>
@@ -107,98 +110,101 @@ const CreateShiftReportDialog = ({ open, onOpenChange, onCreateReport, reportCou
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Supervisor *</Label>
+              <FieldLabel required htmlFor="sr-supervisor">Supervisor</FieldLabel>
               <Input
+                id="sr-supervisor"
+                autoComplete="name"
                 placeholder="e.g. Ravi Mehta"
                 value={supervisor}
                 onChange={(e) => setSupervisor(e.target.value)}
-                className="bg-background border-border"
+                maxLength={80}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Start Time</Label>
+              <FieldLabel required htmlFor="sr-start">Start Time</FieldLabel>
               <Input
+                id="sr-start"
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="bg-background border-border"
               />
             </div>
             <div className="space-y-2">
-              <Label>End Time</Label>
+              <FieldLabel required htmlFor="sr-end">End Time</FieldLabel>
               <Input
+                id="sr-end"
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="bg-background border-border"
+                aria-invalid={endTime <= startTime}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Safety Score (0–100)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                placeholder="e.g. 92"
-                value={safetyScore}
-                onChange={(e) => setSafetyScore(e.target.value)}
-                className="bg-background border-border"
-              />
+              <FieldLabel hint="Compliance %.">Safety Score</FieldLabel>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  placeholder="92"
+                  value={safetyScore}
+                  onChange={(e) => setSafetyScore(e.target.value)}
+                  className="pr-10"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">/100</span>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Efficiency (0–100)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                placeholder="e.g. 88"
-                value={efficiency}
-                onChange={(e) => setEfficiency(e.target.value)}
-                className="bg-background border-border"
-              />
+              <FieldLabel hint="Throughput vs target.">Efficiency</FieldLabel>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  placeholder="88"
+                  value={efficiency}
+                  onChange={(e) => setEfficiency(e.target.value)}
+                  className="pr-10"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">/100</span>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Incidents</Label>
+              <FieldLabel>Incidents</FieldLabel>
               <Input
                 type="number"
                 min={0}
                 placeholder="0"
                 value={incidents}
                 onChange={(e) => setIncidents(e.target.value)}
-                className="bg-background border-border"
               />
             </div>
             <div className="space-y-2">
-              <Label>Defects Found</Label>
+              <FieldLabel>Defects Found</FieldLabel>
               <Input
                 type="number"
                 min={0}
                 placeholder="0"
                 value={defects}
                 onChange={(e) => setDefects(e.target.value)}
-                className="bg-background border-border"
               />
             </div>
           </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1 border-border" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button className="flex-1" onClick={handleSubmit}>
-              Create Report
-            </Button>
-          </div>
         </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSubmit}>Create Report</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -1,0 +1,3 @@
+[functions.camera-heartbeat]
+# Gateways authenticate with each camera's ingest token rather than a user JWT.
+verify_jwt = false

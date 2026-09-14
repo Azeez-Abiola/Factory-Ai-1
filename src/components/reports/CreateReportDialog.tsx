@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ComplianceReport } from "@/data/mockData";
 import { toast } from "sonner";
+import FieldLabel from "@/components/forms/FieldLabel";
+import { supabase } from "@/integrations/supabase/client";
+import { buildReport, REPORT_TYPE_LABELS, type ReportType } from "@/lib/reportBuilder";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -24,150 +25,144 @@ import {
 interface CreateReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateReport: (report: ComplianceReport) => void;
+  tenantId: string | null;
+  tenantName?: string;
   reportCount: number;
+  onCreated: () => void;
 }
 
-const CreateReportDialog = ({ open, onOpenChange, onCreateReport, reportCount }: CreateReportDialogProps) => {
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<ComplianceReport["type"]>("safety");
-  const [status, setStatus] = useState<ComplianceReport["status"]>("pending");
-  const [score, setScore] = useState("");
-  const [findings, setFindings] = useState("");
-  const [generatedBy, setGeneratedBy] = useState("");
+const PERIODS = [
+  { value: "1", label: "Last 24 hours" },
+  { value: "7", label: "Last 7 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "90", label: "Last quarter" },
+];
 
-  const resetForm = () => {
+const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCount, onCreated }: CreateReportDialogProps) => {
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState<ReportType>("safety");
+  const [days, setDays] = useState("7");
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
     setTitle("");
     setType("safety");
-    setStatus("pending");
-    setScore("");
-    setFindings("");
-    setGeneratedBy("");
+    setDays("7");
   };
 
-  const handleSubmit = () => {
-    if (!title.trim()) {
-      toast.error("Report title is required");
-      return;
+  const handleSubmit = async () => {
+    if (!tenantId) return toast.error("Select a site first");
+    setSaving(true);
+    try {
+      const end = new Date();
+      const start = new Date(end.getTime() - Number(days) * 24 * 60 * 60 * 1000);
+      const built = await buildReport(tenantId, type, start, end);
+
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes?.user ?? null;
+      let name = "AI System";
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
+        name = profile?.display_name || user.email || "AI System";
+      }
+
+      const label = PERIODS.find((p) => p.value === days)?.label ?? `Last ${days} days`;
+      const { error } = await supabase.from("reports").insert({
+        tenant_id: tenantId,
+        reference: `RPT-${String(reportCount + 1).padStart(4, "0")}`,
+        title: title.trim() || `${REPORT_TYPE_LABELS[type]} report — ${tenantName ?? "site"} (${label})`,
+        type,
+        status: built.status,
+        score: built.score,
+        findings_count: built.findings_count,
+        period_start: start.toISOString(),
+        period_end: end.toISOString(),
+        summary: built.summary,
+        data: JSON.parse(JSON.stringify(built.data)),
+        generated_by: user?.id ?? null,
+        generated_by_name: name,
+      });
+      if (error) throw error;
+
+      toast.success("Report generated from live site activity");
+      reset();
+      onOpenChange(false);
+      onCreated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate the report");
+    } finally {
+      setSaving(false);
     }
-
-    const newReport: ComplianceReport = {
-      id: `RPT-${String(reportCount + 1).padStart(3, "0")}`,
-      title: title.trim(),
-      type,
-      date: new Date().toISOString().split("T")[0],
-      status,
-      score: status === "pending" ? 0 : Math.min(100, Math.max(0, Number(score) || 0)),
-      findings: Math.max(0, Number(findings) || 0),
-      generatedBy: generatedBy.trim() || "Manual Entry",
-    };
-
-    onCreateReport(newReport);
-    toast.success(`Report ${newReport.id} created successfully`);
-    resetForm();
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border-border">
+    <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
+      <DialogContent className="max-w-lg bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary" />
-            Create New Report
+            Generate report
           </DialogTitle>
-          <DialogDescription>Fill in the details to generate a new compliance report.</DialogDescription>
+          <DialogDescription>
+            We read the real alerts, cameras and investigations for this site over the period you choose, then score it.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Report Title *</Label>
+            <FieldLabel optional htmlFor="rpt-title">Report title</FieldLabel>
             <Input
-              placeholder="e.g. Daily Safety Compliance Report"
+              id="rpt-title"
+              placeholder="Leave blank to name it automatically"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="bg-background border-border"
+              maxLength={140}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as ComplianceReport["type"])}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
+              <FieldLabel required>Focus</FieldLabel>
+              <Select value={type} onValueChange={(v) => setType(v as ReportType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="safety">Safety</SelectItem>
                   <SelectItem value="quality">Quality</SelectItem>
-                  <SelectItem value="audit">Audit</SelectItem>
+                  <SelectItem value="audit">Audit (everything)</SelectItem>
                   <SelectItem value="productivity">Productivity</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as ComplianceReport["status"])}>
-                <SelectTrigger className="bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
+              <FieldLabel required>Period</FieldLabel>
+              <Select value={days} onValueChange={setDays}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="passed">Passed</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
+                  {PERIODS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {status !== "pending" && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Score (0–100)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  placeholder="e.g. 87"
-                  value={score}
-                  onChange={(e) => setScore(e.target.value)}
-                  className="bg-background border-border"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Findings</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="e.g. 3"
-                  value={findings}
-                  onChange={(e) => setFindings(e.target.value)}
-                  className="bg-background border-border"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Generated By</Label>
-            <Input
-              placeholder="e.g. AI System, Inspector Name"
-              value={generatedBy}
-              onChange={(e) => setGeneratedBy(e.target.value)}
-              className="bg-background border-border"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1 border-border" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button className="flex-1" onClick={handleSubmit}>
-              Create Report
-            </Button>
+          <div className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 p-3">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <p className="text-xs text-muted-foreground">
+              The score starts at 100 and drops with every open issue — critical issues weigh most, closed ones count far less.
+              Below 75% the report is marked failed.
+            </p>
           </div>
         </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving || !tenantId}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {saving ? "Generating…" : "Generate report"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

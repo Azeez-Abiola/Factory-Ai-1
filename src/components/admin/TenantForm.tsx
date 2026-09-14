@@ -1,75 +1,136 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useEffect, useState } from "react";
+import { Building2, Shield, Contact2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Tenant, TenantPlan, TenantStatus } from "@/data/adminMockData";
+import { Separator } from "@/components/ui/separator";
+import AddressFields from "@/components/forms/AddressFields";
+import type { TenantRow } from "@/hooks/useTenants";
+import { eligibleParents, tenantPath } from "@/lib/tenantTree";
 
 const tenantSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
-  industry: z.string().trim().min(2, "Industry is required").max(100),
-  region: z.string().trim().min(2, "Region is required").max(100),
+  slug: z
+    .string()
+    .trim()
+    .min(2, "Slug is required")
+    .max(60)
+    .regex(/^[a-z0-9-]+$/, "Lowercase letters, digits, and dashes only"),
+  industry: z.string().trim().max(100).optional().or(z.literal("")),
   plan: z.enum(["starter", "professional", "enterprise"]),
   status: z.enum(["active", "trial", "suspended"]),
-  cameras: z.coerce.number().int().min(0, "Must be 0 or more"),
-  users: z.coerce.number().int().min(1, "At least 1 user"),
-  zones: z.coerce.number().int().min(0, "Must be 0 or more"),
-  mrr: z.coerce.number().min(0, "Must be 0 or more"),
-  contactEmail: z.string().trim().email("Valid email required").max(255),
+  contact_email: z.string().trim().email("Enter a valid email address").max(255).optional().or(z.literal("")),
+  contact_phone: z
+    .string()
+    .trim()
+    .max(50)
+    .regex(/^$|^[+()\d\s-]{7,}$/, "Enter a valid phone number")
+    .optional()
+    .or(z.literal("")),
+  address: z.string().trim().max(500).optional().or(z.literal("")),
+  timezone: z.string().trim().max(64).optional().or(z.literal("")),
 });
 
-type TenantFormValues = z.infer<typeof tenantSchema>;
+export type TenantFormValues = z.infer<typeof tenantSchema>;
 
 interface TenantFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tenant?: Tenant | null;
-  parentTenant?: Tenant | null;
-  onSubmit: (data: TenantFormValues & { id?: string; parentId?: string | null; parentName?: string | null }) => void;
+  tenant?: TenantRow | null;
+  parentTenant?: TenantRow | null;
+  /** Full tenant list — used to offer/move a parent site. */
+  allTenants?: TenantRow[];
+  onSubmit: (data: TenantFormValues & { parent_id?: string | null; id?: string }) => Promise<void> | void;
 }
 
-const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: TenantFormProps) => {
+const slugify = (s: string) =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+
+// Common IANA timezones — kept short; users can still free-type via Input fallback.
+const TIMEZONES = [
+  "UTC",
+  "America/Los_Angeles",
+  "America/Denver",
+  "America/Chicago",
+  "America/New_York",
+  "America/Sao_Paulo",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Africa/Lagos",
+  "Africa/Johannesburg",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+];
+
+const SectionHeader = ({ icon: Icon, title, hint }: { icon: React.ElementType; title: string; hint?: string }) => (
+  <div className="flex items-start gap-2.5">
+    <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <Icon className="h-3.5 w-3.5" />
+    </div>
+    <div>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  </div>
+);
+
+const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [], onSubmit }: TenantFormProps) => {
   const isEdit = !!tenant;
   const isSubTenant = !!parentTenant;
+  const [parentId, setParentId] = useState<string | null>(
+    parentTenant?.id ?? tenant?.parent_id ?? null,
+  );
+  const parentOptions = eligibleParents(allTenants, tenant?.id).filter((t) => t.id !== tenant?.id);
 
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantSchema),
     defaultValues: tenant
       ? {
           name: tenant.name,
-          industry: tenant.industry,
-          region: tenant.region,
-          plan: tenant.plan,
-          status: tenant.status,
-          cameras: tenant.cameras,
-          users: tenant.users,
-          zones: tenant.zones,
-          mrr: tenant.mrr,
-          contactEmail: tenant.contactEmail,
+          slug: tenant.slug,
+          industry: tenant.industry ?? "",
+          plan: (tenant.plan as "starter" | "professional" | "enterprise") ?? "starter",
+          status: (tenant.status as "active" | "trial" | "suspended") ?? "active",
+          contact_email: tenant.contact_email ?? "",
+          contact_phone: tenant.contact_phone ?? "",
+          address: tenant.address ?? "",
+          timezone: tenant.timezone ?? "UTC",
         }
       : {
           name: "",
+          slug: "",
           industry: parentTenant?.industry ?? "",
-          region: parentTenant?.region ?? "",
-          plan: (parentTenant?.plan ?? "starter") as TenantPlan,
-          status: "trial" as TenantStatus,
-          cameras: 0,
-          users: 1,
-          zones: 0,
-          mrr: 0,
-          contactEmail: "",
+          plan: (parentTenant?.plan as "starter" | "professional" | "enterprise") ?? "starter",
+          status: "trial" as const,
+          contact_email: "",
+          contact_phone: "",
+          address: "",
+          timezone: parentTenant?.timezone ?? "UTC",
         },
   });
 
-  const handleSubmit = (values: TenantFormValues) => {
-    onSubmit({
+  const nameValue = form.watch("name");
+  useEffect(() => {
+    if (!isEdit && nameValue && !form.getValues("slug")) {
+      form.setValue("slug", slugify(nameValue), { shouldValidate: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameValue, isEdit]);
+
+  const handleSubmit = async (values: TenantFormValues) => {
+    await onSubmit({
       ...values,
       id: tenant?.id,
-      parentId: parentTenant?.id ?? tenant?.parentId ?? null,
-      parentName: parentTenant?.name ?? tenant?.parentName ?? null,
+      parent_id: parentId,
     });
     onOpenChange(false);
     form.reset();
@@ -78,184 +139,236 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, onSubmit }: Tena
   const title = isEdit
     ? "Edit Tenant"
     : isSubTenant
-    ? `Add Sub-Tenant under ${parentTenant.name}`
+    ? `Add Sub-Tenant · ${parentTenant!.name}`
     : "Add New Tenant";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">{title}</DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto bg-card">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-lg">{title}</DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Update organization details. Changes are audit-logged."
+              : "Provision an isolated workspace. You can invite members and configure cameras next."}
+          </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{isSubTenant ? "Sub-Tenant Name" : "Organization Name"}</FormLabel>
-                  <FormControl>
-                    <Input placeholder={isSubTenant ? "e.g., Unit 2 – Welding" : "Acme Manufacturing"} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
-            <div className="grid grid-cols-2 gap-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Organization */}
+            <section className="space-y-4">
+              <SectionHeader icon={Building2} title="Organization" hint="Public identity of this tenant." />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>{isSubTenant ? "Sub-Tenant Name" : "Organization Name"}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Acme Manufacturing" autoComplete="organization" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>URL Slug</FormLabel>
+                      <FormControl>
+                        <Input placeholder="acme-mfg" {...field} />
+                      </FormControl>
+                      <FormDescription className="text-xs">Used in URLs. Lowercase, dashes only.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormItem>
+                <FormLabel optional>Parent site</FormLabel>
+                <Select
+                  value={parentId ?? "none"}
+                  onValueChange={(v) => setParentId(v === "none" ? null : v)}
+                >
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Top-level site" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="max-h-64">
+                    <SelectItem value="none">No parent · top-level site</SelectItem>
+                    {parentOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {tenantPath(allTenants, p.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription className="text-xs">
+                  Sub-sites keep their own cameras, defects and budget, and roll up into the parent.
+                </FormDescription>
+              </FormItem>
+
+
               <FormField
                 control={form.control}
                 name="industry"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Industry</FormLabel>
+                    <FormLabel optional>Industry</FormLabel>
                     <FormControl>
-                      <Input placeholder="Manufacturing" {...field} />
+                      <Input placeholder="Manufacturing, Pharma, FMCG…" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="region"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Region</FormLabel>
-                    <FormControl>
-                      <Input placeholder="India – Maharashtra" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            </section>
 
-            <div className="grid grid-cols-2 gap-4">
+            <Separator />
+
+            {/* Plan & Status */}
+            <section className="space-y-4">
+              <SectionHeader icon={Shield} title="Plan & Access" hint="Determines quotas and default features." />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="plan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Plan</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="starter">Starter · up to 5 cameras</SelectItem>
+                          <SelectItem value="professional">Professional · up to 50 cameras</SelectItem>
+                          <SelectItem value="enterprise">Enterprise · unlimited</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="trial">Trial</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Contact & Location */}
+            <section className="space-y-4">
+              <SectionHeader
+                icon={Contact2}
+                title="Contact & Location"
+                hint="Primary contact for alerts, escalations, and compliance mail."
+              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="contact_email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel optional>Contact Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" inputMode="email" autoComplete="email" placeholder="ops@company.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="contact_phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel optional>Contact Phone</FormLabel>
+                      <FormControl>
+                        <Input type="tel" inputMode="tel" autoComplete="tel" placeholder="+1 555 000 0000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
-                name="plan"
+                name="timezone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Plan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel optional>Primary Timezone</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || "UTC"}>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select plan" />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="starter">Starter</SelectItem>
-                        <SelectItem value="professional">Professional</SelectItem>
-                        <SelectItem value="enterprise">Enterprise</SelectItem>
+                      <SelectContent className="max-h-64">
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    <FormDescription className="text-xs">
+                      Used for scheduling shift reports and escalation windows.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="trial">Trial</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
-                name="cameras"
+                name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cameras</FormLabel>
                     <FormControl>
-                      <Input type="number" min={0} {...field} />
+                      <AddressFields
+                        value={field.value}
+                        onChange={(formatted) => field.onChange(formatted)}
+                        description="Primary facility address. Used for compliance records and site tagging."
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="users"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Users</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={1} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="zones"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zones</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            </section>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="mrr"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>MRR ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} step={100} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="contactEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="admin@company.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {isEdit ? "Save Changes" : isSubTenant ? "Create Sub-Tenant" : "Create Tenant"}
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting
+                  ? "Saving…"
+                  : isEdit
+                  ? "Save Changes"
+                  : isSubTenant
+                  ? "Create Sub-Tenant"
+                  : "Create Tenant"}
               </Button>
             </div>
           </form>

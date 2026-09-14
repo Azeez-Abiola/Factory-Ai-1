@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_analysis_config ADD COLUMN IF NOT EXISTS defect_types jsonb NOT NULL DEFAULT '[]'::jsonb;
