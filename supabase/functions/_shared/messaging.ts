@@ -1,11 +1,11 @@
 /**
  * Shared email + SMS delivery helpers.
  *
- * Both providers are reached through the Lovable connector gateway, so the
- * only secrets needed are the connector connection keys plus LOVABLE_API_KEY.
- * When a provider is not connected the helper returns a structured
- * `no_provider` result instead of throwing, so callers can still record the
- * attempt in notification_log and surface the gap in the admin UI.
+ * Email is sent directly through Resend's API with our own RESEND_API_KEY.
+ * SMS is parked for now (email-only notifications) — smsConfigured() always
+ * reports false so callers skip it and record a `no_provider` attempt
+ * instead of erroring. Re-wire sendSms to Twilio's REST API directly when
+ * SMS comes back into scope.
  */
 
 export interface DeliveryResult {
@@ -15,22 +15,18 @@ export interface DeliveryResult {
   id?: string;
 }
 
-const GATEWAY = 'https://connector-gateway.lovable.dev';
+const RESEND_API = 'https://api.resend.com/emails';
 
 function resendKey() {
-  return Deno.env.get('RESEND_API_KEY') ?? Deno.env.get('RESEND_CONNECTOR_API_KEY');
-}
-
-function twilioKey() {
-  return Deno.env.get('TWILIO_API_KEY') ?? Deno.env.get('TWILIO_CONNECTOR_API_KEY');
+  return Deno.env.get('RESEND_API_KEY');
 }
 
 export function emailConfigured() {
-  return Boolean(resendKey() && Deno.env.get('LOVABLE_API_KEY'));
+  return Boolean(resendKey());
 }
 
 export function smsConfigured() {
-  return Boolean(twilioKey() && Deno.env.get('LOVABLE_API_KEY') && Deno.env.get('TWILIO_FROM_NUMBER'));
+  return false;
 }
 
 export function fromAddress() {
@@ -39,15 +35,13 @@ export function fromAddress() {
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<DeliveryResult> {
   const key = resendKey();
-  const lovKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!key || !lovKey) return { ok: false, reason: 'no_provider' };
+  if (!key) return { ok: false, reason: 'no_provider' };
 
-  const res = await fetch(`${GATEWAY}/resend/emails`, {
+  const res = await fetch(RESEND_API, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${lovKey}`,
-      'X-Connection-Api-Key': key,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({ from: fromAddress(), to: [to], subject, html }),
   });
@@ -62,30 +56,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   return { ok: true, id };
 }
 
-export async function sendSms(to: string, body: string): Promise<DeliveryResult> {
-  const key = twilioKey();
-  const from = Deno.env.get('TWILIO_FROM_NUMBER');
-  const lovKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!key || !from || !lovKey) return { ok: false, reason: 'no_provider' };
-
-  const res = await fetch(`${GATEWAY}/twilio/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${lovKey}`,
-      'X-Connection-Api-Key': key,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({ To: to, From: from, Body: body }),
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    console.error(`twilio send failed [${res.status}]: ${text}`);
-    return { ok: false, reason: `twilio_${res.status}`, detail: text.slice(0, 400) };
-  }
-  let id: string | undefined;
-  try { id = JSON.parse(text)?.sid; } catch { /* body not json */ }
-  return { ok: true, id };
+export async function sendSms(_to: string, _body: string): Promise<DeliveryResult> {
+  return { ok: false, reason: 'no_provider' };
 }
 
 export function emailShell(heading: string, bodyHtml: string, accent = '#0f766e') {

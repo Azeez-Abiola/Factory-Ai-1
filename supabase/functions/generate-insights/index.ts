@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from '../_shared/ai.ts';
 
 /**
  * generate-insights: turns real alert/incident/camera history into AI Insights
@@ -74,8 +75,8 @@ async function summarise(supabase: any, tenantId: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const lovKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!lovKey) return json({ error: 'LOVABLE_API_KEY is not configured' }, 500);
+  const geminiKey = getGeminiKey();
+  if (!geminiKey) return json({ error: 'GEMINI_API_KEY is not configured' }, 500);
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
@@ -112,11 +113,11 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const res = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const res = await fetch(GEMINI_CHAT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Lovable-API-Key': lovKey },
+      headers: geminiHeaders(geminiKey),
       body: JSON.stringify({
-        model: MODEL,
+        model: toGeminiModel(MODEL),
         messages: [
           { role: 'system', content: SYSTEM },
           { role: 'user', content: `Tenant operational data (last 30 days):\n${JSON.stringify(stats, null, 2)}` },
@@ -126,8 +127,8 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       const detail = await res.text();
-      console.error(`AI gateway error [${res.status}]: ${detail}`);
-      out.push({ tenant_id: tenantId, error: `ai_gateway_${res.status}`, detail: detail.slice(0, 300) });
+      console.error(`Gemini error [${res.status}]: ${detail}`);
+      out.push({ tenant_id: tenantId, error: `ai_error_${res.status}`, detail: detail.slice(0, 300) });
       continue;
     }
 

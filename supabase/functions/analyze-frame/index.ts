@@ -2,6 +2,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
+import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -188,9 +189,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const key = Deno.env.get("LOVABLE_API_KEY");
+    const key = getGeminiKey();
     if (!key) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -325,14 +326,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    const gwRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const gwRes = await fetch(GEMINI_CHAT_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-      },
+      headers: geminiHeaders(key),
       body: JSON.stringify({
-        model,
+        model: toGeminiModel(model),
         messages: [
           { role: "system", content: finalSystemPrompt },
           ...exemplars.map((ex) => ({
@@ -354,16 +352,13 @@ Deno.serve(async (req) => {
 
     if (!gwRes.ok) {
       const errText = await gwRes.text();
-      console.error("AI gateway error", gwRes.status, errText);
+      console.error("AI request error", gwRes.status, errText);
 
       let message = "AI analysis could not be completed.";
       let code = "ai_gateway_error";
-      if (gwRes.status === 402) {
-        code = "ai_credits_exhausted";
-        message = "AI credits have run out for this workspace. Add credits in Lovable (Settings → Plans & credits) to resume analysis.";
-      } else if (gwRes.status === 403) {
+      if (gwRes.status === 403) {
         code = "ai_blocked";
-        message = "AI analysis is blocked by a workspace policy or credit limit. An admin needs to re-enable it.";
+        message = "AI analysis was rejected — check that GEMINI_API_KEY is valid and has access to this model.";
       } else if (gwRes.status === 429) {
         code = "ai_rate_limited";
         message = "Too many AI requests right now. Analysis will resume shortly — try again in a minute.";

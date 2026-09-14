@@ -1,4 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
 
 interface Body {
   natural_language: string;
@@ -31,9 +32,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const key = Deno.env.get("LOVABLE_API_KEY");
+    const key = getGeminiKey();
     if (!key) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -53,14 +54,11 @@ Deno.serve(async (req) => {
       "\nReturn the JSON per schema.",
     ].filter(Boolean).join("\n");
 
-    const gwRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const gwRes = await fetch(GEMINI_CHAT_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-      },
+      headers: geminiHeaders(key),
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: toGeminiModel("google/gemini-2.5-pro"),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText },
@@ -70,18 +68,13 @@ Deno.serve(async (req) => {
 
     if (!gwRes.ok) {
       const errText = await gwRes.text();
-      console.error("AI gateway error", gwRes.status, errText);
+      console.error("Gemini error", gwRes.status, errText);
       if (gwRes.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit hit — retry shortly." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (gwRes.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: "AI gateway failed", details: errText }), {
+      return new Response(JSON.stringify({ error: "AI request failed", details: errText }), {
         status: gwRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
