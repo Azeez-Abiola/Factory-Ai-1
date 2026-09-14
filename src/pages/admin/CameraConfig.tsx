@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -746,7 +747,7 @@ const CameraConfig = () => {
                     <div className="flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /><p className="text-sm font-semibold">Camera sign-in</p></div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5"><Label>Username</Label><Input autoComplete="username" value={editing.credentials?.username ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), username: e.target.value } }); }} placeholder="admin" /></div>
-                      <div className="space-y-1.5"><Label>Password</Label><Input type="password" autoComplete="current-password" value={editing.credentials?.password ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), password: e.target.value } }); }} placeholder="Camera password" /></div>
+                      <div className="space-y-1.5"><Label>Password</Label><PasswordInput autoComplete="current-password" value={editing.credentials?.password ?? ""} onChange={(e) => { setConnectionTested(false); setEditing({ ...editing, credentials: { ...(editing.credentials ?? {}), password: e.target.value } }); }} placeholder="Camera password" /></div>
                     </div>
                   </div>
                   <div className="col-span-2 space-y-1.5">

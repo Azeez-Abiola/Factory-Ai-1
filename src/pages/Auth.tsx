@@ -5,6 +5,7 @@ import { Loader2, ArrowRight, Shield, Zap, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -168,7 +169,7 @@ const Auth = () => {
                     <Label htmlFor="pw-in">Password</Label>
                     <button type="button" onClick={handleForgot} className="text-xs text-primary hover:underline">Forgot?</button>
                   </div>
-                  <Input id="pw-in" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" />
+                  <PasswordInput id="pw-in" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" />
                 </div>
                 <Button type="submit" className="w-full h-11" disabled={busy}>
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Sign in <ArrowRight className="ml-1.5 w-4 h-4" /></>)}
@@ -188,7 +189,7 @@ const Auth = () => {
                 </div>
                 <div>
                   <Label htmlFor="pw-up">Password</Label>
-                  <Input id="pw-up" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" />
+                  <PasswordInput id="pw-up" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" />
                   <p className="text-xs text-muted-foreground mt-1.5">At least 8 characters.</p>
                 </div>
                 <Button type="submit" className="w-full h-11" disabled={busy}>

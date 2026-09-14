@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -180,7 +181,7 @@ const NvrImportDialog = ({ open, onOpenChange, tenantId, gatewayBase, gatewayVen
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="nvr-pass">Password</Label>
-              <Input id="nvr-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              <PasswordInput id="nvr-pass" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="nvr-first">First channel</Label>
