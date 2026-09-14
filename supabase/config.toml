@@ -20,7 +20,7 @@ host = "smtp.resend.com"
 port = 465
 user = "resend"
 pass = "env(RESEND_API_KEY)"
-admin_email = "alerts@factoryai.1879techhub.com"
+admin_email = "alerts@1879techhub.com"
 sender_name = "FactoryAI"
 
 [auth.mfa.totp]
