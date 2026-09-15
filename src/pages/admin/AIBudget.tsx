@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Wallet, Save, Loader2, AlertTriangle, Gauge, Camera, Sparkles, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +49,15 @@ const monthStart = () => {
 };
 
 const AIBudget = () => {
-  const { activeTenantId, activeTenant } = useTenants();
+  const { tenantId: paramTenantId } = useParams();
+  const { activeTenantId, activeTenant, tenants } = useTenants();
+  
+  const effectiveTenantId = paramTenantId || activeTenantId;
+  const effectiveTenant = useMemo(() => 
+    tenants.find(t => t.id === effectiveTenantId) || (effectiveTenantId === activeTenantId ? activeTenant : null),
+    [tenants, effectiveTenantId, activeTenantId, activeTenant]
+  );
+
   const [budget, setBudget] = useState<Budget | null>(null);
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [cameraNames, setCameraNames] = useState<Record<string, string>>({});
@@ -56,35 +65,47 @@ const AIBudget = () => {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!activeTenantId) { setBudget(null); setUsage([]); setLoading(false); return; }
+    if (!effectiveTenantId) { 
+      setBudget(null); 
+      setUsage([]); 
+      setLoading(false); 
+      return; 
+    }
     setLoading(true);
     const [b, u, c] = await Promise.all([
-      supabase.from("tenant_ai_budgets").select("*").eq("tenant_id", activeTenantId).maybeSingle(),
+      supabase.from("tenant_ai_budgets").select("*").eq("tenant_id", effectiveTenantId).maybeSingle(),
       supabase.from("ai_usage_events")
         .select("id,camera_id,source,model,media,scene_changed,cost_usd,created_at")
-        .eq("tenant_id", activeTenantId)
+        .eq("tenant_id", effectiveTenantId)
         .gte("created_at", monthStart())
         .order("created_at", { ascending: false })
         .limit(2000),
-      supabase.from("cameras").select("id,name").eq("tenant_id", activeTenantId),
+      supabase.from("cameras").select("id,name").eq("tenant_id", effectiveTenantId),
     ]);
+    
     if (b.error) toast.error(b.error.message);
-    setBudget((b.data as unknown as Budget) ?? DEFAULTS(activeTenantId));
+    
+    setBudget((b.data as unknown as Budget) ?? DEFAULTS(effectiveTenantId));
     setUsage((u.data ?? []) as UsageRow[]);
     setCameraNames(Object.fromEntries((c.data ?? []).map((r: any) => [r.id, r.name])));
     setLoading(false);
-  }, [activeTenantId]);
+  }, [effectiveTenantId]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!activeTenantId) return;
+    if (!effectiveTenantId) return;
     const channel = supabase
-      .channel(`ai-usage:${activeTenantId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_usage_events", filter: `tenant_id=eq.${activeTenantId}` }, () => load())
+      .channel(`ai-usage:${effectiveTenantId}`)
+      .on("postgres_changes", { 
+        event: "INSERT", 
+        schema: "public", 
+        table: "ai_usage_events", 
+        filter: `tenant_id=eq.${effectiveTenantId}` 
+      }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [activeTenantId, load]);
+  }, [effectiveTenantId, load]);
 
   const stats = useMemo(() => {
     const spend = usage.reduce((s, r) => s + Number(r.cost_usd), 0);
@@ -109,7 +130,7 @@ const AIBudget = () => {
   const state = stats.pct >= 100 ? "over" : stats.pct >= (budget?.alert_threshold_pct ?? 80) ? "near" : "ok";
 
   const save = async () => {
-    if (!budget || !activeTenantId) return;
+    if (!budget || !effectiveTenantId) return;
     if (!(budget.monthly_limit_usd > 0)) { toast.error("Monthly budget must be greater than zero"); return; }
     if (budget.alert_threshold_pct < 10 || budget.alert_threshold_pct > 99) {
       toast.error("Alert threshold must be between 10% and 99%"); return;
@@ -117,16 +138,16 @@ const AIBudget = () => {
     setSaving(true);
     const { error } = await supabase.from("tenant_ai_budgets").upsert({
       ...budget,
-      tenant_id: activeTenantId,
+      tenant_id: effectiveTenantId,
     }, { onConflict: "tenant_id" });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("AI budget saved");
     auditLog({
-      tenantId: activeTenantId,
+      tenantId: effectiveTenantId,
       action: "ai_budget.updated",
       entityType: "tenant",
-      entityId: activeTenantId,
+      entityId: effectiveTenantId,
       metadata: {
         monthly_limit_usd: budget.monthly_limit_usd,
         alert_threshold_pct: budget.alert_threshold_pct,
@@ -136,7 +157,7 @@ const AIBudget = () => {
     load();
   };
 
-  if (!activeTenantId) {
+  if (!effectiveTenantId) {
     return (
       <div className="space-y-6">
         <PageHeader title="AI Budget" description="Cap and monitor AI analysis spend per site" icon={Wallet} />
@@ -149,7 +170,7 @@ const AIBudget = () => {
     <div className="space-y-6">
       <PageHeader
         title="AI Budget"
-        description={`Monthly AI analysis spend cap for ${activeTenant?.name ?? "this site"}`}
+        description={`Monthly AI analysis spend cap for ${effectiveTenant?.name ?? "this site"}`}
         icon={Wallet}
       />
 
