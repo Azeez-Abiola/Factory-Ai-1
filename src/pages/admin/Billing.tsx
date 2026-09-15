@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PageHeader from "@/components/app/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { auditLog } from "@/lib/audit";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,8 @@ const statusColors: Record<TenantStatus, string> = {
 const money = (amount: number) => `$${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 const Billing = () => {
+  const { hasRole } = useAuth();
+  const canManagePlans = hasRole("super_admin");
   const [rows, setRows] = useState<TenantBilling[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -269,7 +272,9 @@ const Billing = () => {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <h2 className="text-base font-semibold text-foreground">Tenant subscriptions</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Open a tenant to change its plan or lifecycle status.</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {canManagePlans ? "Open a tenant to change its plan or lifecycle status." : "Plan changes are restricted to platform administrators."}
+              </p>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(220px,1fr)_160px_160px]">
               <div className="relative">
@@ -322,7 +327,7 @@ const Billing = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredRows.map((row) => (
-                    <TableRow key={row.id} className="group cursor-pointer" onClick={() => openManager(row)}>
+                    <TableRow key={row.id} className={cn("group", canManagePlans && "cursor-pointer")} onClick={() => canManagePlans && openManager(row)}>
                       <TableCell className="font-medium text-foreground">{row.name}</TableCell>
                       <TableCell>{RATE_CARD[row.plan].label}</TableCell>
                       <TableCell><Badge variant="outline" className={cn("capitalize", statusColors[row.status])}>{row.status}</Badge></TableCell>
@@ -330,9 +335,11 @@ const Billing = () => {
                       <TableCell className="text-right tabular-nums">{row.members}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{money(row.estimatedMonthly)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); openManager(row); }}>
-                          <Settings2 className="mr-2 h-4 w-4" /> Manage
-                        </Button>
+                        {canManagePlans && (
+                          <Button variant="ghost" size="sm" onClick={(event) => { event.stopPropagation(); openManager(row); }}>
+                            <Settings2 className="mr-2 h-4 w-4" /> Manage
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -342,7 +349,7 @@ const Billing = () => {
 
             <div className="divide-y divide-border md:hidden">
               {filteredRows.map((row) => (
-                <button key={row.id} type="button" onClick={() => openManager(row)} className="w-full p-4 text-left transition-colors hover:bg-muted/30">
+                <button key={row.id} type="button" onClick={() => canManagePlans && openManager(row)} disabled={!canManagePlans} className="w-full p-4 text-left transition-colors enabled:hover:bg-muted/30 disabled:cursor-default">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{row.name}</p>
