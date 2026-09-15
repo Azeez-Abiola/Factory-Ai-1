@@ -225,7 +225,7 @@ const articles: Article[] = [
     readMinutes: 5,
     blocks: [
       { kind: "steps", items: [
-        "Mark the alert (or bulk in /app/investigations) as False Positive — audit entry incident.bulk.false_positive.",
+        "Open the alert, then raise it as an investigation and mark it False Positive in /app/investigations — audit entry incident.bulk.false_positive.",
         "Add a resolution note explaining what triggered it (glare, reflection, mannequin, etc.).",
         "In /admin/rules → Alert Rules, raise the confidence_threshold for the offending model, or add a zone exclusion.",
         "In /admin/cameras, adjust the camera's confidence_threshold or disable the model that generated the false hit.",
