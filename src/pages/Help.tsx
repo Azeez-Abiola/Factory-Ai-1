@@ -1041,7 +1041,7 @@ const articles: Article[] = [
     readMinutes: 6,
     relatedRoute: { label: "Open Alerts", to: "/app/alerts" },
     blocks: [
-      { kind: "p", text: "When a detection fires, the frame that triggered it is stored privately against the alert and shown as a thumbnail in the list and full size in the detail view." },
+      { kind: "p", text: "When a detection fires, the frame that triggered it is stored privately against the alert and shown as a thumbnail in the list and full size in the detail view. If no frame was captured, the camera's current snapshot is shown instead — so check the timestamp before treating an image as evidence of the moment." },
       { kind: "list", items: [
         "Boxes are stored as full-frame proportions, so they stay aligned at any tile size or screen width.",
         "The image is never cropped — it is letterboxed, and boxes are drawn against the painted area.",
