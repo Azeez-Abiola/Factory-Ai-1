@@ -118,7 +118,7 @@ const App = () => (
               <Route path="onboarding" element={<Navigate to="/admin" replace />} />
               <Route path="settings" element={<Settings />} />
               <Route path="kpi-config" element={<KpiConfig />} />
-              <Route path="ai-budget" element={<AIBudget />} />
+              <Route path="ai-budget/:tenantId?" element={<AIBudget />} />
               <Route path="sites" element={<SiteOverview />} />
               <Route path="site-requests" element={<SiteRequests />} />
               <Route path="tenants/:tenantId" element={<TenantDetail />} />
