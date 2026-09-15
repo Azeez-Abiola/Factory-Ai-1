@@ -1,17 +1,9 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { Outlet } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import AppHeader from "./AppHeader";
 import ShiftStatusBanner from "./ShiftStatusBanner";
 
 const AppLayout = () => {
-  const { roles } = useAuth();
-  // Factory managers get the read-only portal, not the operator console.
-  const managerOnly =
-    roles.includes("manager") &&
-    !roles.some((r) => ["super_admin", "tenant_admin", "operator"].includes(r));
-  if (managerOnly) return <Navigate to="/portal" replace />;
-
   return (
     <div className="flex min-h-screen bg-background relative">
       <AppSidebar />

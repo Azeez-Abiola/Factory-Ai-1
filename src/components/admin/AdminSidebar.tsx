@@ -7,13 +7,15 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenantPermissions } from "@/hooks/useTenantPermissions";
+import type { PermissionKey } from "@/lib/permissions";
 
-const navGroups: { label: string; items: { to: string; icon: typeof Users; label: string; end?: boolean; platformOnly?: boolean }[] }[] = [
+const navGroups: { label: string; items: { to: string; icon: typeof Users; label: string; end?: boolean; platformOnly?: boolean; permission?: PermissionKey }[] }[] = [
   {
     label: "Organizations",
     items: [
-      { to: "/admin", icon: Building2, label: "Sites & Tenants", end: true },
-      { to: "/admin/users", icon: Users, label: "User Management" },
+      { to: "/admin", icon: Building2, label: "Sites & Tenants", end: true, permission: "admin_sites.manage" },
+      { to: "/admin/users", icon: Users, label: "User Management", permission: "users.manage" },
       { to: "/admin/sites", icon: Factory, label: "Site Overview" },
       { to: "/admin/site-requests", icon: MapPinPlus, label: "Site Requests" },
     ],
@@ -47,6 +49,7 @@ const AdminSidebar = () => {
   const location = useLocation();
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole("super_admin");
+  const { can } = useTenantPermissions();
 
   return (
     <aside
@@ -80,7 +83,7 @@ const AdminSidebar = () => {
               </div>
             )}
             <div className="space-y-0.5">
-              {group.items.filter((item) => isSuperAdmin || !item.platformOnly).map((item) => {
+              {group.items.filter((item) => (isSuperAdmin || !item.platformOnly) && (!item.permission || can(item.permission))).map((item) => {
                 const isActive = item.end
                   ? location.pathname === item.to
                   : location.pathname.startsWith(item.to);

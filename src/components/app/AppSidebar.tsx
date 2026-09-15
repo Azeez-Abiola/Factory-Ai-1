@@ -8,26 +8,28 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useTenantPermissions } from "@/hooks/useTenantPermissions";
+import type { PermissionKey } from "@/lib/permissions";
 
-const navGroups: { label: string; items: { to: string; icon: typeof Bell; label: string; end?: boolean }[] }[] = [
+const navGroups: { label: string; items: { to: string; icon: typeof Bell; label: string; end?: boolean; permission?: PermissionKey }[] }[] = [
   {
     label: "Operate",
     items: [
-      { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
-      { to: "/app/shift-reports", icon: ClipboardList, label: "Shift & Handover" },
-      { to: "/app/alerts", icon: Bell, label: "Alerts" },
-      { to: "/app/investigations", icon: ShieldCheck, label: "Investigations" },
-      { to: "/app/cameras", icon: Camera, label: "Camera Feeds" },
-      { to: "/app/floor-plan", icon: Map, label: "Floor Plan" },
+      { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true, permission: "dashboard.view" },
+      { to: "/app/shift-reports", icon: ClipboardList, label: "Shift & Handover", permission: "shift.view" },
+      { to: "/app/alerts", icon: Bell, label: "Alerts", permission: "alerts.view" },
+      { to: "/app/investigations", icon: ShieldCheck, label: "Investigations", permission: "investigations.view" },
+      { to: "/app/cameras", icon: Camera, label: "Camera Feeds", permission: "cameras.view" },
+      { to: "/app/floor-plan", icon: Map, label: "Floor Plan", permission: "floor_plan.view" },
     ],
   },
   {
     label: "Analyze",
     items: [
-      { to: "/app/quality", icon: PackageSearch, label: "Quality" },
-      { to: "/app/insights", icon: Sparkles, label: "AI Insights" },
-      { to: "/app/reports", icon: FileText, label: "Reports" },
-      { to: "/app/maintenance", icon: Wrench, label: "Maintenance" },
+      { to: "/app/quality", icon: PackageSearch, label: "Quality", permission: "quality.view" },
+      { to: "/app/insights", icon: Sparkles, label: "AI Insights", permission: "insights.view" },
+      { to: "/app/reports", icon: FileText, label: "Reports", permission: "reports.view" },
+      { to: "/app/maintenance", icon: Wrench, label: "Maintenance", permission: "maintenance.view" },
     ],
   },
   {
@@ -42,6 +44,7 @@ const AppSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { roles } = useAuth();
+  const { can } = useTenantPermissions();
   const canAdmin = roles.includes("super_admin") || roles.includes("tenant_admin");
 
   return (
@@ -68,7 +71,7 @@ const AppSidebar = () => {
 
       {/* Nav */}
       <nav className="flex-1 py-5 px-2.5 overflow-y-auto">
-        {navGroups.map((group) => (
+        {navGroups.map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || can(item.permission)) })).filter((group) => group.items.length).map((group) => (
           <div key={group.label} className="mb-4 last:mb-0">
             {!collapsed && (
               <div className="px-3 mb-2 text-[10px] font-bold uppercase text-muted-foreground/70 max-md:hidden">
