@@ -19,7 +19,10 @@ export const PERMISSION_GROUPS = [
 ] as const;
 
 export type PermissionKey = typeof PERMISSION_GROUPS[number]["permissions"][number][0];
-export const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap((group) => group.permissions.map(([key]) => key)) as PermissionKey[];
+const ALL_PERMISSION_ENTRIES = PERMISSION_GROUPS.flatMap(
+  (group) => group.permissions as readonly (readonly [string, string])[],
+);
+export const ALL_PERMISSION_KEYS = ALL_PERMISSION_ENTRIES.map(([key]) => key) as PermissionKey[];
 
 const defaults: Record<TenantRole, PermissionKey[]> = {
   owner: ALL_PERMISSION_KEYS,
@@ -30,4 +33,4 @@ const defaults: Record<TenantRole, PermissionKey[]> = {
 };
 
 export const defaultPermission = (role: TenantRole, key: PermissionKey) => defaults[role].includes(key);
-export const permissionLabel = (key: PermissionKey) => PERMISSION_GROUPS.flatMap((group) => group.permissions).find(([candidate]) => candidate === key)?.[1] ?? key;
+export const permissionLabel = (key: PermissionKey) => ALL_PERMISSION_ENTRIES.find(([candidate]) => candidate === key)?.[1] ?? key;

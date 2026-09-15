@@ -27,7 +27,8 @@ export function useTenantPermissions() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!activeTenantId) return;
-    const channel = supabase.channel(`effective-permissions-${activeTenantId}`)
+    // Unique per hook instance: several components mount this hook at once.
+    const channel = supabase.channel(`effective-permissions-${activeTenantId}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "tenant_role_permissions", filter: `tenant_id=eq.${activeTenantId}` }, load)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
