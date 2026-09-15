@@ -36,18 +36,17 @@ import { cn } from "@/lib/utils";
 type PlanKey = "starter" | "professional" | "enterprise";
 type TenantStatus = "active" | "trial" | "suspended";
 
-const RATE_CARD: Record<PlanKey, { base: number; perCamera: number; label: string; allowance: string }> = {
+const DEFAULT_RATE_CARD: Record<PlanKey, { base: number; perCamera: number; label: string; allowance: string }> = {
   starter: { base: 0, perCamera: 15, label: "Starter", allowance: "Up to 5 cameras" },
   professional: { base: 499, perCamera: 25, label: "Professional", allowance: "Up to 50 cameras" },
   enterprise: { base: 1499, perCamera: 40, label: "Enterprise", allowance: "Unlimited cameras" },
 };
 
-const PLAN_KEYS = Object.keys(RATE_CARD) as PlanKey[];
+const PLAN_KEYS = Object.keys(DEFAULT_RATE_CARD) as PlanKey[];
 const STATUSES: TenantStatus[] = ["active", "trial", "suspended"];
-const rateFor = (plan: string) => RATE_CARD[plan as PlanKey] ?? RATE_CARD.starter;
-const estimatedCharge = (plan: string, status: string, cameras: number) => {
+const estimatedCharge = (rates: typeof DEFAULT_RATE_CARD, plan: string, status: string, cameras: number) => {
   if (status !== "active") return 0;
-  const rate = rateFor(plan);
+  const rate = rates[plan as PlanKey] ?? rates.starter;
   return rate.base + cameras * rate.perCamera;
 };
 
@@ -82,14 +81,17 @@ const Billing = () => {
   const [draftPlan, setDraftPlan] = useState<PlanKey>("starter");
   const [draftStatus, setDraftStatus] = useState<TenantStatus>("trial");
   const [saving, setSaving] = useState(false);
+  const [rates, setRates] = useState(DEFAULT_RATE_CARD);
+  const [editingRate, setEditingRate] = useState<PlanKey | null>(null);
+  const [draftBaseFee, setDraftBaseFee] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
-    const tenantRes = await supabase
+    const [tenantRes, planRes] = await Promise.all([supabase
       .from("tenants")
       .select("id,name,plan,status")
-      .order("name", { ascending: true });
+      .order("name", { ascending: true }), supabase.from("billing_plans").select("plan_key,label,base_fee,per_camera_fee,allowance")]);
 
     if (tenantRes.error) {
       setRows([]);
@@ -98,6 +100,9 @@ const Billing = () => {
       return;
     }
 
+    const nextRates = { ...DEFAULT_RATE_CARD };
+    (planRes.data ?? []).forEach((plan) => { const key = plan.plan_key as PlanKey; if (PLAN_KEYS.includes(key)) nextRates[key] = { base: Number(plan.base_fee), perCamera: Number(plan.per_camera_fee), label: plan.label, allowance: plan.allowance }; });
+    setRates(nextRates);
     const tenants = tenantRes.data ?? [];
     const usage = await Promise.all(
       tenants.map(async (tenant) => {
@@ -123,7 +128,7 @@ const Billing = () => {
         status,
         cameras,
         members: memberRes.count ?? 0,
-        estimatedMonthly: estimatedCharge(plan, status, cameras),
+        estimatedMonthly: estimatedCharge(nextRates, plan, status, cameras),
       };
     }));
     setLoading(false);
@@ -184,7 +189,7 @@ const Billing = () => {
   const activeSubscriptions = rows.filter((row) => row.status === "active").length;
   const totalCameras = rows.reduce((sum, row) => sum + row.cameras, 0);
   const totalMembers = rows.reduce((sum, row) => sum + row.members, 0);
-  const draftEstimate = selected ? estimatedCharge(draftPlan, draftStatus, selected.cameras) : 0;
+  const draftEstimate = selected ? estimatedCharge(rates, draftPlan, draftStatus, selected.cameras) : 0;
   const filtersActive = query || planFilter !== "all" || statusFilter !== "all";
 
   return (
@@ -246,7 +251,7 @@ const Billing = () => {
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {PLAN_KEYS.map((key) => {
-            const rate = RATE_CARD[key];
+            const rate = rates[key];
             const count = rows.filter((row) => row.plan === key).length;
             return (
               <div key={key} className="rounded-lg border border-border bg-card p-4">
@@ -261,6 +266,7 @@ const Billing = () => {
                   <span className="text-xl font-bold tabular-nums">{money(rate.base)}</span>
                   <span className="text-muted-foreground">base + {money(rate.perCamera)}/camera/month</span>
                 </div>
+                {canManagePlans && <Button variant="outline" size="sm" className="mt-4 w-full" onClick={() => { setEditingRate(key); setDraftBaseFee(rate.base); }}><Settings2 className="mr-2 h-4 w-4" />Edit base fee</Button>}
               </div>
             );
           })}
@@ -285,7 +291,7 @@ const Billing = () => {
                 <SelectTrigger aria-label="Filter by plan"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All plans</SelectItem>
-                  {PLAN_KEYS.map((key) => <SelectItem key={key} value={key}>{RATE_CARD[key].label}</SelectItem>)}
+                  {PLAN_KEYS.map((key) => <SelectItem key={key} value={key}>{rates[key].label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -329,7 +335,7 @@ const Billing = () => {
                   {filteredRows.map((row) => (
                     <TableRow key={row.id} className={cn("group", canManagePlans && "cursor-pointer")} onClick={() => canManagePlans && openManager(row)}>
                       <TableCell className="font-medium text-foreground">{row.name}</TableCell>
-                      <TableCell>{RATE_CARD[row.plan].label}</TableCell>
+                       <TableCell>{rates[row.plan].label}</TableCell>
                       <TableCell><Badge variant="outline" className={cn("capitalize", statusColors[row.status])}>{row.status}</Badge></TableCell>
                       <TableCell className="text-right tabular-nums">{row.cameras}</TableCell>
                       <TableCell className="text-right tabular-nums">{row.members}</TableCell>
@@ -353,7 +359,7 @@ const Billing = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{row.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{RATE_CARD[row.plan].label} · {row.cameras} cameras · {row.members} seats</p>
+                       <p className="mt-1 text-xs text-muted-foreground">{rates[row.plan].label} · {row.cameras} cameras · {row.members} seats</p>
                     </div>
                     <Badge variant="outline" className={cn("shrink-0 capitalize", statusColors[row.status])}>{row.status}</Badge>
                   </div>
@@ -382,7 +388,7 @@ const Billing = () => {
                   <Select value={draftPlan} onValueChange={(value) => setDraftPlan(value as PlanKey)} disabled={saving}>
                     <SelectTrigger id="billing-plan"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {PLAN_KEYS.map((key) => <SelectItem key={key} value={key}>{RATE_CARD[key].label}</SelectItem>)}
+                      {PLAN_KEYS.map((key) => <SelectItem key={key} value={key}>{rates[key].label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -400,11 +406,11 @@ const Billing = () => {
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-muted-foreground">Base fee</span>
-                  <span className="text-sm font-medium tabular-nums">{money(RATE_CARD[draftPlan].base)}</span>
+                   <span className="text-sm font-medium tabular-nums">{money(rates[draftPlan].base)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-4">
-                  <span className="text-sm text-muted-foreground">{selected.cameras} cameras × {money(RATE_CARD[draftPlan].perCamera)}</span>
-                  <span className="text-sm font-medium tabular-nums">{money(selected.cameras * RATE_CARD[draftPlan].perCamera)}</span>
+                   <span className="text-sm text-muted-foreground">{selected.cameras} cameras × {money(rates[draftPlan].perCamera)}</span>
+                   <span className="text-sm font-medium tabular-nums">{money(selected.cameras * rates[draftPlan].perCamera)}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-4 border-t border-border pt-3">
                   <span className="text-sm font-semibold text-foreground">Estimated monthly charge</span>
@@ -428,6 +434,12 @@ const Billing = () => {
               Save changes
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(editingRate)} onOpenChange={(open) => { if (!open && !saving) setEditingRate(null); }}>
+        <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Edit base fee</DialogTitle><DialogDescription>{editingRate ? `${rates[editingRate].label} monthly platform fee` : "Plan pricing"}</DialogDescription></DialogHeader>
+          <div className="space-y-2"><Label htmlFor="base-fee">Base fee (USD/month)</Label><Input id="base-fee" type="number" min="0" step="0.01" value={draftBaseFee} onChange={(event) => setDraftBaseFee(Number(event.target.value))} /></div>
+          <DialogFooter><Button variant="outline" onClick={() => setEditingRate(null)} disabled={saving}>Cancel</Button><Button disabled={saving || !Number.isFinite(draftBaseFee) || draftBaseFee < 0} onClick={async () => { if (!editingRate) return; const key = editingRate; const previous = rates[key].base; setSaving(true); const { error } = await supabase.from("billing_plans").update({ base_fee: draftBaseFee, updated_by: (await supabase.auth.getUser()).data.user?.id }).eq("plan_key", key); if (error) toast.error("Base fee update failed", { description: error.message }); else { await auditLog({ action: "billing.plan_fee_updated", entityType: "billing_plan", metadata: { plan_key: key, previous_base_fee: previous, base_fee: draftBaseFee } }); toast.success(`${rates[key].label} base fee updated`); setEditingRate(null); await load(); } setSaving(false); }}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DollarSign className="mr-2 h-4 w-4" />}Save base fee</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
