@@ -45,7 +45,7 @@ const AppSidebar = () => {
   const location = useLocation();
   const { roles } = useAuth();
   const { can } = useTenantPermissions();
-  const canAdmin = roles.includes("super_admin") || roles.includes("tenant_admin");
+  const canAdmin = roles.includes("super_admin") || roles.includes("tenant_admin") || ["admin_sites.manage", "users.manage", "admin_ai.manage", "kpis.manage", "budget.manage", "rules.manage", "escalation.manage", "notifications.manage", "audit.view", "settings.manage"].some((permission) => can(permission as PermissionKey));
 
   return (
     <aside

@@ -98,15 +98,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<PortalOverview />} />
-              <Route path="alerts" element={<PortalAlerts />} />
-              <Route path="budget" element={<PortalBudget />} />
-              <Route path="requests" element={<PortalSiteRequests />} />
+              <Route index element={<PermissionRoute permission="portal.view"><PortalOverview /></PermissionRoute>} />
+              <Route path="alerts" element={<PermissionRoute permission="portal.view"><PortalAlerts /></PermissionRoute>} />
+              <Route path="budget" element={<PermissionRoute permission="portal.view"><PortalBudget /></PermissionRoute>} />
+              <Route path="requests" element={<PermissionRoute permission="portal.view"><PortalSiteRequests /></PermissionRoute>} />
             </Route>
             <Route
               path="/admin"
               element={
-                <ProtectedRoute requireRoles={["super_admin", "tenant_admin"]}>
+                <ProtectedRoute>
                   <AdminLayout />
                 </ProtectedRoute>
               }
