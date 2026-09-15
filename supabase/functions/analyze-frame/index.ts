@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
       let code = "ai_gateway_error";
       if (gwRes.status === 402) {
         code = "ai_credits_exhausted";
-        message = "AI credits have run out for this workspace. Add credits in Lovable (Settings → Plans & credits) to resume analysis.";
+        message = "AI credits have run out for this workspace. Contact your platform administrator to restore analysis capacity.";
       } else if (gwRes.status === 403) {
         code = "ai_blocked";
         message = "AI analysis is blocked by a workspace policy or credit limit. An admin needs to re-enable it.";
