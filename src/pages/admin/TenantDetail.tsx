@@ -411,19 +411,9 @@ const TenantDetail = () => {
         <TenantForm
           open={formOpen}
           onOpenChange={setFormOpen}
-          initialValues={editingTenant ? {
-            id: editingTenant.id,
-            name: editingTenant.name,
-            slug: editingTenant.slug,
-            industry: editingTenant.industry || "",
-            plan: editingTenant.plan,
-            status: editingTenant.status,
-            contact_email: editingTenant.contact_email || "",
-            contact_phone: editingTenant.contact_phone || "",
-            address: editingTenant.address || "",
-            timezone: editingTenant.timezone || "UTC",
-          } : undefined}
-          parentTenant={parentForSubTenant ?? undefined}
+          tenant={editingTenant}
+          parentTenant={parentForSubTenant}
+          allTenants={tenants}
           onSubmit={handleFormSubmit}
         />
       )}
