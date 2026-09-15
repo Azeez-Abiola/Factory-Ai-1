@@ -352,6 +352,7 @@ const Tenants = () => {
         tenant={editingTenant}
         parentTenant={parentForSubTenant}
         allTenants={tenants}
+        canManageLifecycle={isSuperAdmin}
         onSubmit={handleFormSubmit}
       />
     </div>

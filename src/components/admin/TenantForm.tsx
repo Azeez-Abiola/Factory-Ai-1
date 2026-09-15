@@ -45,6 +45,7 @@ interface TenantFormProps {
   parentTenant?: TenantRow | null;
   /** Full tenant list — used to offer/move a parent site. */
   allTenants?: TenantRow[];
+  canManageLifecycle?: boolean;
   onSubmit: (data: TenantFormValues & { parent_id?: string | null; id?: string }) => Promise<void> | void;
 }
 
@@ -83,7 +84,7 @@ const SectionHeader = ({ icon: Icon, title, hint }: { icon: React.ElementType; t
   </div>
 );
 
-const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [], onSubmit }: TenantFormProps) => {
+const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [], canManageLifecycle = true, onSubmit }: TenantFormProps) => {
   const isEdit = !!tenant;
   const isSubTenant = !!parentTenant;
   const [parentId, setParentId] = useState<string | null>(
@@ -189,7 +190,7 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [],
                 />
               </div>
 
-              <FormItem>
+              {canManageLifecycle && <FormItem>
                 <FormLabel optional>Parent site</FormLabel>
                 <Select
                   value={parentId ?? "none"}
@@ -210,7 +211,7 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [],
                 <FormDescription className="text-xs">
                   Sub-sites keep their own cameras, defects and budget, and roll up into the parent.
                 </FormDescription>
-              </FormItem>
+              </FormItem>}
 
 
               <FormField
@@ -231,7 +232,7 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [],
             <Separator />
 
             {/* Plan & Status */}
-            <section className="space-y-4">
+            {canManageLifecycle && <section className="space-y-4">
               <SectionHeader icon={Shield} title="Plan & Access" hint="Determines quotas and default features." />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
@@ -275,9 +276,9 @@ const TenantForm = ({ open, onOpenChange, tenant, parentTenant, allTenants = [],
                   )}
                 />
               </div>
-            </section>
+            </section>}
 
-            <Separator />
+            {canManageLifecycle && <Separator />}
 
             {/* Contact & Location */}
             <section className="space-y-4">

@@ -154,9 +154,10 @@ const TenantDetail = () => {
   const handleFormSubmit = async (data: TenantFormValues & { parent_id?: string | null; id?: string }) => {
     const payload = {
       name: data.name, slug: data.slug, industry: data.industry || null,
-      plan: data.plan, status: data.status, contact_email: data.contact_email || null,
+      ...(isSuperAdmin ? { plan: data.plan, status: data.status, parent_id: data.parent_id ?? null } : {}),
+      contact_email: data.contact_email || null,
       contact_phone: data.contact_phone || null, address: data.address || null,
-      timezone: data.timezone || "UTC", parent_id: data.parent_id ?? null,
+      timezone: data.timezone || "UTC",
     };
     if (data.id) {
       const { error } = await supabase.from("tenants").update(payload).eq("id", data.id);
@@ -369,9 +370,9 @@ const TenantDetail = () => {
                   <p className="text-sm font-medium text-foreground">{tenant.timezone || "UTC"}</p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full text-xs h-8" onClick={() => navigate("/admin/billing")}>
+              {isSuperAdmin && <Button variant="outline" className="w-full text-xs h-8" onClick={() => navigate("/admin/billing")}>
                 View billing & revenue
-              </Button>
+              </Button>}
             </CardContent>
           </Card>
 
@@ -415,6 +416,7 @@ const TenantDetail = () => {
           tenant={editingTenant}
           parentTenant={parentForSubTenant}
           allTenants={tenants}
+          canManageLifecycle={isSuperAdmin}
           onSubmit={handleFormSubmit}
         />
       )}
