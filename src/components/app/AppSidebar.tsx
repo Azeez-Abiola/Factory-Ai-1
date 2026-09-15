@@ -107,13 +107,13 @@ const AppSidebar = () => {
 
       {/* Bottom */}
       <div className="p-2 border-t border-sidebar-border space-y-1">
-        <NavLink
+        {can("portal.view") && <NavLink
           to="/portal"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
         >
           <Gauge className="w-5 h-5 shrink-0" />
           {!collapsed && <span className="max-md:hidden">Manager Portal</span>}
-        </NavLink>
+        </NavLink>}
         {canAdmin && (
           <NavLink
             to="/admin"
