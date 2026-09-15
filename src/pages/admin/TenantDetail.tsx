@@ -3,10 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2, ArrowLeft, Pencil, GitBranch, Ban, RotateCcw, Calendar, Mail, MapPin,
   Shield, Users, Camera, LayoutPanelTop, DollarSign, Globe, Loader2, AlertTriangle, PackageSearch,
+  Wallet, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import TenantForm, { type TenantFormValues } from "@/components/admin/TenantForm";
@@ -42,11 +44,12 @@ interface Metrics {
   openAlerts: number;
   defects: number;
   spend: number;
+  budget: number;
 }
 
 const EMPTY: Metrics = {
   cameras: 0, camerasOnline: 0, users: 0, zones: 0,
-  alerts24h: 0, openAlerts: 0, defects: 0, spend: 0,
+  alerts24h: 0, openAlerts: 0, defects: 0, spend: 0, budget: 50,
 };
 
 const TenantDetail = () => {
@@ -74,12 +77,13 @@ const TenantDetail = () => {
     if (tenantId) {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const [cams, members, zones, alerts, usage] = await Promise.all([
+      const [cams, members, zones, alerts, usage, budget] = await Promise.all([
         supabase.from("cameras").select("id,status").eq("tenant_id", tenantId),
         supabase.from("tenant_members").select("id").eq("tenant_id", tenantId),
         supabase.from("site_zones").select("id").eq("tenant_id", tenantId),
         supabase.from("alerts").select("type,title,status,detected_at").eq("tenant_id", tenantId).limit(5000),
         supabase.from("ai_usage_events").select("cost_usd").eq("tenant_id", tenantId).gte("created_at", monthStart),
+        supabase.from("tenant_ai_budgets").select("monthly_limit_usd").eq("tenant_id", tenantId).maybeSingle(),
       ]);
       const alertRows = (alerts.data ?? []) as { type: string | null; title: string | null; status: string; detected_at: string }[];
       setMetrics({
@@ -91,6 +95,7 @@ const TenantDetail = () => {
         openAlerts: alertRows.filter((a) => ["open", "new", "active"].includes(a.status)).length,
         defects: alertRows.filter((a) => isQualityDefect(a.type ?? "", a.title ?? "")).length,
         spend: (usage.data ?? []).reduce((s: number, r: { cost_usd: number | string }) => s + Number(r.cost_usd || 0), 0),
+        budget: Number(budget.data?.monthly_limit_usd ?? 50),
       });
     }
     setLoading(false);
@@ -174,6 +179,7 @@ const TenantDetail = () => {
   };
 
   const rolledUp = descendantIds(tenants, tenant.id).length;
+  const budgetPct = metrics.budget > 0 ? (metrics.spend / metrics.budget) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -363,22 +369,64 @@ const TenantDetail = () => {
                 </div>
               </div>
               <Button variant="outline" className="w-full text-xs h-8" onClick={() => navigate("/admin/billing")}>
-                Billing &amp; usage
+                View billing & revenue
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" /> AI Budget
+              </CardTitle>
+              <Badge variant={budgetPct >= 100 ? "destructive" : budgetPct >= 80 ? "secondary" : "outline"} className="text-[10px]">
+                {budgetPct.toFixed(0)}% used
+              </Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Spent this month</span>
+                  <span className="text-foreground font-medium tabular-nums">${metrics.spend.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Monthly limit</span>
+                  <span className="text-foreground font-medium tabular-nums">${metrics.budget}</span>
+                </div>
+                <Progress value={Math.min(100, budgetPct)} className="h-1.5" />
+              </div>
+              <Button 
+                variant="secondary" 
+                className="w-full text-xs h-8 gap-2" 
+                onClick={() => navigate(`/admin/ai-budget/${tenant.id}`)}
+              >
+                Manage AI budget <ExternalLink className="w-3 h-3" />
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <TenantForm
-        key={editingTenant?.id ?? parentForSubTenant?.id ?? "detail-form"}
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        tenant={editingTenant}
-        parentTenant={parentForSubTenant}
-        allTenants={tenants}
-        onSubmit={handleFormSubmit}
-      />
+      {formOpen && (
+        <TenantForm
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          initialValues={editingTenant ? {
+            id: editingTenant.id,
+            name: editingTenant.name,
+            slug: editingTenant.slug,
+            industry: editingTenant.industry || "",
+            plan: editingTenant.plan,
+            status: editingTenant.status,
+            contact_email: editingTenant.contact_email || "",
+            contact_phone: editingTenant.contact_phone || "",
+            address: editingTenant.address || "",
+            timezone: editingTenant.timezone || "UTC",
+          } : undefined}
+          parentTenant={parentForSubTenant ?? undefined}
+          onSubmit={handleFormSubmit}
+        />
+      )}
     </div>
   );
 };
