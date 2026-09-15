@@ -112,8 +112,8 @@ const App = () => (
             >
               <Route index element={<Tenants />} />
               <Route path="users" element={<UserManagement />} />
-              <Route path="system" element={<SystemMonitoring />} />
-              <Route path="billing" element={<Billing />} />
+              <Route path="system" element={<ProtectedRoute requireRoles={["super_admin"]}><SystemMonitoring /></ProtectedRoute>} />
+              <Route path="billing" element={<ProtectedRoute requireRoles={["super_admin"]}><Billing /></ProtectedRoute>} />
               <Route path="audit-log" element={<AuditLog />} />
               <Route path="onboarding" element={<Navigate to="/admin" replace />} />
               <Route path="settings" element={<Settings />} />

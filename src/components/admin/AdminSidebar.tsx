@@ -6,8 +6,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
-const navGroups: { label: string; items: { to: string; icon: typeof Users; label: string; end?: boolean }[] }[] = [
+const navGroups: { label: string; items: { to: string; icon: typeof Users; label: string; end?: boolean; platformOnly?: boolean }[] }[] = [
   {
     label: "Organizations",
     items: [
@@ -20,7 +21,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
   {
     label: "Platform",
     items: [
-      { to: "/admin/system", icon: Activity, label: "System Monitoring" },
+      { to: "/admin/system", icon: Activity, label: "System Monitoring", platformOnly: true },
       { to: "/admin/cameras", icon: Camera, label: "IP Cameras & AI" },
       { to: "/admin/ai-config", icon: Sparkles, label: "AI Model & Categories" },
       { to: "/admin/quality-dataset", icon: Database, label: "Quality Dataset" },
@@ -34,7 +35,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
       { to: "/admin/rules", icon: ShieldCheck, label: "Rules & Policy" },
       { to: "/admin/escalation", icon: Timer, label: "Escalation Policies" },
       { to: "/admin/notifications", icon: Bell, label: "Notifications" },
-      { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
+      { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans", platformOnly: true },
       { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
       { to: "/admin/settings", icon: Settings2, label: "Settings" },
     ],
@@ -44,6 +45,8 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
 const AdminSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super_admin");
 
   return (
     <aside
@@ -77,7 +80,7 @@ const AdminSidebar = () => {
               </div>
             )}
             <div className="space-y-0.5">
-              {group.items.map((item) => {
+              {group.items.filter((item) => isSuperAdmin || !item.platformOnly).map((item) => {
                 const isActive = item.end
                   ? location.pathname === item.to
                   : location.pathname.startsWith(item.to);
