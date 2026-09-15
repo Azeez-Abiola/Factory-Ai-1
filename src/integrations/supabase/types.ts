@@ -383,6 +383,39 @@ export type Database = {
           },
         ]
       }
+      billing_plans: {
+        Row: {
+          allowance: string
+          base_fee: number
+          created_at: string
+          label: string
+          per_camera_fee: number
+          plan_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowance: string
+          base_fee: number
+          created_at?: string
+          label: string
+          per_camera_fee: number
+          plan_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowance?: string
+          base_fee?: number
+          created_at?: string
+          label?: string
+          per_camera_fee?: number
+          plan_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       cameras: {
         Row: {
           ai_models: Json
@@ -1545,6 +1578,47 @@ export type Database = {
           },
         ]
       }
+      tenant_role_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          permission_key: string
+          role: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowed: boolean
+          created_at?: string
+          id?: string
+          permission_key: string
+          role: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission_key?: string
+          role?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_role_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_webhooks: {
         Row: {
           created_at: string
@@ -1775,6 +1849,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_tenant_permission: {
+        Args: { _permission_key: string; _tenant_id: string }
         Returns: boolean
       }
       is_tenant_member: {

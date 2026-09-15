@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight, Gauge } from "lucide-react";
+import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight, Gauge, LockKeyhole, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,8 +18,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { cn } from "@/lib/utils";
 import PageHeader from "@/components/app/PageHeader";
 import { auditLog } from "@/lib/audit";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ALL_PERMISSION_KEYS, defaultPermission, PERMISSION_GROUPS, permissionLabel, type PermissionKey, type TenantRole } from "@/lib/permissions";
 
-type MemberRole = "owner" | "admin" | "manager" | "operator" | "viewer";
+type MemberRole = TenantRole;
 
 const ROLE_META: Record<MemberRole, { label: string; icon: React.ElementType; color: string }> = {
   owner: { label: "Owner", icon: Shield, color: "bg-destructive/10 text-destructive border-destructive/20" },
@@ -67,6 +69,10 @@ const UserManagement = () => {
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null);
   const [detailRole, setDetailRole] = useState<MemberRole>("viewer");
   const [savingRole, setSavingRole] = useState(false);
+  const [permissionRows, setPermissionRows] = useState<{ role: MemberRole; permission_key: string; allowed: boolean }[]>([]);
+  const [permissionDraft, setPermissionDraft] = useState<Record<string, boolean>>({});
+  const [permissionRole, setPermissionRole] = useState<MemberRole>("admin");
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeTenantId) {
@@ -75,7 +81,7 @@ const UserManagement = () => {
       return;
     }
     setLoading(true);
-    const [{ data: mRows }, { data: iRows }] = await Promise.all([
+    const [{ data: mRows }, { data: iRows }, { data: pRows }] = await Promise.all([
       supabase
         .from("tenant_members")
         .select("id,user_id,role,created_at")
@@ -86,6 +92,7 @@ const UserManagement = () => {
         .select("id,email,role,status,token,expires_at,created_at")
         .eq("tenant_id", activeTenantId)
         .order("created_at", { ascending: false }),
+      supabase.from("tenant_role_permissions").select("role,permission_key,allowed").eq("tenant_id", activeTenantId),
     ]);
 
     // Attach profile info
@@ -119,8 +126,16 @@ const UserManagement = () => {
       })),
     );
     setInvitations((iRows ?? []) as InvitationRow[]);
+    setPermissionRows((pRows ?? []) as { role: MemberRole; permission_key: string; allowed: boolean }[]);
     setLoading(false);
   }, [activeTenantId]);
+
+  useEffect(() => {
+    setPermissionDraft(Object.fromEntries(ALL_PERMISSION_KEYS.map((key) => {
+      const override = permissionRows.find((row) => row.role === permissionRole && row.permission_key === key);
+      return [key, override?.allowed ?? defaultPermission(permissionRole, key)];
+    })));
+  }, [permissionRole, permissionRows]);
 
   useEffect(() => {
     load();
@@ -268,6 +283,20 @@ const UserManagement = () => {
     load();
   };
 
+  const savePermissions = async () => {
+    if (!activeTenantId || !user || permissionRole === "owner") return;
+    setSavingPermissions(true);
+    const rows = ALL_PERMISSION_KEYS.map((key) => ({ tenant_id: activeTenantId, role: permissionRole, permission_key: key, allowed: Boolean(permissionDraft[key]), updated_by: user.id }));
+    const { error } = await supabase.from("tenant_role_permissions").upsert(rows, { onConflict: "tenant_id,role,permission_key" });
+    if (error) { toast.error("Permissions could not be saved", { description: error.message }); setSavingPermissions(false); return; }
+    await auditLog({ tenantId: activeTenantId, action: "role.permissions_updated", entityType: "tenant_role", metadata: { role: permissionRole, permissions: permissionDraft } });
+    setSavingPermissions(false);
+    toast.success(`${ROLE_META[permissionRole].label} permissions updated`);
+    load();
+  };
+
+  const resetPermissions = () => setPermissionDraft(Object.fromEntries(ALL_PERMISSION_KEYS.map((key) => [key, defaultPermission(permissionRole, key)])));
+
   if (!activeTenant) {
     return (
       <div className="glass rounded-xl p-8 text-center border border-border">
@@ -314,6 +343,7 @@ const UserManagement = () => {
             Pending Invites {pendingInvites.length > 0 && <Badge className="ml-2" variant="secondary">{pendingInvites.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="roles">Role Management</TabsTrigger>
         </TabsList>
 
         <TabsContent value="members" className="space-y-4">
@@ -493,6 +523,37 @@ const UserManagement = () => {
             </Table>
           </div>
         </TabsContent>
+
+        <TabsContent value="roles" className="space-y-4">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-foreground">Role access matrix</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Choose a role, then set its module and function access for {activeTenant.name}.</p>
+            </div>
+            <Select value={permissionRole} onValueChange={(value) => setPermissionRole(value as MemberRole)}>
+              <SelectTrigger className="w-full sm:w-56" aria-label="Role to configure"><SelectValue /></SelectTrigger>
+              <SelectContent>{(Object.keys(ROLE_META) as MemberRole[]).map((role) => <SelectItem key={role} value={role}>{ROLE_META[role].label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          {permissionRole === "owner" && <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm"><LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p><span className="font-semibold">Owner access is protected.</span> Owners retain every site permission so the organization cannot lose administrative control.</p></div>}
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
+            <div className="hidden grid-cols-[minmax(220px,1fr)_repeat(5,minmax(105px,130px))] border-b border-border bg-muted/30 px-4 py-3 text-xs font-semibold text-muted-foreground lg:grid">
+              <span>Module & function</span>{(Object.keys(ROLE_META) as MemberRole[]).map((role) => <span key={role} className={cn("text-center", role === permissionRole && "text-primary")}>{ROLE_META[role].label}</span>)}
+            </div>
+            {PERMISSION_GROUPS.map((group) => <section key={group.module} className="border-b border-border last:border-0">
+              <div className="bg-muted/20 px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">{group.module}</div>
+              {group.permissions.map(([key, label]) => <div key={key} className="grid min-h-12 grid-cols-[1fr_auto] items-center gap-4 border-t border-border/60 px-4 py-2 lg:grid-cols-[minmax(220px,1fr)_repeat(5,minmax(105px,130px))]">
+                <span className="text-sm font-medium">{label}</span>
+                {(Object.keys(ROLE_META) as MemberRole[]).map((role) => {
+                  const checked = role === permissionRole ? Boolean(permissionDraft[key]) : (permissionRows.find((row) => row.role === role && row.permission_key === key)?.allowed ?? defaultPermission(role, key));
+                  return <div key={role} className={cn("hidden justify-center lg:flex", role === permissionRole && "rounded-md bg-primary/5 py-1")}><Checkbox checked={checked} disabled={role !== permissionRole || role === "owner"} onCheckedChange={(value) => setPermissionDraft((current) => ({ ...current, [key]: value === true }))} aria-label={`${ROLE_META[role].label}: ${label}`} /></div>;
+                })}
+                <div className="flex items-center gap-3 lg:hidden"><span className="text-xs text-muted-foreground">{ROLE_META[permissionRole].label}</span><Checkbox checked={Boolean(permissionDraft[key])} disabled={permissionRole === "owner"} onCheckedChange={(value) => setPermissionDraft((current) => ({ ...current, [key]: value === true }))} aria-label={permissionLabel(key as PermissionKey)} /></div>
+              </div>)}
+            </section>)}
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="outline" onClick={resetPermissions} disabled={permissionRole === "owner" || savingPermissions}><RotateCcw className="mr-2 h-4 w-4" />Reset to defaults</Button><Button onClick={savePermissions} disabled={permissionRole === "owner" || savingPermissions}>{savingPermissions ? "Saving…" : "Save role permissions"}</Button></div>
+        </TabsContent>
       </Tabs>
 
       <Sheet open={Boolean(selectedMember)} onOpenChange={(open) => { if (!open) setSelectedMember(null); }}>
@@ -539,6 +600,10 @@ const UserManagement = () => {
                       </SelectContent>
                     </Select>
                     {selectedMember.user_id === user?.id && <p className="text-xs text-muted-foreground">You cannot change your own access from this page.</p>}
+                  </section>
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-semibold">Effective access</h3>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{ALL_PERMISSION_KEYS.filter((key) => permissionRows.find((row) => row.role === detailRole && row.permission_key === key)?.allowed ?? defaultPermission(detailRole, key)).map((key) => <div key={key} className="flex items-center gap-2 text-xs text-muted-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success" />{permissionLabel(key)}</div>)}</div>
                   </section>
                 </div>
 
