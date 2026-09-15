@@ -1396,13 +1396,13 @@ const Help = () => {
             <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to Dashboard</Button>
           </Link>
         }
-      />      />
+      />
 
       {/* Search */}
       <div className="relative max-w-2xl">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search across every article, tag, formula…"
+          placeholder="Search operator guides, workflows, and features…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="pl-9 bg-card border-border h-11"
