@@ -711,7 +711,7 @@ const RulesPolicy = () => {
         eyebrow="Governance"
         icon={ShieldCheck}
         title="Rules & Policy"
-        description="Configure business policies, alert rules, and AI guardrails in plain English. Powered by Lovable AI."
+        description="Configure business policies, alert rules, and FactoryAI guardrails in plain English."
         actions={
           <>
             <Button variant="outline" onClick={() => { setSeedTemplate(null); setEditingPolicy(null); setTab("templates"); }}>
@@ -989,7 +989,7 @@ const RulesPolicy = () => {
               </div>
               <Separator />
               <div className="text-xs text-muted-foreground">
-                Model in use: <code className="font-mono">google/gemini-2.5-pro</code> via Lovable AI. Vision analysis and policy compilation share the same gateway; usage is metered against workspace credits.
+                Model in use: <code className="font-mono">google/gemini-2.5-pro</code> via the FactoryAI Gateway. Vision analysis and policy compilation share the same gateway; usage is metered against workspace credits.
               </div>
             </CardContent>
           </Card>
