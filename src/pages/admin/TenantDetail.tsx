@@ -55,7 +55,8 @@ const EMPTY: Metrics = {
 const TenantDetail = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super_admin");
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [metrics, setMetrics] = useState<Metrics>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -153,9 +154,10 @@ const TenantDetail = () => {
   const handleFormSubmit = async (data: TenantFormValues & { parent_id?: string | null; id?: string }) => {
     const payload = {
       name: data.name, slug: data.slug, industry: data.industry || null,
-      plan: data.plan, status: data.status, contact_email: data.contact_email || null,
+      ...(isSuperAdmin ? { plan: data.plan, status: data.status, parent_id: data.parent_id ?? null } : {}),
+      contact_email: data.contact_email || null,
       contact_phone: data.contact_phone || null, address: data.address || null,
-      timezone: data.timezone || "UTC", parent_id: data.parent_id ?? null,
+      timezone: data.timezone || "UTC",
     };
     if (data.id) {
       const { error } = await supabase.from("tenants").update(payload).eq("id", data.id);
@@ -212,19 +214,19 @@ const TenantDetail = () => {
             <Button variant="outline" size="sm" className="border-border" onClick={openEdit}>
               <Pencil className="w-4 h-4 mr-2" /> Edit site
             </Button>
-            <Button variant="outline" size="sm" className="border-border" onClick={openAddSubTenant}>
+             {isSuperAdmin && <Button variant="outline" size="sm" className="border-border" onClick={openAddSubTenant}>
               <GitBranch className="w-4 h-4 mr-2" /> Add sub-site
-            </Button>
-            <Button
+             </Button>}
+             {isSuperAdmin && <Button
               variant="outline"
               size="sm"
               className={cn("border-border", tenant.status !== "suspended" ? "text-destructive hover:bg-destructive/10" : "text-success hover:bg-success/10")}
               onClick={handleToggleSuspend}
-            >
+             >
               {tenant.status === "suspended"
                 ? <><RotateCcw className="w-4 h-4 mr-2" /> Reactivate</>
                 : <><Ban className="w-4 h-4 mr-2" /> Suspend site</>}
-            </Button>
+             </Button>}
           </div>
         </div>
       </div>
@@ -368,9 +370,9 @@ const TenantDetail = () => {
                   <p className="text-sm font-medium text-foreground">{tenant.timezone || "UTC"}</p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full text-xs h-8" onClick={() => navigate("/admin/billing")}>
+              {isSuperAdmin && <Button variant="outline" className="w-full text-xs h-8" onClick={() => navigate("/admin/billing")}>
                 View billing & revenue
-              </Button>
+              </Button>}
             </CardContent>
           </Card>
 
@@ -414,6 +416,7 @@ const TenantDetail = () => {
           tenant={editingTenant}
           parentTenant={parentForSubTenant}
           allTenants={tenants}
+          canManageLifecycle={isSuperAdmin}
           onSubmit={handleFormSubmit}
         />
       )}

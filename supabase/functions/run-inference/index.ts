@@ -125,11 +125,13 @@ Deno.serve(async (req) => {
     requestedCamera = body?.camera_id ?? null;
   } catch { /* cron invokes with no body */ }
 
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const jwt = authHeader.replace(/^Bearer\s+/i, '');
+  const isServiceRole = jwt === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
   // On-demand runs must be authenticated and scoped to one of the caller's tenants.
   // Scheduled no-body runs are invoked internally by the existing database scheduler.
   if (requestedCamera) {
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const jwt = authHeader.replace(/^Bearer\s+/i, '');
     if (!jwt) return json({ error: 'Authentication required' }, 401);
     const { data: userData } = await supabase.auth.getUser(jwt);
     const userId = userData?.user?.id;
@@ -141,7 +143,7 @@ Deno.serve(async (req) => {
       supabase.rpc('has_role', { _user_id: userId, _role: 'super_admin' }),
     ]);
     if (!member && !superAdmin) return json({ error: 'You do not have access to this camera' }, 403);
-  }
+  } else if (!isServiceRole) return json({ error: 'Service authorization required' }, 403);
 
   let query = supabase
     .from('cameras')

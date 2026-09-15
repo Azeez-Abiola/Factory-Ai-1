@@ -215,6 +215,32 @@ Deno.serve(async (req) => {
       : null;
 
     if (body.tenantId && supabase) {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const jwt = authHeader.replace(/^Bearer\s+/i, "");
+      const isServiceRole = jwt === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!isServiceRole) {
+        if (!jwt) {
+          return new Response(JSON.stringify({ error: "Authentication required" }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data: userData } = await supabase.auth.getUser(jwt);
+        const userId = userData?.user?.id;
+        if (!userId) {
+          return new Response(JSON.stringify({ error: "Authentication required" }), {
+            status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const [{ data: member }, { data: superAdmin }] = await Promise.all([
+          supabase.rpc("is_tenant_member", { _tenant_id: body.tenantId, _user_id: userId }),
+          supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" }),
+        ]);
+        if (!member && !superAdmin) {
+          return new Response(JSON.stringify({ error: "You do not have access to this site" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
       try {
         const { data } = await supabase
           .from("ai_analysis_config")
