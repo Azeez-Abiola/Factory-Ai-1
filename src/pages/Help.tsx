@@ -207,9 +207,13 @@ const articles: Article[] = [
         "Search box matches title, zone, type and short ID.",
         "Severity filter: critical / high / medium / low / all.",
         "Status filter: open / acknowledged / resolved / all.",
+        "Camera filter, time range (24h / 7 days / 30 days / all — 7 days by default) and sort (newest, oldest, severity, risk).",
         "Click any row for the full detail dialog with metadata, risk score and workflow buttons.",
+        "Tick rows on the Alerts list to acknowledge many at once.",
       ] },
-      { kind: "info", text: "Bulk actions live on the Incidents page — /app/investigations. Multi-select and use Acknowledge, Assign or Mark False Positive; each row gets an individual audit entry." },
+      { kind: "info", text: "Assign and Mark False Positive are bulk actions on the Incidents page — /app/investigations. Each row gets an individual audit entry." },
+      { kind: "tip", text: "The list loads the 300 most recent alerts for the chosen range. Narrow the filters if an older alert is missing. A link of the form /app/alerts?alert=<id> opens that alert directly." },
+
     ],
   },
   {
@@ -221,7 +225,7 @@ const articles: Article[] = [
     readMinutes: 5,
     blocks: [
       { kind: "steps", items: [
-        "Mark the alert (or bulk in /app/investigations) as False Positive — audit entry incident.bulk.false_positive.",
+        "Open the alert, then raise it as an investigation and mark it False Positive in /app/investigations — audit entry incident.bulk.false_positive.",
         "Add a resolution note explaining what triggered it (glare, reflection, mannequin, etc.).",
         "In /admin/rules → Alert Rules, raise the confidence_threshold for the offending model, or add a zone exclusion.",
         "In /admin/cameras, adjust the camera's confidence_threshold or disable the model that generated the false hit.",
@@ -312,17 +316,19 @@ const articles: Article[] = [
     blocks: [
       { kind: "table", head: ["Layout", "Cameras shown", "Shortcut"], rows: [
         ["Focus", "1", "1"],
-        ["2×2", "4", "4"],
+        ["Quad", "4", "4"],
         ["3×3", "9", "9"],
+        ["3×4", "12", "2"],
         ["4×4", "16", "6"],
       ] },
       { kind: "list", items: [
-        "Auto-cycle rotates the visible page every N seconds — hands-free monitoring.",
+        "Auto-cycle rotates the visible page every 8 seconds — hands-free monitoring.",
         "Focus mode enlarges the selected tile and puts detection overlays front-and-centre.",
         "Fullscreen (F) hides all chrome for wall-mounted displays.",
         "Audio button unmutes only cameras with audio_enabled and only the focused tile — browsers refuse to autoplay sound across 16 tiles.",
       ] },
-      { kind: "info", text: "The HUD (FPS, latency, resolution, sync clock) is fed by the camera heartbeat, so it reflects real ingest health, not the client's guess." },
+      { kind: "info", text: "The HUD shows the frame rate and resolution last reported by the camera, plus this workstation's clock. It is a reference readout, not a measure of network latency." },
+
     ],
   },
   {
@@ -817,17 +823,20 @@ const articles: Article[] = [
     title: "Quality dataset — teach the AI your product",
     category: "quality",
     tags: ["dataset", "training", "references"],
-    summary: "Upload good and defective examples per camera so detection matches your product, not generic rules.",
+    summary: "Upload good and defective examples — photos or process videos — per camera so detection matches your product, not generic rules.",
     readMinutes: 6,
     relatedRoute: { label: "Open Quality Dataset", to: "/admin/quality-dataset" },
     blocks: [
       { kind: "steps", items: [
         "Admin → Quality Dataset. Pick the camera.",
-        "Upload 'good' reference images of the correct product state.",
+        "Upload 'good' reference images of the correct product state (up to 20 at a time).",
         "Upload 'defect' examples and label what is wrong.",
+        "Or add a good / bad process video (up to 5 clips at a time, 60MB each). Eight still frames are taken from each clip and kept together as one card.",
         "Save — the analyzer uses these references when judging frames from that camera.",
       ] },
       { kind: "info", text: "References guide the model with examples; they are not a retrained model. True custom weights would need a labelled dataset and an external training pipeline." },
+      { kind: "tip", text: "Removing a video card removes all eight of its frames together. The same good/bad photo and video uploads are available per camera in Admin → Cameras → Inspection (10 photos or 5 clips per batch there)." },
+
     ],
   },
   {
@@ -935,7 +944,9 @@ const articles: Article[] = [
         "Increase the inference interval on low-risk cameras — 60s instead of 5s cuts cost by an order of magnitude.",
         "Set a region of interest per camera so only the area that matters is analysed.",
         "Frame gating means KPIs and alerts count real scene changes, not every identical frame.",
-        "Reference matching compares a frame to your uploaded references locally — no AI cost at all — and only escalates to the model when something looks off.",
+        "Reference matching compares a frame to your uploaded references locally — no AI cost at all. A confident match against a good reference stops there; anything unclear, or a clear match against a faulty reference, still goes to the model so the alert carries a description and evidence.",
+        "Reference tolerance is adjustable per camera (0.02 to 0.30, 0.06 by default) — a tighter number sends more frames to the model.",
+
       ] },
       { kind: "info", text: "If you see a 'not enough credits' error, the workspace AI credits are exhausted — top up in Settings → Plans & credits. That is separate from the per-site budget." },
     ],
@@ -957,8 +968,9 @@ const articles: Article[] = [
         ["Offline", "No heartbeat and no readable frame", "Check power, network and credentials"],
         ["Not configured", "No stream or snapshot address saved", "Add an address in Admin → Cameras"],
       ] },
-      { kind: "p", text: "Tiles always try the stream first and retry it about every minute, so a tile that fell back to snapshots recovers on its own once the gateway returns." },
-      { kind: "info", text: "Snapshot cameras get a grace window before being marked stale, because they only refresh while someone is watching." },
+      { kind: "p", text: "Tiles always try the stream first and retry it about every minute, so a tile that fell back to snapshots recovers on its own once the gateway returns. A camera saved with a snapshot address only has no stream to fall back from — it shows stills all the time." },
+      { kind: "info", text: "A camera is marked offline after three missed heartbeats (three minutes on the default one-minute heartbeat). Snapshot-only cameras get at least a 15-minute grace window, because they only refresh while someone is watching." },
+
     ],
   },
   {
@@ -1029,7 +1041,7 @@ const articles: Article[] = [
     readMinutes: 6,
     relatedRoute: { label: "Open Alerts", to: "/app/alerts" },
     blocks: [
-      { kind: "p", text: "When a detection fires, the frame that triggered it is stored privately against the alert and shown as a thumbnail in the list and full size in the detail view." },
+      { kind: "p", text: "When a detection fires, the frame that triggered it is stored privately against the alert and shown as a thumbnail in the list and full size in the detail view. If no frame was captured, the camera's current snapshot is shown instead — so check the timestamp before treating an image as evidence of the moment." },
       { kind: "list", items: [
         "Boxes are stored as full-frame proportions, so they stay aligned at any tile size or screen width.",
         "The image is never cropped — it is letterboxed, and boxes are drawn against the painted area.",
