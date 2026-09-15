@@ -33,4 +33,4 @@ const defaults: Record<TenantRole, PermissionKey[]> = {
 };
 
 export const defaultPermission = (role: TenantRole, key: PermissionKey) => defaults[role].includes(key);
-export const permissionLabel = (key: PermissionKey) => PERMISSION_GROUPS.flatMap((group) => group.permissions).find(([candidate]) => candidate === key)?.[1] ?? key;
+export const permissionLabel = (key: PermissionKey) => ALL_PERMISSION_ENTRIES.find(([candidate]) => candidate === key)?.[1] ?? key;
