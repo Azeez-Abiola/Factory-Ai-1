@@ -944,7 +944,9 @@ const articles: Article[] = [
         "Increase the inference interval on low-risk cameras — 60s instead of 5s cuts cost by an order of magnitude.",
         "Set a region of interest per camera so only the area that matters is analysed.",
         "Frame gating means KPIs and alerts count real scene changes, not every identical frame.",
-        "Reference matching compares a frame to your uploaded references locally — no AI cost at all — and only escalates to the model when something looks off.",
+        "Reference matching compares a frame to your uploaded references locally — no AI cost at all. A confident match against a good reference stops there; anything unclear, or a clear match against a faulty reference, still goes to the model so the alert carries a description and evidence.",
+        "Reference tolerance is adjustable per camera (0.02 to 0.30, 0.06 by default) — a tighter number sends more frames to the model.",
+
       ] },
       { kind: "info", text: "If you see a 'not enough credits' error, the workspace AI credits are exhausted — top up in Settings → Plans & credits. That is separate from the per-site budget." },
     ],
