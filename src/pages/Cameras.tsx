@@ -3,8 +3,9 @@ import {
   Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles, Search, Volume2, VolumeX,
   Maximize2, Minimize2, LayoutGrid, Grid2x2, Grid3x3, Square, Play, Pause,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ZoomIn, ZoomOut,
-  ShieldCheck, ShieldAlert, Activity, Radio
+  ShieldCheck, ShieldAlert, Activity, Radio, Loader2
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
