@@ -6,37 +6,40 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useTenantPermissions } from "@/hooks/useTenantPermissions";
+import type { PermissionKey } from "@/lib/permissions";
 
-const navGroups: { label: string; items: { to: string; icon: typeof Users; label: string; end?: boolean }[] }[] = [
+const navGroups: { label: string; items: { to: string; icon: typeof Users; label: string; end?: boolean; platformOnly?: boolean; permission?: PermissionKey }[] }[] = [
   {
     label: "Organizations",
     items: [
-      { to: "/admin", icon: Building2, label: "Sites & Tenants", end: true },
-      { to: "/admin/users", icon: Users, label: "User Management" },
-      { to: "/admin/sites", icon: Factory, label: "Site Overview" },
-      { to: "/admin/site-requests", icon: MapPinPlus, label: "Site Requests" },
+      { to: "/admin", icon: Building2, label: "Sites & Tenants", end: true, permission: "admin_sites.manage" },
+      { to: "/admin/users", icon: Users, label: "User Management", permission: "users.manage" },
+      { to: "/admin/sites", icon: Factory, label: "Site Overview", permission: "admin_sites.manage" },
+      { to: "/admin/site-requests", icon: MapPinPlus, label: "Site Requests", permission: "admin_sites.manage" },
     ],
   },
   {
     label: "Platform",
     items: [
-      { to: "/admin/system", icon: Activity, label: "System Monitoring" },
-      { to: "/admin/cameras", icon: Camera, label: "IP Cameras & AI" },
-      { to: "/admin/ai-config", icon: Sparkles, label: "AI Model & Categories" },
-      { to: "/admin/quality-dataset", icon: Database, label: "Quality Dataset" },
-      { to: "/admin/kpi-config", icon: Target, label: "KPI & OKRs" },
-      { to: "/admin/ai-budget", icon: Wallet, label: "AI Budget" },
+      { to: "/admin/system", icon: Activity, label: "System Monitoring", platformOnly: true },
+      { to: "/admin/cameras", icon: Camera, label: "IP Cameras & AI", permission: "admin_ai.manage" },
+      { to: "/admin/ai-config", icon: Sparkles, label: "AI Model & Categories", permission: "admin_ai.manage" },
+      { to: "/admin/quality-dataset", icon: Database, label: "Quality Dataset", permission: "admin_ai.manage" },
+      { to: "/admin/kpi-config", icon: Target, label: "KPI & OKRs", permission: "kpis.manage" },
+      { to: "/admin/ai-budget", icon: Wallet, label: "AI Budget", permission: "budget.manage" },
     ],
   },
   {
     label: "Governance",
     items: [
-      { to: "/admin/rules", icon: ShieldCheck, label: "Rules & Policy" },
-      { to: "/admin/escalation", icon: Timer, label: "Escalation Policies" },
-      { to: "/admin/notifications", icon: Bell, label: "Notifications" },
-      { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans" },
-      { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log" },
-      { to: "/admin/settings", icon: Settings2, label: "Settings" },
+      { to: "/admin/rules", icon: ShieldCheck, label: "Rules & Policy", permission: "rules.manage" },
+      { to: "/admin/escalation", icon: Timer, label: "Escalation Policies", permission: "escalation.manage" },
+      { to: "/admin/notifications", icon: Bell, label: "Notifications", permission: "notifications.manage" },
+      { to: "/admin/billing", icon: CreditCard, label: "Billing & Plans", platformOnly: true },
+      { to: "/admin/audit-log", icon: ScrollText, label: "Audit Log", permission: "audit.view" },
+      { to: "/admin/settings", icon: Settings2, label: "Settings", permission: "settings.manage" },
     ],
   },
 ];
@@ -44,6 +47,9 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
 const AdminSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super_admin");
+  const { can } = useTenantPermissions();
 
   return (
     <aside
@@ -77,7 +83,7 @@ const AdminSidebar = () => {
               </div>
             )}
             <div className="space-y-0.5">
-              {group.items.map((item) => {
+              {group.items.filter((item) => (isSuperAdmin || !item.platformOnly) && (!item.permission || can(item.permission))).map((item) => {
                 const isActive = item.end
                   ? location.pathname === item.to
                   : location.pathname.startsWith(item.to);

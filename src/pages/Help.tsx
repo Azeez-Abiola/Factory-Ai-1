@@ -82,11 +82,11 @@ const articles: Article[] = [
     title: "Quick Start — 10 minutes to your first live alert",
     category: "getting-started",
     tags: ["onboarding", "setup", "first-run"],
-    summary: "Sign in, pick a tenant, connect a camera and see AI detections stream in.",
+    summary: "Sign in, select your site, start a shift, and begin monitoring live activity.",
     readMinutes: 10,
     relatedRoute: { label: "Open Dashboard", to: "/app" },
     blocks: [
-      { kind: "p", text: "FactoryAI is a multi-tenant industrial monitoring platform. This guide takes you from a fresh account to a live camera feed with AI detections in under ten minutes." },
+      { kind: "p", text: "Use this guide to begin a safe, accountable monitoring session in the operator console." },
       { kind: "steps", items: [
         "Sign in with email/password or Google at /auth. First-time sign-ups land as Viewer.",
         "Ask your Tenant Admin to invite you into a tenant, or (if you are the Admin) create one at /admin.",
@@ -100,10 +100,10 @@ const articles: Article[] = [
   },
   {
     id: "gs-navigation",
-    title: "Navigating the app — Operator (/app) vs Admin (/admin)",
+    title: "Navigating the operator console",
     category: "getting-started",
     tags: ["navigation", "layout"],
-    summary: "How the operator workspace and admin panel are split, when to use each, and how to switch.",
+    summary: "Where to find live monitoring, response, analysis, reports, and support.",
     readMinutes: 4,
     blocks: [
       { kind: "h", text: "Two workspaces, one platform" },
@@ -122,23 +122,20 @@ const articles: Article[] = [
     title: "Roles, permissions and the principle of least privilege",
     category: "getting-started",
     tags: ["rbac", "roles", "permissions"],
-    summary: "Full RBAC matrix for Super Admin, Tenant Admin, Supervisor, Operator and Viewer.",
+    summary: "What operators, supervisors, and viewers can do in the console, including site-specific access.",
     readMinutes: 5,
     blocks: [
-      { kind: "p", text: "FactoryAI enforces role-based access control at both application and database (RLS) layers. Roles are stored in a dedicated table — never on the user or profile — and checked via a SECURITY DEFINER function." },
+      { kind: "p", text: "Your site role controls which console modules and actions you can use. Site owners can tailor access, so your visible navigation is the source of truth for the selected site." },
       { kind: "table",
-        head: ["Capability", "Super Admin", "Tenant Admin", "Supervisor", "Operator", "Viewer"],
+        head: ["Typical capability", "Supervisor", "Operator", "Viewer"],
         rows: [
-          ["View dashboards & reports", "✓", "✓", "✓", "✓", "✓"],
-          ["Acknowledge alerts", "✓", "✓", "✓", "✓", "—"],
-          ["Resolve incidents", "✓", "✓", "✓", "—", "—"],
-          ["Create reports", "✓", "✓", "✓", "—", "—"],
-          ["Configure cameras", "✓", "✓", "—", "—", "—"],
-          ["Manage users & invites", "✓", "✓", "—", "—", "—"],
-          ["Edit policies / KPIs", "✓", "✓", "—", "—", "—"],
-          ["Manage tenants (create/suspend)", "✓", "—", "—", "—", "—"],
+          ["View dashboards and live feeds", "Usually", "Usually", "Usually"],
+          ["Acknowledge and resolve alerts", "Usually", "Usually", "No"],
+          ["Manage investigations", "Usually", "Usually", "No"],
+          ["Create reports", "Usually", "By site policy", "No"],
+          ["Manage shifts and handovers", "Usually", "Usually", "No"],
         ]},
-      { kind: "warn", text: "Never grant Admin to solve a permission issue mid-shift. Log the intent, request access through your Tenant Admin, and let the audit trail show it." },
+      { kind: "warn", text: "Permissions can differ by site. If an expected module or action is unavailable, contact your site owner instead of sharing credentials or using another person's session." },
     ],
   },
 
@@ -210,9 +207,13 @@ const articles: Article[] = [
         "Search box matches title, zone, type and short ID.",
         "Severity filter: critical / high / medium / low / all.",
         "Status filter: open / acknowledged / resolved / all.",
+        "Camera filter, time range (24h / 7 days / 30 days / all — 7 days by default) and sort (newest, oldest, severity, risk).",
         "Click any row for the full detail dialog with metadata, risk score and workflow buttons.",
+        "Tick rows on the Alerts list to acknowledge many at once.",
       ] },
-      { kind: "info", text: "Bulk actions live on the Incidents page — /app/investigations. Multi-select and use Acknowledge, Assign or Mark False Positive; each row gets an individual audit entry." },
+      { kind: "info", text: "Assign and Mark False Positive are bulk actions on the Incidents page — /app/investigations. Each row gets an individual audit entry." },
+      { kind: "tip", text: "The list loads the 300 most recent alerts for the chosen range. Narrow the filters if an older alert is missing. A link of the form /app/alerts?alert=<id> opens that alert directly." },
+
     ],
   },
   {
@@ -224,7 +225,7 @@ const articles: Article[] = [
     readMinutes: 5,
     blocks: [
       { kind: "steps", items: [
-        "Mark the alert (or bulk in /app/investigations) as False Positive — audit entry incident.bulk.false_positive.",
+        "Open the alert, then raise it as an investigation and mark it False Positive in /app/investigations — audit entry incident.bulk.false_positive.",
         "Add a resolution note explaining what triggered it (glare, reflection, mannequin, etc.).",
         "In /admin/rules → Alert Rules, raise the confidence_threshold for the offending model, or add a zone exclusion.",
         "In /admin/cameras, adjust the camera's confidence_threshold or disable the model that generated the false hit.",
@@ -315,17 +316,19 @@ const articles: Article[] = [
     blocks: [
       { kind: "table", head: ["Layout", "Cameras shown", "Shortcut"], rows: [
         ["Focus", "1", "1"],
-        ["2×2", "4", "4"],
+        ["Quad", "4", "4"],
         ["3×3", "9", "9"],
+        ["3×4", "12", "2"],
         ["4×4", "16", "6"],
       ] },
       { kind: "list", items: [
-        "Auto-cycle rotates the visible page every N seconds — hands-free monitoring.",
+        "Auto-cycle rotates the visible page every 8 seconds — hands-free monitoring.",
         "Focus mode enlarges the selected tile and puts detection overlays front-and-centre.",
         "Fullscreen (F) hides all chrome for wall-mounted displays.",
         "Audio button unmutes only cameras with audio_enabled and only the focused tile — browsers refuse to autoplay sound across 16 tiles.",
       ] },
-      { kind: "info", text: "The HUD (FPS, latency, resolution, sync clock) is fed by the camera heartbeat, so it reflects real ingest health, not the client's guess." },
+      { kind: "info", text: "The HUD shows the frame rate and resolution last reported by the camera, plus this workstation's clock. It is a reference readout, not a measure of network latency." },
+
     ],
   },
   {
@@ -820,17 +823,20 @@ const articles: Article[] = [
     title: "Quality dataset — teach the AI your product",
     category: "quality",
     tags: ["dataset", "training", "references"],
-    summary: "Upload good and defective examples per camera so detection matches your product, not generic rules.",
+    summary: "Upload good and defective examples — photos or process videos — per camera so detection matches your product, not generic rules.",
     readMinutes: 6,
     relatedRoute: { label: "Open Quality Dataset", to: "/admin/quality-dataset" },
     blocks: [
       { kind: "steps", items: [
         "Admin → Quality Dataset. Pick the camera.",
-        "Upload 'good' reference images of the correct product state.",
+        "Upload 'good' reference images of the correct product state (up to 20 at a time).",
         "Upload 'defect' examples and label what is wrong.",
+        "Or add a good / bad process video (up to 5 clips at a time, 60MB each). Eight still frames are taken from each clip and kept together as one card.",
         "Save — the analyzer uses these references when judging frames from that camera.",
       ] },
       { kind: "info", text: "References guide the model with examples; they are not a retrained model. True custom weights would need a labelled dataset and an external training pipeline." },
+      { kind: "tip", text: "Removing a video card removes all eight of its frames together. The same good/bad photo and video uploads are available per camera in Admin → Cameras → Inspection (10 photos or 5 clips per batch there)." },
+
     ],
   },
   {
@@ -938,7 +944,9 @@ const articles: Article[] = [
         "Increase the inference interval on low-risk cameras — 60s instead of 5s cuts cost by an order of magnitude.",
         "Set a region of interest per camera so only the area that matters is analysed.",
         "Frame gating means KPIs and alerts count real scene changes, not every identical frame.",
-        "Reference matching compares a frame to your uploaded references locally — no AI cost at all — and only escalates to the model when something looks off.",
+        "Reference matching compares a frame to your uploaded references locally — no AI cost at all. A confident match against a good reference stops there; anything unclear, or a clear match against a faulty reference, still goes to the model so the alert carries a description and evidence.",
+        "Reference tolerance is adjustable per camera (0.02 to 0.30, 0.06 by default) — a tighter number sends more frames to the model.",
+
       ] },
       { kind: "info", text: "If you see a 'not enough credits' error, the workspace AI credits are exhausted — top up in Settings → Plans & credits. That is separate from the per-site budget." },
     ],
@@ -960,8 +968,9 @@ const articles: Article[] = [
         ["Offline", "No heartbeat and no readable frame", "Check power, network and credentials"],
         ["Not configured", "No stream or snapshot address saved", "Add an address in Admin → Cameras"],
       ] },
-      { kind: "p", text: "Tiles always try the stream first and retry it about every minute, so a tile that fell back to snapshots recovers on its own once the gateway returns." },
-      { kind: "info", text: "Snapshot cameras get a grace window before being marked stale, because they only refresh while someone is watching." },
+      { kind: "p", text: "Tiles always try the stream first and retry it about every minute, so a tile that fell back to snapshots recovers on its own once the gateway returns. A camera saved with a snapshot address only has no stream to fall back from — it shows stills all the time." },
+      { kind: "info", text: "A camera is marked offline after three missed heartbeats (three minutes on the default one-minute heartbeat). Snapshot-only cameras get at least a 15-minute grace window, because they only refresh while someone is watching." },
+
     ],
   },
   {
@@ -1032,7 +1041,7 @@ const articles: Article[] = [
     readMinutes: 6,
     relatedRoute: { label: "Open Alerts", to: "/app/alerts" },
     blocks: [
-      { kind: "p", text: "When a detection fires, the frame that triggered it is stored privately against the alert and shown as a thumbnail in the list and full size in the detail view." },
+      { kind: "p", text: "When a detection fires, the frame that triggered it is stored privately against the alert and shown as a thumbnail in the list and full size in the detail view. If no frame was captured, the camera's current snapshot is shown instead — so check the timestamp before treating an image as evidence of the moment." },
       { kind: "list", items: [
         "Boxes are stored as full-frame proportions, so they stay aligned at any tile size or screen width.",
         "The image is never cropped — it is letterboxed, and boxes are drawn against the painted area.",
@@ -1154,6 +1163,16 @@ const articles: Article[] = [
     ],
   },
 ];
+
+
+const OPERATOR_CATEGORY_IDS = new Set(["getting-started", "dashboard", "alerts", "incidents", "cameras", "insights", "reports", "shift", "maintenance", "roles", "quality", "floor"]);
+const OPERATOR_ARTICLE_IDS = new Set([
+  "gs-quickstart", "gs-navigation", "gs-roles", "dash-overview", "al-lifecycle", "al-triage", "al-false-positive",
+  "inc-workflow", "inc-timeline", "cam-wall", "ins-overview", "rep-create", "shift-handover", "maint-overview",
+  "role-operator", "role-supervisor", "qual-dashboard", "floor-overview", "gs-header", "gs-troubleshoot",
+]);
+const operatorCategories = categories.filter((category) => OPERATOR_CATEGORY_IDS.has(category.id));
+const operatorArticles = articles.filter((article) => OPERATOR_ARTICLE_IDS.has(article.id));
 
 // ---------------------------------------------------------------------------
 // Rendering primitives
@@ -1315,10 +1334,9 @@ const Help = () => {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [openArticle, setOpenArticle] = useState<Article | null>(null);
-  const [showMatrix, setShowMatrix] = useState(false);
 
   const filtered = useMemo(() => {
-    let list = articles;
+    let list = operatorArticles;
     if (activeCategory) list = list.filter((a) => a.category === activeCategory);
     const q = query.trim().toLowerCase();
     if (q) {
@@ -1331,7 +1349,7 @@ const Help = () => {
 
   const countsByCategory = useMemo(() => {
     const m: Record<string, number> = {};
-    articles.forEach((a) => { m[a.category] = (m[a.category] ?? 0) + 1; });
+    operatorArticles.forEach((a) => { m[a.category] = (m[a.category] ?? 0) + 1; });
     return m;
   }, []);
 
@@ -1384,16 +1402,11 @@ const Help = () => {
         eyebrow="Knowledge Base"
         icon={HelpCircle}
         title="Help & Documentation"
-        description={`${articles.length} in-depth articles across ${categories.length} modules — formulas, snapshots, workflows and compliance mapping.`}
+        description={`${operatorArticles.length} practical guides for navigating the operator console, tailored to day-to-day site work.`}
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setShowMatrix((v) => !v)}>
-              <Shield className="w-4 h-4" /> {showMatrix ? "Hide" : "View"} Standards Matrix
-            </Button>
-            <Link to="/app">
-              <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to App</Button>
-            </Link>
-          </div>
+          <Link to="/app">
+            <Button variant="outline" className="gap-2"><Zap className="w-4 h-4" /> Back to Dashboard</Button>
+          </Link>
         }
       />
 
@@ -1401,79 +1414,13 @@ const Help = () => {
       <div className="relative max-w-2xl">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search across every article, tag, formula…"
+          placeholder="Search operator guides, workflows, and features…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="pl-9 bg-card border-border h-11"
           aria-label="Search knowledge base"
         />
       </div>
-
-      {/* Compliance Standards Matrix */}
-      {showMatrix && (
-        <div className="glass rounded-2xl border border-border p-5 md:p-6 space-y-4">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Shield className="w-5 h-5 text-primary" />
-                <h2 className="font-display text-lg md:text-xl font-semibold">Global Compliance Standards Matrix</h2>
-              </div>
-              <p className="text-sm text-muted-foreground max-w-3xl">
-                Per-module mapping to OSHA (29 CFR 1904/1910), ISO 45001 / 9001 / 27001 / 55000, and SOC 2 Trust Services Criteria — with retention windows and audit-trail completeness. Use this checklist during internal audits, SOC 2 walkthroughs, or ISO 45001 certification prep.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-[11px]">
-              {(["covered","partial","gap"] as ComplianceStatus[]).map((s) => (
-                <span key={s} className="flex items-center gap-1.5">
-                  <span className={cn("inline-block w-2.5 h-2.5 rounded-full", s === "covered" ? "bg-success" : s === "partial" ? "bg-warning" : "bg-destructive")} />
-                  {statusMeta[s].label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border overflow-x-auto">
-            <table className="w-full text-sm min-w-[900px]">
-              <thead className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium">Module</th>
-                  <th className="text-left px-3 py-2 font-medium">OSHA</th>
-                  <th className="text-left px-3 py-2 font-medium">ISO</th>
-                  <th className="text-left px-3 py-2 font-medium">SOC 2</th>
-                  <th className="text-left px-3 py-2 font-medium">Retention</th>
-                  <th className="text-left px-3 py-2 font-medium">Audit Trail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {complianceMatrix.map((row) => (
-                  <tr key={row.module} className="border-t border-border align-top hover:bg-muted/20">
-                    <td className="px-3 py-2.5">
-                      <Link to={row.route} className="font-semibold text-foreground hover:text-primary transition-colors">
-                        {row.module}
-                      </Link>
-                      <div className="text-[11px] text-muted-foreground font-mono">{row.route}</div>
-                    </td>
-                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.osha}</td>
-                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.iso}</td>
-                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.soc2}</td>
-                    <td className="px-3 py-2.5 text-foreground/90 text-xs">{row.retention}</td>
-                    <td className="px-3 py-2.5">
-                      <Badge variant="outline" className={cn("text-[10px] mb-1", statusMeta[row.auditTrail].className)}>
-                        {statusMeta[row.auditTrail].label}
-                      </Badge>
-                      <div className="text-[11px] text-muted-foreground leading-snug">{row.auditNotes}</div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="text-[11px] text-muted-foreground flex flex-wrap gap-4">
-            <span>Sources: OSHA 29 CFR Parts 1904 & 1910 · ISO 45001:2018 · ISO 9001:2015 · ISO 27001:2022 · ISO 55000 · AICPA SOC 2 (2017 TSC).</span>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Sidebar categories */}
@@ -1486,9 +1433,9 @@ const Help = () => {
             )}
           >
             <span className="flex items-center gap-2 font-medium"><Layers className="w-4 h-4" /> All articles</span>
-            <Badge variant="secondary" className="text-[10px]">{articles.length}</Badge>
+            <Badge variant="secondary" className="text-[10px]">{operatorArticles.length}</Badge>
           </button>
-          {categories.map((c) => {
+          {operatorCategories.map((c) => {
             const Icon = c.icon;
             const count = countsByCategory[c.id] ?? 0;
             const active = activeCategory === c.id;
@@ -1514,7 +1461,8 @@ const Help = () => {
         <div className="space-y-4">
           {/* Category hero */}
           {activeCategory && (() => {
-            const cat = categories.find((c) => c.id === activeCategory)!;
+            const cat = operatorCategories.find((c) => c.id === activeCategory);
+            if (!cat) return null;
             const Icon = cat.icon;
             return (
               <div className="glass rounded-xl border border-border p-5 flex items-start gap-4">
@@ -1539,7 +1487,7 @@ const Help = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.map((a) => {
-              const cat = categories.find((c) => c.id === a.category);
+              const cat = operatorCategories.find((c) => c.id === a.category);
               const Icon = cat?.icon ?? BookOpen;
               return (
                 <button

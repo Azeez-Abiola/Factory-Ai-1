@@ -51,7 +51,8 @@ const Tenants = () => {
   const [defectCounts, setDefectCounts] = useState<Record<string, number>>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super_admin");
 
   const loadTenants = async () => {
     setLoading(true);
@@ -174,22 +175,22 @@ const Tenants = () => {
     <div className="space-y-6">
       <PageHeader eyebrow="Organizations" icon={Building2} title="Sites & Tenants"
         description="Parent groups, factory sites and their sub-sites — each owning its own cameras, defects and team."
-        actions={
+        actions={isSuperAdmin ? (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setTab("setup")} className="gap-2">
               <Rocket className="w-4 h-4" /> Set up new site
             </Button>
             <Button onClick={openAdd}><Plus className="w-4 h-4 mr-2" /> Add Tenant</Button>
           </div>
-        } />
+        ) : undefined} />
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="directory">Hierarchy ({tenants.length})</TabsTrigger>
-          <TabsTrigger value="setup" className="gap-1.5"><Rocket className="w-3.5 h-3.5" /> Set up new site</TabsTrigger>
+          {isSuperAdmin && <TabsTrigger value="setup" className="gap-1.5"><Rocket className="w-3.5 h-3.5" /> Set up new site</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="setup">
+        {isSuperAdmin && <TabsContent value="setup">
           <div className="rounded-xl border border-border p-4 md:p-5">
             <p className="text-sm text-muted-foreground mb-4">
               Guided setup for a brand new factory site — organization details, cameras, floor areas,
@@ -197,7 +198,7 @@ const Tenants = () => {
             </p>
             <Onboarding embedded />
           </div>
-        </TabsContent>
+        </TabsContent>}
 
         <TabsContent value="directory" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -321,14 +322,14 @@ const Tenants = () => {
                               <ArrowUpRight className="w-4 h-4 mr-2" /> Open site
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => openEdit(tenant, e as never)}><Pencil className="w-4 h-4 mr-2" /> Edit / move</DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => openAddSub(tenant, e as never)}><GitBranch className="w-4 h-4 mr-2" /> Add sub-site</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleSuspend(tenant); }}
+                            {isSuperAdmin && <DropdownMenuItem onClick={(e) => openAddSub(tenant, e as never)}><GitBranch className="w-4 h-4 mr-2" /> Add sub-site</DropdownMenuItem>}
+                            {isSuperAdmin && <DropdownMenuSeparator />}
+                            {isSuperAdmin && <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleSuspend(tenant); }}
                               className={tenant.status === "suspended" ? "text-primary" : "text-destructive"}>
                               {tenant.status === "suspended"
                                 ? <><RotateCcw className="w-4 h-4 mr-2" /> Reactivate</>
                                 : <><Ban className="w-4 h-4 mr-2" /> Suspend</>}
-                            </DropdownMenuItem>
+                            </DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -351,6 +352,7 @@ const Tenants = () => {
         tenant={editingTenant}
         parentTenant={parentForSubTenant}
         allTenants={tenants}
+        canManageLifecycle={isSuperAdmin}
         onSubmit={handleFormSubmit}
       />
     </div>

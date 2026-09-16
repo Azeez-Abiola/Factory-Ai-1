@@ -51,11 +51,12 @@ export function useTenants() {
     } else {
       const rows = (data ?? []) as TenantRow[];
       setTenants(rows);
-      // If no active tenant, pick first
-      if (!activeTenantId && rows.length > 0) {
-        setActiveTenantIdState(rows[0].id);
-        localStorage.setItem(ACTIVE_KEY, rows[0].id);
-      }
+      // Never trust a stale or manually edited site id from local storage.
+      const storedId = localStorage.getItem(ACTIVE_KEY);
+      const nextId = rows.some((row) => row.id === storedId) ? storedId : rows[0]?.id ?? null;
+      setActiveTenantIdState(nextId);
+      if (nextId) localStorage.setItem(ACTIVE_KEY, nextId);
+      else localStorage.removeItem(ACTIVE_KEY);
     }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,17 +67,19 @@ export function useTenants() {
   }, [load]);
 
   const setActiveTenantId = useCallback((id: string | null) => {
-    setActiveTenantIdState(id);
-    if (id) localStorage.setItem(ACTIVE_KEY, id);
+    const allowedId = id && tenants.some((tenant) => tenant.id === id) ? id : null;
+    setActiveTenantIdState(allowedId);
+    if (allowedId) localStorage.setItem(ACTIVE_KEY, allowedId);
     else localStorage.removeItem(ACTIVE_KEY);
-    window.dispatchEvent(new CustomEvent(ACTIVE_EVENT, { detail: id }));
-  }, []);
+    window.dispatchEvent(new CustomEvent(ACTIVE_EVENT, { detail: allowedId }));
+  }, [tenants]);
 
   // Keep every mounted consumer in sync when the site is switched anywhere.
   useEffect(() => {
     const onChange = (e: Event) => {
-      const id = (e as CustomEvent<string | null>).detail ?? localStorage.getItem(ACTIVE_KEY);
-      setActiveTenantIdState(id);
+      const requestedId = (e as CustomEvent<string | null>).detail ?? localStorage.getItem(ACTIVE_KEY);
+      const allowedId = tenants.some((tenant) => tenant.id === requestedId) ? requestedId : tenants[0]?.id ?? null;
+      setActiveTenantIdState(allowedId);
     };
     window.addEventListener(ACTIVE_EVENT, onChange);
     window.addEventListener("storage", onChange);
@@ -84,7 +87,7 @@ export function useTenants() {
       window.removeEventListener(ACTIVE_EVENT, onChange);
       window.removeEventListener("storage", onChange);
     };
-  }, []);
+  }, [tenants]);
 
   const activeTenant = tenants.find((t) => t.id === activeTenantId) ?? null;
 

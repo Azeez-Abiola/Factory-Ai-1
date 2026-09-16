@@ -523,7 +523,7 @@ const AIConfig = () => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
-                All calls route through Lovable AI Gateway. Gemini 2.5 Pro is the default for best vision accuracy; switch to Flash to reduce cost when running high-cadence inference.
+                All calls route through the FactoryAI Gateway. Gemini 2.5 Pro is the default for best vision accuracy; switch to Flash to reduce cost when running high-cadence inference.
               </p>
             </div>
 
