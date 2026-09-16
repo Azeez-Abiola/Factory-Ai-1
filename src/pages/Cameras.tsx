@@ -600,16 +600,64 @@ const Telemetry = ({ label, value }: { label: string; value: string | number }) 
   </div>
 );
 
-const PtzBtn = ({ icon: Icon, onClick }: { icon: any; onClick: () => void }) => (
+const PtzBtn = ({ icon: Icon, onClick, disabled, label }: { icon: any; onClick: () => void; disabled?: boolean; label: string }) => (
   <Button
     type="button"
     size="icon"
     variant="outline"
     onClick={onClick}
+    disabled={disabled}
+    aria-label={label}
+    title={label}
     className="h-8 w-8"
   >
     <Icon className="w-4 h-4" />
   </Button>
 );
+
+/** Sends real movement commands to the recorder for this camera. */
+const PtzControls = ({ cameraId }: { cameraId: string }) => {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const move = async (direction: string, label: string) => {
+    setBusy(direction);
+    try {
+      const { data, error } = await supabase.functions.invoke("camera-ptz", {
+        body: { camera_id: cameraId, direction },
+      });
+      if (error) throw error;
+      if (data?.ok) toast.success(`${label} — camera moved`);
+      else toast.error(data?.reason ?? "The camera did not accept the movement");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not reach the camera");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const controls: { dir: string; icon: any; label: string }[] = [
+    { dir: "up", icon: ChevronUp, label: "Tilt up" },
+    { dir: "down", icon: ChevronDown, label: "Tilt down" },
+    { dir: "left", icon: ChevronLeft, label: "Pan left" },
+    { dir: "right", icon: ChevronRight, label: "Pan right" },
+    { dir: "zoom_in", icon: ZoomIn, label: "Zoom in" },
+    { dir: "zoom_out", icon: ZoomOut, label: "Zoom out" },
+  ];
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground mr-1">PTZ</span>
+      {controls.map((c) => (
+        <PtzBtn
+          key={c.dir}
+          icon={busy === c.dir ? Loader2 : c.icon}
+          label={c.label}
+          disabled={!!busy}
+          onClick={() => move(c.dir, c.label)}
+        />
+      ))}
+    </div>
+  );
+};
 
 export default Cameras;
