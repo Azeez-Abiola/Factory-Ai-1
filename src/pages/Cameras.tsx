@@ -338,15 +338,7 @@ const Cameras = () => {
 
                 {/* PTZ + actions */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  {selected.ptzEnabled && <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground mr-1">PTZ</span>
-                    <PtzBtn icon={ChevronUp}    onClick={() => toast.info("Tilt up sent")} />
-                    <PtzBtn icon={ChevronDown}  onClick={() => toast.info("Tilt down sent")} />
-                    <PtzBtn icon={ChevronLeft}  onClick={() => toast.info("Pan left sent")} />
-                    <PtzBtn icon={ChevronRight} onClick={() => toast.info("Pan right sent")} />
-                    <PtzBtn icon={ZoomIn}       onClick={() => toast.info("Zoom in sent")} />
-                    <PtzBtn icon={ZoomOut}      onClick={() => toast.info("Zoom out sent")} />
-                  </div>}
+                  {selected.ptzEnabled && <PtzControls cameraId={selected.id} />}
                   <div className="flex items-center gap-2">
                     <Button size="sm" onClick={() => setAnalyzeOpen(true)} disabled={!selected.snapshotUrl} className="gap-1.5">
                       <Sparkles className="w-4 h-4" /> Analyze with AI
