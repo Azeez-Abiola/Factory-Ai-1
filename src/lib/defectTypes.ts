@@ -27,7 +27,7 @@ export const matchesDefectType = (
   const label = normalise(defect.label);
   if (!label) return false;
   const hay = normalise(`${alert.type ?? ""} ${alert.title ?? ""}`);
-  if (hay.includes(label) || normalise(alert.type ?? "") === normalise(defect.id)) return true;
+  if (hay.includes(label) || normalise(alert.type ?? "") === normalise(defect.id ?? "")) return true;
   const dets = (alert.metadata as { detections?: unknown[] } | null)?.detections;
   return Array.isArray(dets) && dets.some((d) => {
     const rec = d as Record<string, unknown>;
