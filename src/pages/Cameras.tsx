@@ -3,8 +3,9 @@ import {
   Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles, Search, Volume2, VolumeX,
   Maximize2, Minimize2, LayoutGrid, Grid2x2, Grid3x3, Square, Play, Pause,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ZoomIn, ZoomOut,
-  ShieldCheck, ShieldAlert, Activity, Radio
+  ShieldCheck, ShieldAlert, Activity, Radio, Loader2
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -338,15 +339,7 @@ const Cameras = () => {
 
                 {/* PTZ + actions */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  {selected.ptzEnabled && <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground mr-1">PTZ</span>
-                    <PtzBtn icon={ChevronUp}    onClick={() => toast.info("Tilt up sent")} />
-                    <PtzBtn icon={ChevronDown}  onClick={() => toast.info("Tilt down sent")} />
-                    <PtzBtn icon={ChevronLeft}  onClick={() => toast.info("Pan left sent")} />
-                    <PtzBtn icon={ChevronRight} onClick={() => toast.info("Pan right sent")} />
-                    <PtzBtn icon={ZoomIn}       onClick={() => toast.info("Zoom in sent")} />
-                    <PtzBtn icon={ZoomOut}      onClick={() => toast.info("Zoom out sent")} />
-                  </div>}
+                  {selected.ptzEnabled && <PtzControls cameraId={selected.id} />}
                   <div className="flex items-center gap-2">
                     <Button size="sm" onClick={() => setAnalyzeOpen(true)} disabled={!selected.snapshotUrl} className="gap-1.5">
                       <Sparkles className="w-4 h-4" /> Analyze with AI
@@ -608,16 +601,64 @@ const Telemetry = ({ label, value }: { label: string; value: string | number }) 
   </div>
 );
 
-const PtzBtn = ({ icon: Icon, onClick }: { icon: any; onClick: () => void }) => (
+const PtzBtn = ({ icon: Icon, onClick, disabled, label }: { icon: any; onClick: () => void; disabled?: boolean; label: string }) => (
   <Button
     type="button"
     size="icon"
     variant="outline"
     onClick={onClick}
+    disabled={disabled}
+    aria-label={label}
+    title={label}
     className="h-8 w-8"
   >
     <Icon className="w-4 h-4" />
   </Button>
 );
+
+/** Sends real movement commands to the recorder for this camera. */
+const PtzControls = ({ cameraId }: { cameraId: string }) => {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const move = async (direction: string, label: string) => {
+    setBusy(direction);
+    try {
+      const { data, error } = await supabase.functions.invoke("camera-ptz", {
+        body: { camera_id: cameraId, direction },
+      });
+      if (error) throw error;
+      if (data?.ok) toast.success(`${label} — camera moved`);
+      else toast.error(data?.reason ?? "The camera did not accept the movement");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not reach the camera");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const controls: { dir: string; icon: any; label: string }[] = [
+    { dir: "up", icon: ChevronUp, label: "Tilt up" },
+    { dir: "down", icon: ChevronDown, label: "Tilt down" },
+    { dir: "left", icon: ChevronLeft, label: "Pan left" },
+    { dir: "right", icon: ChevronRight, label: "Pan right" },
+    { dir: "zoom_in", icon: ZoomIn, label: "Zoom in" },
+    { dir: "zoom_out", icon: ZoomOut, label: "Zoom out" },
+  ];
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground mr-1">PTZ</span>
+      {controls.map((c) => (
+        <PtzBtn
+          key={c.dir}
+          icon={busy === c.dir ? Loader2 : c.icon}
+          label={c.label}
+          disabled={!!busy}
+          onClick={() => move(c.dir, c.label)}
+        />
+      ))}
+    </div>
+  );
+};
 
 export default Cameras;
