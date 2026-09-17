@@ -126,7 +126,7 @@ const AIConfig = () => {
         setSystemPrompt(data.system_prompt || DEFAULT_PROMPT);
         setModel(data.model || "google/gemini-2.5-pro");
         const cats = Array.isArray(data.categories) ? (data.categories as unknown as Category[]) : [];
-        setCategories(cats.length ? cats : DEFAULT_CATEGORIES);
+        setCategories(mergeWithDefaults(cats));
         const defects = Array.isArray((data as any).defect_types) ? ((data as any).defect_types as DefectType[]) : [];
         setDefectTypes(defects);
         const models = Array.isArray((data as any).custom_models) ? ((data as any).custom_models as CustomModel[]) : [];
