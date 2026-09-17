@@ -8,7 +8,7 @@ import {
 
 export type VisionCategory =
   | "ppe" | "intrusion" | "downtime" | "ergonomics"
-  | "quality" | "housekeeping" | "forklift" | "other";
+  | "quality" | "housekeeping" | "forklift" | "security" | "other";
 
 export interface VisionBox {
   id: string;
@@ -25,6 +25,7 @@ export const VISION_CATEGORIES: { id: VisionCategory; label: string }[] = [
   { id: "forklift", label: "Forklift / pedestrian" },
   { id: "quality", label: "Quality" },
   { id: "housekeeping", label: "Housekeeping" },
+  { id: "security", label: "Security & theft control" },
   { id: "ergonomics", label: "Ergonomics" },
   { id: "downtime", label: "Downtime" },
   { id: "other", label: "Other" },
@@ -32,7 +33,7 @@ export const VISION_CATEGORIES: { id: VisionCategory; label: string }[] = [
 
 export const categoryColor = (category: VisionCategory) => `hsl(var(--vision-${category}))`;
 
-const KNOWN: VisionCategory[] = ["ppe", "intrusion", "downtime", "ergonomics", "quality", "housekeeping", "forklift", "other"];
+const KNOWN: VisionCategory[] = ["ppe", "intrusion", "downtime", "ergonomics", "quality", "housekeeping", "forklift", "security", "other"];
 
 function guessCategory(raw: unknown, label: string): VisionCategory {
   const value = String(raw ?? "").toLowerCase();
@@ -44,6 +45,7 @@ function guessCategory(raw: unknown, label: string): VisionCategory {
   if (/spill|obstruct|clutter|exit|5s|housekeep/.test(text)) return "housekeeping";
   if (/defect|quality|damage|misalign|packag/.test(text)) return "quality";
   if (/lift|posture|ergonom|strain|bend/.test(text)) return "ergonomics";
+  if (/theft|steal|stolen|conceal|pilfer|tamper|unauthori[sz]ed|loiter|after.?hours|suspicious|security/.test(text)) return "security";
   if (/idle|downtime|stall|stopped/.test(text)) return "downtime";
   return "other";
 }

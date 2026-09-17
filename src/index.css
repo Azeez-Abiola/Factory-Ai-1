@@ -48,6 +48,7 @@
     --vision-housekeeping: 217 85% 48%;
     --vision-ergonomics: 271 70% 50%;
     --vision-downtime: 215 14% 42%;
+    --vision-security: 322 78% 44%;
     --vision-other: 174 88% 26%;
 
 
@@ -104,6 +105,7 @@
     --vision-housekeeping: 217 91% 62%;
     --vision-ergonomics: 271 85% 68%;
     --vision-downtime: 215 16% 65%;
+    --vision-security: 322 85% 62%;
     --vision-other: 172 66% 50%;
 
 
