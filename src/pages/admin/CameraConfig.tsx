@@ -28,6 +28,7 @@ import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
 import LiveFeed from "@/components/app/LiveFeed";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
+import { useDetectionCategories } from "@/lib/detectionCategories";
 
 
 
@@ -76,13 +77,6 @@ interface CameraRow {
 }
 
 
-const AI_MODEL_DEFS = [
-  { key: "ppe", label: "PPE Compliance", desc: "Hard hats, vests, gloves, goggles" },
-  { key: "intrusion", label: "Restricted Zone Intrusion", desc: "Unauthorized personnel detection" },
-  { key: "downtime", label: "Downtime & Idle Detection", desc: "Machine idle, unattended stations" },
-  { key: "quality", label: "Quality Defect Detection", desc: "Label, color, alignment anomalies" },
-  { key: "ergonomics", label: "Ergonomic Risk", desc: "Unsafe postures, lifting hazards" },
-] as const;
 
 const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   tenant_id: tenantId,
@@ -148,6 +142,10 @@ const CameraConfig = () => {
   const [nvrOpen, setNvrOpen] = useState(false);
 
   const [connectionTested, setConnectionTested] = useState(false);
+
+  // Detection categories come from this site's AI Model & Categories module,
+  // so the camera editor always offers exactly what the analyser looks for.
+  const { categories: detectionCategories } = useDetectionCategories(editing?.tenant_id ?? activeTenantId);
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -904,19 +902,24 @@ const CameraConfig = () => {
 
               <TabsContent value="ai" className="space-y-3 pt-4">
                 <p className="text-xs text-muted-foreground">
-                  Enable models to process frames from this camera. Powered by Gemini 2.5 vision via the AI Gateway.
+                  Choose what this camera is analysed for. This list mirrors the detection categories set up for this site
+                  in AI Model &amp; Categories — add or rename categories there and they appear here.
                 </p>
-                {AI_MODEL_DEFS.map((m) => (
-                  <div key={m.key} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                    <div>
-                      <p className="text-sm font-medium">{m.label}</p>
-                      <p className="text-xs text-muted-foreground">{m.desc}</p>
+                {detectionCategories.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="pr-3">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {m.label}
+                        {m.enabled === false && <Badge variant="outline" className="text-[10px]">off for this site</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{m.description}</p>
                     </div>
                     <Switch
-                      checked={!!editing.ai_models?.[m.key]}
+                      disabled={m.enabled === false}
+                      checked={!!editing.ai_models?.[m.id]}
                       onCheckedChange={(v) => setEditing({
                         ...editing,
-                        ai_models: { ...(editing.ai_models ?? {}), [m.key]: v },
+                        ai_models: { ...(editing.ai_models ?? {}), [m.id]: v },
                       })}
                     />
                   </div>

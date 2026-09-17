@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_DEFECT_TYPES, type DefectType } from "@/lib/defectTypes";
 import { useTenants } from "@/hooks/useTenants";
+import { DEFAULT_CATEGORIES, mergeWithDefaults } from "@/lib/detectionCategories";
 import { auditLog } from "@/lib/audit";
 import { toast } from "sonner";
 import sampleClip from "@/assets/sample-factory-clip.mp4.asset.json";
@@ -38,23 +39,6 @@ Analyze the provided camera frame and return a STRICT JSON object with this sche
 }
 Return ONLY the JSON object — no markdown, no prose.`;
 
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: "ppe",          label: "PPE Compliance",         description: "hard hats, hi-vis vests, gloves, goggles, hearing/respiratory protection", severity_hint: "high",     enabled: true },
-  { id: "intrusion",    label: "Restricted Zone Entry",  description: "unauthorized personnel in cordoned or hazardous areas",                     severity_hint: "critical", enabled: true },
-  { id: "downtime",     label: "Machine Downtime",       description: "idle machinery, stalled lines, missing operators at stations",              severity_hint: "medium",   enabled: true },
-  { id: "ergonomics",   label: "Ergonomic Risk",         description: "unsafe lifts, awkward postures, repetitive strain indicators",              severity_hint: "medium",   enabled: true },
-  { id: "quality",      label: "Quality / Defect",       description: "visible defects, misalignment, damaged product, packaging errors",          severity_hint: "medium",   enabled: true },
-  { id: "housekeeping", label: "Housekeeping (5S)",      description: "spills, obstructions, blocked exits, poor 5S",                              severity_hint: "low",      enabled: true },
-  { id: "forklift",     label: "Forklift / Pedestrian",  description: "pedestrian in forklift zone, no spotter, unsafe speed",                     severity_hint: "critical", enabled: true },
-  { id: "security",     label: "Security & Theft Control", description: "unauthorized access, removal, concealment or abnormal movement of company assets/materials", severity_hint: "critical", enabled: true },
-];
-
-/** Keeps a tenant's saved list but adds any newly shipped built-in categories. */
-const mergeWithDefaults = (saved: Category[]): Category[] => {
-  if (!saved.length) return DEFAULT_CATEGORIES;
-  const missing = DEFAULT_CATEGORIES.filter((d) => !saved.some((c) => c.id === d.id));
-  return [...saved, ...missing];
-};
 
 
 interface ReferenceImage {
