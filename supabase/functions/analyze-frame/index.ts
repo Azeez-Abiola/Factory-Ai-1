@@ -143,6 +143,7 @@ const DEFAULT_CATEGORIES = [
   { id: "quality",      label: "Quality / Defect",     description: "visible product or packaging defects: crushed, torn, leaking, mislabelled, open flaps, misaligned or missing items on the line" },
   { id: "housekeeping", label: "Housekeeping",         description: "spills, debris, trailing cables, stock stacked in walkways, blocked exits, extinguishers or panels obstructed" },
   { id: "forklift",     label: "Forklift / Pedestrian",description: "forklift and pedestrian sharing an unsegregated path, no spotter, raised load in motion, unsafe speed or reversing without visibility" },
+  { id: "security",     label: "Security & Theft Control", description: "visible events or conditions suggesting unauthorized access, removal, concealment or movement of company assets: unauthorized persons in restricted areas; materials removed from designated locations; a person carrying materials away from the expected workflow; products, tools or equipment being concealed (under clothing, in bags, behind other stock); unusual movement of inventory or transfers with no obvious operational context; unauthorized access to stores, warehouses, offices, production or controlled zones; tampering with equipment, storage, locks, doors or security barriers; loitering around inventory or high-value assets; unusual after-hours activity where the timestamp or context shows it; vehicles or persons interacting with materials in an apparently abnormal manner" },
 ];
 
 
@@ -154,7 +155,7 @@ Analyze the provided camera frame and return a STRICT JSON object with this sche
   "severity": "low"|"medium"|"high"|"critical",
   "detections": [ {
       "label": string,
-      "category": "ppe"|"intrusion"|"downtime"|"ergonomics"|"quality"|"housekeeping"|"forklift"|"other",
+      "category": "ppe"|"intrusion"|"downtime"|"ergonomics"|"quality"|"housekeeping"|"forklift"|"security"|"other",
       "severity": "low"|"medium"|"high"|"critical",
       "confidence": number,
       "bbox": [x, y, width, height],
@@ -174,7 +175,7 @@ Return ONLY the JSON object — no markdown, no prose.`;
 const SITE_PPE_MODEL_ID = "site/ppe-reference";
 const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
 
-const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the FULL frame as fractions between 0 and 1 (x/y = top-left corner, x+width <= 1, y+height <= 1). Never use pixels, percentages, 0-1000 units or crop-relative coordinates. One tight box per distinct subject you flag.`;
+const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, security, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the FULL frame as fractions between 0 and 1 (x/y = top-left corner, x+width <= 1, y+height <= 1). Never use pixels, percentages, 0-1000 units or crop-relative coordinates. One tight box per distinct subject you flag.`;
 
 function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
   const focus = categories.length

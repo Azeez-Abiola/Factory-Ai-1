@@ -46,6 +46,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "quality",      label: "Quality / Defect",       description: "visible defects, misalignment, damaged product, packaging errors",          severity_hint: "medium",   enabled: true },
   { id: "housekeeping", label: "Housekeeping (5S)",      description: "spills, obstructions, blocked exits, poor 5S",                              severity_hint: "low",      enabled: true },
   { id: "forklift",     label: "Forklift / Pedestrian",  description: "pedestrian in forklift zone, no spotter, unsafe speed",                     severity_hint: "critical", enabled: true },
+  { id: "security",     label: "Security & Theft Control", description: "unauthorized access, removal, concealment or abnormal movement of company assets/materials", severity_hint: "critical", enabled: true },
 ];
 
 

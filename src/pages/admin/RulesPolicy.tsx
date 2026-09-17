@@ -68,7 +68,7 @@ const severityColor = (s: string) =>
   : s === "medium" ? "bg-yellow-500/15 text-yellow-600 border-yellow-500/30"
   : "bg-primary/15 text-primary border-primary/30";
 
-const PRESET_CATEGORIES = ["safety", "quality", "productivity", "compliance", "housekeeping"];
+const PRESET_CATEGORIES = ["safety", "security", "quality", "productivity", "compliance", "housekeeping"];
 const SEVERITIES = ["low", "medium", "high", "critical"];
 
 // ── Policy Dialog ──
