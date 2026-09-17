@@ -16,7 +16,7 @@ import {
 
 const BUCKET = "ppe-reference";
 
-const DETECTION_TAGS = ["ppe", "intrusion", "quality", "housekeeping", "forklift", "ergonomics", "downtime", "security"];
+
 
 interface Props {
   tenantId: string;
