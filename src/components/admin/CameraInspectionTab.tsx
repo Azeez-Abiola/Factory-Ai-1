@@ -292,19 +292,19 @@ const CameraInspectionTab = ({
               </Button>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {DETECTION_TAGS.map((tag) => (
+              {detectionTags.map((cat) => (
                 <button
-                  key={tag}
+                  key={cat.id}
                   type="button"
-                  onClick={() => toggleTag(r, tag)}
+                  onClick={() => toggleTag(r, cat.id)}
                   className={cn(
-                    "rounded-full border px-2 py-0.5 text-[11px] capitalize transition-colors",
-                    r.categories?.includes(tag)
+                    "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                    r.categories?.includes(cat.id)
                       ? "border-primary bg-primary/15 text-primary"
                       : "border-border text-muted-foreground hover:border-primary/40"
                   )}
                 >
-                  {tag}
+                  {cat.label}
                 </button>
               ))}
             </div>
