@@ -143,6 +143,10 @@ const CameraConfig = () => {
 
   const [connectionTested, setConnectionTested] = useState(false);
 
+  // Detection categories come from this site's AI Model & Categories module,
+  // so the camera editor always offers exactly what the analyser looks for.
+  const { categories: detectionCategories } = useDetectionCategories(editing?.tenant_id ?? activeTenantId);
+
   const load = async () => {
     if (!activeTenantId) return;
     setLoading(true);
