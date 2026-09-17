@@ -49,6 +49,13 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: "security",     label: "Security & Theft Control", description: "unauthorized access, removal, concealment or abnormal movement of company assets/materials", severity_hint: "critical", enabled: true },
 ];
 
+/** Keeps a tenant's saved list but adds any newly shipped built-in categories. */
+const mergeWithDefaults = (saved: Category[]): Category[] => {
+  if (!saved.length) return DEFAULT_CATEGORIES;
+  const missing = DEFAULT_CATEGORIES.filter((d) => !saved.some((c) => c.id === d.id));
+  return [...saved, ...missing];
+};
+
 
 interface ReferenceImage {
   path: string;
