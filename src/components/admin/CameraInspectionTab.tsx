@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   extractVideoFrames, frameSignature, toStoredSignature, Region, ReferenceSample,
 } from "@/lib/visionMatch";
+import { useDetectionCategories } from "@/lib/detectionCategories";
 
 
 const BUCKET = "ppe-reference";
