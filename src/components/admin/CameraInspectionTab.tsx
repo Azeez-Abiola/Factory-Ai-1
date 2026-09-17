@@ -54,6 +54,7 @@ const CameraInspectionTab = ({
   const startPoint = useRef<{ x: number; y: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  const { enabled: detectionTags } = useDetectionCategories(tenantId);
 
   // Signed previews for the already-saved reference photos.
   useEffect(() => {
