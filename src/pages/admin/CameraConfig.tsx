@@ -76,13 +76,6 @@ interface CameraRow {
 }
 
 
-const AI_MODEL_DEFS = [
-  { key: "ppe", label: "PPE Compliance", desc: "Hard hats, vests, gloves, goggles" },
-  { key: "intrusion", label: "Restricted Zone Intrusion", desc: "Unauthorized personnel detection" },
-  { key: "downtime", label: "Downtime & Idle Detection", desc: "Machine idle, unattended stations" },
-  { key: "quality", label: "Quality Defect Detection", desc: "Label, color, alignment anomalies" },
-  { key: "ergonomics", label: "Ergonomic Risk", desc: "Unsafe postures, lifting hazards" },
-] as const;
 
 const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   tenant_id: tenantId,
