@@ -28,6 +28,7 @@ import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
 import LiveFeed from "@/components/app/LiveFeed";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
+import { useDetectionCategories } from "@/lib/detectionCategories";
 
 
 
