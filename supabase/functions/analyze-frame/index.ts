@@ -147,10 +147,32 @@ const DEFAULT_CATEGORIES = [
 ];
 
 
-const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision safety analyst for a factory floor monitoring platform.
-Analyze the provided camera frame and return a STRICT JSON object with this schema:
+const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision analyst for a factory floor monitoring platform.
+You are responsible for EVERY active detection category listed below — not only the obvious hazard in the picture.
+
+METHOD (follow in order, silently):
+1. Describe the scene to yourself: area type, people, machines, vehicles, materials, lighting, time-of-day cues.
+2. Sweep the frame category by category, in the order the active categories are listed. For each one, decide explicitly: is there evidence for it here, yes or no? Never skip a category because another one already produced a finding.
+3. Only then write the JSON. A single frame may legitimately produce findings in several categories at once, or none at all.
+
+EVIDENCE RULES:
+- Report only what is visible. Never infer a violation from context alone, and never invent people, equipment or events that cannot be seen.
+- If the frame is too dark, blurred, obstructed or low-resolution to judge a category, say so in "summary" and leave that category out rather than guessing.
+- One entry per distinct subject or event. Do not repeat the same person, machine or defect across multiple detections, and do not emit one detection per video frame — summarise the whole clip once.
+- "confidence" is calibrated 0-1: ≥0.85 unmistakable, 0.6-0.85 likely, <0.6 uncertain (report uncertain items, but say so in the description).
+- Every safety_violation must correspond to at least one detection of the same category, so the operator can see where it is.
+- A clean frame is a valid answer: return empty "detections" and "safety_violations" arrays, a short summary and a low risk_score. Do not manufacture a finding to appear useful.
+
+SEVERITY:
+- low = housekeeping or minor deviation, no injury or loss pathway.
+- medium = policy breach with plausible harm or loss if repeated.
+- high = imminent injury, significant product loss, or asset removal in progress.
+- critical = life-threatening exposure, fire/chemical/electrical emergency, or major theft/unauthorised access.
+"risk_score" must be the highest-severity finding in the frame and must agree with the "severity" band.
+
+Return a STRICT JSON object with this schema:
 {
-  "summary": string,
+  "summary": string,     // 1-2 sentences: what is happening and what matters
   "risk_score": number,  // integer 0-100 (low 1-30, medium 31-60, high 61-85, critical 86-100) — must agree with "severity"
   "severity": "low"|"medium"|"high"|"critical",
   "detections": [ {
@@ -169,6 +191,7 @@ Analyze the provided camera frame and return a STRICT JSON object with this sche
 x = left edge, y = top edge, width and height are the box size (x + width <= 1, y + height <= 1).
 Coordinates are always measured against the FULL frame you were given (top-left = 0,0; bottom-right = 1,1) — never against a crop, an inspection area or the original camera resolution.
 Draw one box per distinct person, vehicle, machine or hazard you flag — boxes must tightly enclose the subject.
+"recommended_actions" are concrete, shift-level instructions ("stop line 3 and clear the spill at the palletiser"), never generic advice.
 Return ONLY the JSON object — no markdown, no prose.`;
 
 
@@ -177,9 +200,11 @@ const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
 
 const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, security, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the FULL frame as fractions between 0 and 1 (x/y = top-left corner, x+width <= 1, y+height <= 1). Never use pixels, percentages, 0-1000 units or crop-relative coordinates. One tight box per distinct subject you flag.`;
 
-function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
+function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string; severity_hint?: string }[]) {
   const focus = categories.length
-    ? `\n\nActive detection categories (focus your attention here):\n${categories.map((c) => `• ${c.label}: ${c.description}`).join("\n")}`
+    ? `\n\nACTIVE DETECTION CATEGORIES — check the frame against EVERY one of these, in this order, before answering. Use the exact id in the "category" field:\n${categories
+        .map((c, i) => `${i + 1}. ${c.id} — ${c.label}: ${c.description}${(c as any).severity_hint ? ` [default severity: ${(c as any).severity_hint}]` : ""}`)
+        .join("\n")}\n\nCoverage rule: these ${categories.length} categories are the complete scope for this site. Anything outside them is not reported. Anything inside them is reported even when a different category already yielded a more serious finding. Findings that fit none of the listed categories use "other" and are described plainly.`
     : "";
   return `${base}${focus}\n\n${BBOX_CONTRACT}`;
 }
