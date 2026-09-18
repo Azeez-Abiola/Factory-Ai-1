@@ -486,6 +486,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Small recorder snapshots get upscaled first — the model localises much
+    // better on a larger frame, and normalised boxes are unaffected.
+    const analysisImageUrl = body.videoUrl ? undefined : await upscaleDataUrl(body.imageUrl);
+
     const gwRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -507,7 +511,7 @@ Deno.serve(async (req) => {
             { type: "text", text: userText },
             body.videoUrl
               ? { type: "video_url", video_url: { url: body.videoUrl } }
-              : { type: "image_url", image_url: { url: body.imageUrl } },
+              : { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
           ]},
         ],
       }),
@@ -567,7 +571,7 @@ Deno.serve(async (req) => {
         model,
         content: body.videoUrl
           ? { type: "video_url", video_url: { url: body.videoUrl } }
-          : { type: "image_url", image_url: { url: body.imageUrl } },
+          : { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
       });
     } catch (e) {
       console.warn("verification pass skipped", e instanceof Error ? e.message : e);
