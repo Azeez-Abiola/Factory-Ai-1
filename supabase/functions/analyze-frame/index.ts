@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
 import { normaliseDetections, detectionsForViolation } from "../_shared/bbox.ts";
+import { upscaleDataUrl } from "../_shared/upscale.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -306,7 +307,7 @@ List only the claims you confirm; omit the rest. An empty "findings" list is a p
     reason: typeof verdict.reason === "string" ? verdict.reason.slice(0, 300) : null,
   };
 
-  if (!analysis.safety_violations.length) {
+  if (!analysis.safety_violations.length && !kept.length) {
     analysis.severity = "low";
     analysis.risk_score = Math.min(Number(analysis.risk_score) || 10, 20);
     if (dropped > 0) {
