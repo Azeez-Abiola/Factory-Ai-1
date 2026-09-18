@@ -157,13 +157,14 @@ METHOD (follow in order, silently):
 2. Sweep the frame category by category, in the order the active categories are listed. For each one, decide explicitly: is there evidence for it here, yes or no? Never skip a category because another one already produced a finding.
 3. Only then write the JSON. A single frame may legitimately produce findings in several categories at once, or none at all.
 
-EVIDENCE RULES:
-- Report only what is visible. Never infer a violation from context alone, and never invent people, equipment or events that cannot be seen.
-- If the frame is too dark, blurred, obstructed or low-resolution to judge a category, say so in "summary" and leave that category out rather than guessing.
+EVIDENCE RULES — a false finding is worse than a missed one:
+- Report only objects you can actually SEE in this frame. Never infer from context, from what a camera like this usually shows, or from what "should" be there. Do not name an object type (chair, box, spill, tool) unless its shape is clearly distinguishable — if you can only tell that "something" is there, do not report it.
+- Before you list any detection, state to yourself the pixels that prove it: its outline, colour and where it sits relative to a fixed landmark. If you cannot do that, drop it.
+- CCTV frames are often low-resolution, compressed, dark or back-lit. In those conditions distant blobs, shadows, wall stains, reflections, railings and parked objects are NOT findings. When the frame is too poor to judge a category, say so in "summary" and report nothing for it.
 - One entry per distinct subject or event. Do not repeat the same person, machine or defect across multiple detections, and do not emit one detection per video frame — summarise the whole clip once.
-- "confidence" is calibrated 0-1: ≥0.85 unmistakable, 0.6-0.85 likely, <0.6 uncertain (report uncertain items, but say so in the description).
+- "confidence" is calibrated 0-1 and must reflect image quality as well as certainty: ≥0.85 only when the object is unmistakable at this resolution, 0.6-0.85 likely, <0.6 uncertain. Do not report anything below 0.6 on a low-quality frame.
 - Every safety_violation must correspond to at least one detection of the same category, so the operator can see where it is.
-- A clean frame is a valid answer: return empty "detections" and "safety_violations" arrays, a short summary and a low risk_score. Do not manufacture a finding to appear useful.
+- A clean frame is the most common correct answer: return empty "detections" and "safety_violations" arrays, a short summary and a low risk_score. You are never rewarded for finding something — only for being right.
 
 SEVERITY:
 - low = housekeeping or minor deviation, no injury or loss pathway.
@@ -211,6 +212,92 @@ function buildSystemPrompt(base: string, categories: { id: string; label: string
         .join("\n")}\n\nCoverage rule: these ${categories.length} categories are the complete scope for this site. Anything outside them is not reported. Anything inside them is reported even when a different category already yielded a more serious finding. Findings that fit none of the listed categories use "other" and are described plainly.`
     : "";
   return `${base}${focus}\n\n${BBOX_CONTRACT}`;
+}
+
+/**
+ * Verification pass: shows the same frame back with the findings the first pass
+ * produced and keeps only the ones the model can confirm at the coordinates it
+ * gave. Cheap insurance against hallucinated objects on grainy CCTV frames —
+ * runs only when the first pass actually reported something.
+ */
+async function verifyFindings(
+  analysis: any,
+  opts: { key: string; model: string; content: Record<string, unknown> },
+): Promise<void> {
+  if (!analysis || typeof analysis !== "object") return;
+  const detections: any[] = Array.isArray(analysis.detections) ? analysis.detections : [];
+  const violations: any[] = Array.isArray(analysis.safety_violations) ? analysis.safety_violations : [];
+  if (!detections.length && !violations.length) return;
+
+  const claims = detections.map((d, i) => {
+    const b = Array.isArray(d?.box_2d) ? d.box_2d.join(", ") : "no box";
+    return `${i}. "${d?.label}" (${d?.category}) at box_2d [${b}] — ${d?.bbox_hint ?? ""}`;
+  }).join("\n");
+
+  const verifyPrompt = `You are auditing another analyst's report on this CCTV frame. Be sceptical: their job was to spot problems, yours is to throw out anything that is not really there.
+For each numbered claim, look at the frame at the given coordinates (box_2d is [ymin, xmin, ymax, xmax] on a 0-1000 grid over the full frame) and decide:
+- keep it ONLY if the named object is clearly visible AND actually inside those coordinates;
+- reject it if the region is empty floor/wall/sky, if the object is a shadow, stain, reflection, railing or indistinct blob, or if the object is real but the box is in the wrong place;
+- reject it if the frame is too dark, small or compressed for you to confirm the object type by its shape.
+Claims:
+${claims}
+
+For every claim you keep, re-draw the box yourself from scratch by looking at the frame — do not copy their numbers unless they are already tight around the object.
+Return ONLY strict JSON:
+{"findings": [ { "index": number, "box_2d": [ymin, xmin, ymax, xmax] } ], "reason": "one short sentence"}
+List only the claims you confirm; omit the rest. An empty "findings" list is a perfectly good answer.`;
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": opts.key },
+    body: JSON.stringify({
+      model: opts.model,
+      messages: [
+        { role: "system", content: "You verify industrial vision findings against the image. You reject anything you cannot see with certainty. Answer with JSON only." },
+        { role: "user", content: [{ type: "text", text: verifyPrompt }, opts.content] },
+      ],
+    }),
+  });
+  if (!res.ok) return; // never let verification break a successful analysis
+
+  const raw: string = (await res.json())?.choices?.[0]?.message?.content ?? "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+  let verdict: any = null;
+  try { verdict = JSON.parse(cleaned); } catch {
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) { try { verdict = JSON.parse(m[0]); } catch { /* noop */ } }
+  }
+  if (!verdict || !Array.isArray(verdict.keep)) return;
+
+  const keep = new Set(verdict.keep.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n)));
+  const kept = detections.filter((_d, i) => keep.has(i));
+  const dropped = detections.length - kept.length;
+  analysis.detections = kept;
+
+  // A violation with no surviving evidence is dropped with it.
+  const keptCategories = new Set(kept.map((d) => String(d?.category ?? "").toLowerCase()));
+  analysis.safety_violations = violations.filter((v) => {
+    const cat = String(v?.category ?? "").toLowerCase();
+    if (!kept.length) return false;
+    return !cat || keptCategories.has(cat);
+  });
+
+  analysis.verification = {
+    checked: detections.length,
+    kept: kept.length,
+    dropped,
+    reason: typeof verdict.reason === "string" ? verdict.reason.slice(0, 300) : null,
+  };
+
+  if (!analysis.safety_violations.length) {
+    analysis.severity = "low";
+    analysis.risk_score = Math.min(Number(analysis.risk_score) || 10, 20);
+    if (dropped > 0) {
+      analysis.summary = `No confirmed findings in this frame${
+        verdict.reason ? ` — ${String(verdict.reason).slice(0, 200)}` : ""
+      }`;
+    }
+  }
 }
 
 
@@ -453,6 +540,21 @@ Deno.serve(async (req) => {
     // Resolve every detection's box before anything stores or draws it.
     normaliseDetections(analysis);
 
+    // Second look: CCTV frames are noisy and the first pass sometimes names
+    // objects that are not there. Re-show the frame and keep only findings the
+    // model can confirm at the exact coordinates it gave.
+    try {
+      await verifyFindings(analysis, {
+        key,
+        model,
+        content: body.videoUrl
+          ? { type: "video_url", video_url: { url: body.videoUrl } }
+          : { type: "image_url", image_url: { url: body.imageUrl } },
+      });
+    } catch (e) {
+      console.warn("verification pass skipped", e instanceof Error ? e.message : e);
+    }
+
     // Models sometimes answer on a 0-10 scale. Normalise to 0-100 and keep the
     // score consistent with the severity word so the UI never disagrees itself.
     if (analysis && typeof analysis === "object") {
@@ -480,7 +582,11 @@ Deno.serve(async (req) => {
         media,
         sceneChanged: body.sceneChanged !== false,
         sceneDelta: typeof body.sceneDelta === "number" ? body.sceneDelta : null,
-        metadata: { camera: body.cameraName ?? null, zone: body.zone ?? null },
+        metadata: {
+          camera: body.cameraName ?? null,
+          zone: body.zone ?? null,
+          verification: analysis?.verification ?? null,
+        },
       }, budget ?? undefined);
     }
 
