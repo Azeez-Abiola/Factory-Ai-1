@@ -116,7 +116,8 @@ async function raiseAlerts(
         clip_seconds: media === "video" ? cam.clip_seconds ?? null : null,
         camera: cam.name,
         summary: analysis.summary ?? null,
-        detections,
+        detections: detectionsForViolation(v, detections),
+        all_detections: detections,
         recommended_actions: analysis.recommended_actions ?? [],
         reference_verdict: body.referenceVerdict ?? null,
         scene_delta: typeof body.sceneDelta === "number" ? Number(body.sceneDelta.toFixed(3)) : null,
@@ -448,6 +449,9 @@ Deno.serve(async (req) => {
       const match = cleaned.match(/\{[\s\S]*\}/);
       if (match) { try { analysis = JSON.parse(match[0]); } catch { /* noop */ } }
     }
+
+    // Resolve every detection's box before anything stores or draws it.
+    normaliseDetections(analysis);
 
     // Models sometimes answer on a 0-10 scale. Normalise to 0-100 and keep the
     // score consistent with the severity word so the UI never disagrees itself.

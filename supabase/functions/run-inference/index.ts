@@ -2,6 +2,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { fetchWithAuth } from '../_shared/digestFetch.ts';
 import { loadGateRules, gateViolation, effectiveCooldown } from '../_shared/alertGating.ts';
+import { normaliseDetections, detectionsForViolation } from '../_shared/bbox.ts';
 
 /**
  * run-inference: pulls a real still frame from every due camera, sends it to
@@ -317,6 +318,7 @@ Deno.serve(async (req) => {
         continue;
       }
       analysis = payload?.analysis;
+      normaliseDetections(analysis);
     } catch (e) {
       await finish('error', `analyze_call_failed: ${(e as Error).message}`);
       continue;
@@ -368,7 +370,8 @@ Deno.serve(async (req) => {
             source: 'live_inference',
             camera: cam.name,
             summary: analysis.summary,
-            detections,
+            detections: detectionsForViolation(v, detections),
+            all_detections: detections,
             recommended_actions: analysis.recommended_actions ?? [],
             policies_applied: relevant.map((p) => p.name),
             frame_bytes: frame.bytes,
