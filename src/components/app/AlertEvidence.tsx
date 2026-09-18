@@ -158,18 +158,31 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
       </div>
 
       {!isThumb && (
-        <div className="flex flex-wrap items-center gap-2">
-          {boxes.map((b) => (
-            <span key={`legend-${b.id}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span className="h-2 w-2 rounded-sm" style={{ background: categoryColor(b.category) }} />
-              {b.label}
-            </span>
-          ))}
-          <Button asChild size="sm" variant="outline" className="ml-auto h-7 gap-1.5 text-xs">
-            <a href={url} target="_blank" rel="noreferrer" download>
-              <Download className="h-3 w-3" /> Frame
-            </a>
-          </Button>
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {boxes.map((b) => (
+              <span key={`legend-${b.id}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="h-2 w-2 rounded-sm" style={{ background: categoryColor(b.category) }} />
+                {b.label}
+              </span>
+            ))}
+            <Button asChild size="sm" variant="outline" className="ml-auto h-7 gap-1.5 text-xs">
+              <a href={url} target="_blank" rel="noreferrer" download>
+                <Download className="h-3 w-3" /> Frame
+              </a>
+            </Button>
+          </div>
+          {boxes.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              Highlights show where the analyser believes each item is — treat them as a pointer, and judge the picture itself.
+            </p>
+          )}
+          {unlocated.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              Not marked on the picture: {unlocated.map((d) => d.label).join(", ")} — the analyser described the location instead
+              of drawing a box.
+            </p>
+          )}
         </div>
       )}
     </div>
