@@ -180,17 +180,19 @@ Return a STRICT JSON object with this schema:
       "category": "ppe"|"intrusion"|"downtime"|"ergonomics"|"quality"|"housekeeping"|"forklift"|"security"|"other",
       "severity": "low"|"medium"|"high"|"critical",
       "confidence": number,
-      "bbox": [x, y, width, height],
+      "box_2d": [ymin, xmin, ymax, xmax],
       "bbox_hint": string
   } ],
-  "safety_violations": [ { "type": string, "description": string, "severity": "low"|"medium"|"high"|"critical" } ],
+  "safety_violations": [ { "type": string, "category": string, "description": string, "severity": "low"|"medium"|"high"|"critical" } ],
   "productivity_notes": string[],
   "recommended_actions": string[]
 }
-"bbox" is REQUIRED for every detection and must be normalised to the image size as fractions between 0 and 1:
-x = left edge, y = top edge, width and height are the box size (x + width <= 1, y + height <= 1).
-Coordinates are always measured against the FULL frame you were given (top-left = 0,0; bottom-right = 1,1) — never against a crop, an inspection area or the original camera resolution.
-Draw one box per distinct person, vehicle, machine or hazard you flag — boxes must tightly enclose the subject.
+LOCALISATION — this is graded as strictly as the finding itself:
+- "box_2d" uses your standard 2D grounding convention: [ymin, xmin, ymax, xmax] as INTEGERS on a 0-1000 grid, measured against the FULL frame supplied (top-left = 0,0; bottom-right = 1000,1000).
+- The box must tightly enclose the subject you are describing — nothing else. Before answering, re-read the frame at those coordinates and confirm the subject is actually inside them; correct the numbers if it is not.
+- Never output a box over empty floor, sky or wall. If you cannot place the subject confidently, set "box_2d": null and explain the location in words in "bbox_hint" — an honest missing box is correct, an invented one is a failure.
+- One box per distinct person, vehicle, machine, product or hazard. Do not reuse a box for a second subject.
+- Each safety_violation carries the "category" of the detection that shows it, so the operator sees the right box.
 "recommended_actions" are concrete, shift-level instructions ("stop line 3 and clear the spill at the palletiser"), never generic advice.
 Return ONLY the JSON object — no markdown, no prose.`;
 
