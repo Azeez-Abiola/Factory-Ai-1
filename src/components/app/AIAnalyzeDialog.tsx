@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Loader2, AlertTriangle, ShieldCheck, Zap } from "lucide-react";
+import { Sparkles, Loader2, AlertTriangle, ShieldCheck, Zap, Ban, Clock, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
