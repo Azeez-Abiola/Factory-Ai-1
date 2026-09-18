@@ -286,14 +286,34 @@ Deno.serve(async (req) => {
         }),
       });
       const payload = await res.json();
+      const code = String(payload?.error ?? '');
+      const message = String(payload?.message ?? '').slice(0, 300);
       if (res.status === 402) {
-        // Tenant AI budget exhausted — pause this camera until the cap is raised.
+        // Either the site's own AI budget cap, or the workspace AI credits running out.
         budgetBlocked.add(cam.tenant_id);
-        await finish('budget_paused', String(payload?.message ?? 'Monthly AI analysis budget reached.').slice(0, 300), { skipped: true, reason: 'budget_exceeded' });
+        const isCredits = code === 'ai_credits_exhausted';
+        await finish(
+          isCredits ? 'ai_unavailable' : 'budget_paused',
+          message || (isCredits
+            ? 'AI credits have run out for this workspace.'
+            : 'Monthly AI analysis budget reached.'),
+          { skipped: true, reason: code || 'budget_exceeded', code: code || 'ai_budget_exceeded', message, blocked: true },
+        );
+        continue;
+      }
+      if (res.status === 403 || res.status === 429) {
+        await finish('ai_unavailable', message || `analyze_${res.status}`, {
+          skipped: true,
+          reason: code || `analyze_${res.status}`,
+          code: code || `analyze_${res.status}`,
+          message,
+          blocked: true,
+          retryable: res.status === 429,
+        });
         continue;
       }
       if (!res.ok) {
-        await finish('error', `analyze_${res.status}: ${String(payload?.error ?? '').slice(0, 200)}`);
+        await finish('error', `analyze_${res.status}: ${code.slice(0, 200)}`, { code: code || 'ai_upstream_error', message });
         continue;
       }
       analysis = payload?.analysis;
