@@ -33,12 +33,56 @@ const severityColor: Record<string, string> = {
   critical: "text-destructive border-destructive/30",
 };
 
+interface Blocked {
+  title: string;
+  message: string;
+  hint: string;
+  retryable: boolean;
+}
+
+const blockedFor = (code: string, message: string): Blocked | null => {
+  switch (code) {
+    case "ai_credits_exhausted":
+      return {
+        title: "AI analysis unavailable — no AI credit left",
+        message: message || "The AI credit for this workspace has run out, so this frame could not be analysed.",
+        hint: "Nothing was charged and no alert was raised. Ask your platform administrator to top up AI credit, then try again. In the meantime the reference check below still runs at no cost.",
+        retryable: false,
+      };
+    case "ai_budget_exceeded":
+      return {
+        title: "AI analysis paused — site budget reached",
+        message: message || "This site has reached its monthly AI analysis budget.",
+        hint: "A site administrator can raise the monthly budget in Admin → AI Budget to resume analysis.",
+        retryable: false,
+      };
+    case "ai_blocked":
+      return {
+        title: "AI analysis is blocked",
+        message: message || "AI analysis is currently blocked by an administrator limit.",
+        hint: "An administrator needs to re-enable AI analysis before this camera can be checked.",
+        retryable: false,
+      };
+    case "ai_rate_limited":
+    case "analyze_429":
+      return {
+        title: "Too many AI checks right now",
+        message: message || "The AI service is busy handling other requests.",
+        hint: "Wait about a minute and press Analyze again.",
+        retryable: true,
+      };
+    default:
+      return null;
+  }
+};
+
 const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl }: Props) => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [blocked, setBlocked] = useState<Blocked | null>(null);
 
   const analyze = async () => {
-    setLoading(true); setAnalysis(null);
+    setLoading(true); setAnalysis(null); setBlocked(null);
     try {
       const { data, error } = await supabase.functions.invoke("run-inference", {
         body: { camera_id: cameraId },
@@ -46,6 +90,20 @@ const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl
       if (error) throw error;
       const result = data?.results?.[0];
       if (!result) throw new Error("No analysis result was returned");
+
+      const stop = blockedFor(String(result.code ?? result.reason ?? ""), String(result.message ?? result.error ?? ""));
+      if (stop || result.blocked) {
+        const notice = stop ?? {
+          title: "AI analysis unavailable",
+          message: String(result.message ?? result.error ?? "This frame could not be analysed."),
+          hint: "No charge was made and no alert was raised.",
+          retryable: false,
+        };
+        setBlocked(notice);
+        toast.error(notice.title);
+        return;
+      }
+
       if (result.status === "error") throw new Error(result.error ?? "Analysis failed");
       setAnalysis(result.analysis ?? {
         summary: result.summary ?? "Live frame analyzed successfully.",
@@ -86,6 +144,40 @@ const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl
               </Button>
             {!snapshotUrl && <p className="text-xs text-warning">No AI snapshot is configured for this camera.</p>}
           </div>
+
+          {blocked && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 space-y-2">
+              <h4 className="font-semibold text-sm flex items-center gap-2 text-destructive">
+                {blocked.retryable ? <Clock className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                {blocked.title}
+              </h4>
+              <p className="text-sm text-foreground">{blocked.message}</p>
+              <p className="text-xs text-muted-foreground">{blocked.hint}</p>
+              {blocked.retryable && (
+                <Button size="sm" variant="outline" onClick={analyze} disabled={loading} className="mt-1">
+                  Try again
+                </Button>
+              )}
+            </div>
+          )}
+
+          <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-2">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-success" /> Reference check (no AI cost)
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Separately from this button, the console keeps comparing {cameraName}'s live picture with the good and faulty
+              sample images saved for it (Admin → Cameras → Edit camera → Inspection). The comparison happens on this
+              computer, so it uses no AI credit.
+            </p>
+            <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
+              <li>Clear match to a <span className="text-foreground">good</span> sample — the frame is passed as normal and the AI is not called.</li>
+              <li>Clear match to a <span className="text-foreground">faulty</span> sample — the AI is still called so the alert carries a description and evidence.</li>
+              <li>No clear match — the frame goes to the AI as usual.</li>
+              <li>If AI credit has run out, reference checks keep working, but frames needing AI are not analysed.</li>
+            </ul>
+          </div>
+
 
           {analysis && (
             <div className="space-y-4">
