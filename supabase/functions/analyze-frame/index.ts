@@ -200,7 +200,7 @@ Return ONLY the JSON object — no markdown, no prose.`;
 const SITE_PPE_MODEL_ID = "site/ppe-reference";
 const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
 
-const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, security, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the FULL frame as fractions between 0 and 1 (x/y = top-left corner, x+width <= 1, y+height <= 1). Never use pixels, percentages, 0-1000 units or crop-relative coordinates. One tight box per distinct subject you flag.`;
+const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, security, other), "severity", "confidence" (0-1) and "box_2d": [ymin, xmin, ymax, xmax] as integers on a 0-1000 grid measured against the FULL frame (top-left = 0,0, bottom-right = 1000,1000). The box must tightly enclose the subject — verify it before answering, and use "box_2d": null with a written location in "bbox_hint" when you cannot place the subject confidently. Never output a box over empty floor, sky or wall, and never reuse one box for two subjects.`;
 
 function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string; severity_hint?: string }[]) {
   const focus = categories.length
