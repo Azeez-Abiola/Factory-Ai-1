@@ -30,6 +30,14 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
   const evidencePath = typeof metadata?.evidence_path === "string" ? (metadata.evidence_path as string) : null;
   const boxes: VisionBox[] = useMemo(() => detectionsToBoxes(metadata ?? {}), [metadata]);
 
+  /** Detections the analyser could not place on the frame — described, never drawn. */
+  const unlocated = useMemo(() => {
+    const detections = Array.isArray((metadata as any)?.detections) ? ((metadata as any).detections as any[]) : [];
+    return detections
+      .filter((d) => d?.located === false || (!d?.bbox && !d?.box_2d))
+      .map((d) => ({ label: String(d?.label ?? "Detection"), hint: String(d?.bbox_hint ?? "") }));
+  }, [metadata]);
+
   useEffect(() => {
     let active = true;
     const resolve = async () => {
