@@ -267,12 +267,29 @@ List only the claims you confirm; omit the rest. An empty "findings" list is a p
     const m = cleaned.match(/\{[\s\S]*\}/);
     if (m) { try { verdict = JSON.parse(m[0]); } catch { /* noop */ } }
   }
-  if (!verdict || !Array.isArray(verdict.keep)) return;
+  const findings: any[] = Array.isArray(verdict?.findings)
+    ? verdict.findings
+    : Array.isArray(verdict?.keep)
+      ? verdict.keep.map((n: unknown) => ({ index: n })) // tolerate the simpler shape
+      : [];
+  if (!verdict || (!Array.isArray(verdict.findings) && !Array.isArray(verdict.keep))) return;
 
-  const keep = new Set(verdict.keep.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n)));
-  const kept = detections.filter((_d, i) => keep.has(i));
+  const corrections = new Map<number, unknown>();
+  for (const f of findings) {
+    const i = Number(f?.index);
+    if (Number.isInteger(i)) corrections.set(i, f?.box_2d);
+  }
+
+  const kept = detections.filter((_d, i) => corrections.has(i));
+  // The second look re-draws each box; keep the first pass's box only if the
+  // re-drawn one is unusable.
+  detections.forEach((d, i) => {
+    const fresh = corrections.get(i);
+    if (fresh) d.box_2d = fresh;
+  });
   const dropped = detections.length - kept.length;
   analysis.detections = kept;
+  normaliseDetections(analysis);
 
   // A violation with no surviving evidence is dropped with it.
   const keptCategories = new Set(kept.map((d) => String(d?.category ?? "").toLowerCase()));
