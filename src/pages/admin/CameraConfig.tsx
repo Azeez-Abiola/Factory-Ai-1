@@ -521,6 +521,15 @@ const CameraConfig = () => {
           </div>
         )}
 
+        {gatewayBase.startsWith("http://") && typeof window !== "undefined" && window.location.protocol === "https:" && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-foreground space-y-1">
+            <p className="font-medium">This address only plays from inside the factory network</p>
+            <p className="text-muted-foreground">
+              You are viewing the hosted console, which cannot load pictures from a local address. Open the console
+              from the plant PC instead, or publish the gateway properly — both routes are explained in the guides above.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Camera grid */}
