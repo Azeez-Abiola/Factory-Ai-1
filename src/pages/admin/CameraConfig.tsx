@@ -25,6 +25,7 @@ import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
 import NvrImportDialog from "@/components/admin/NvrImportDialog";
 
 import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
+import OnSiteModeGuide from "@/components/admin/OnSiteModeGuide";
 import LiveFeed from "@/components/app/LiveFeed";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
@@ -488,7 +489,7 @@ const CameraConfig = () => {
           <Settings2 className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Streaming Gateway</h3>
           <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Frigate · Ant Media</Badge>
-          <div className="ml-auto"><GatewaySetupGuide /></div>
+          <div className="ml-auto flex flex-wrap gap-2"><OnSiteModeGuide /><GatewaySetupGuide /></div>
         </div>
         <p className="text-xs text-muted-foreground">
           Browsers can't pull RTSP directly. Point a gateway at your RTSP cameras and paste its base URL here.
@@ -520,6 +521,15 @@ const CameraConfig = () => {
           </div>
         )}
 
+        {gatewayBase.startsWith("http://") && typeof window !== "undefined" && window.location.protocol === "https:" && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-foreground space-y-1">
+            <p className="font-medium">This address only plays from inside the factory network</p>
+            <p className="text-muted-foreground">
+              You are viewing the hosted console, which cannot load pictures from a local address. Open the console
+              from the plant PC instead, or publish the gateway properly — both routes are explained in the guides above.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Camera grid */}
