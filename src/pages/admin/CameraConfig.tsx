@@ -488,7 +488,7 @@ const CameraConfig = () => {
           <Settings2 className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Streaming Gateway</h3>
           <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Frigate · Ant Media</Badge>
-          <div className="ml-auto"><GatewaySetupGuide /></div>
+          <div className="ml-auto flex flex-wrap gap-2"><OnSiteModeGuide /><GatewaySetupGuide /></div>
         </div>
         <p className="text-xs text-muted-foreground">
           Browsers can't pull RTSP directly. Point a gateway at your RTSP cameras and paste its base URL here.
