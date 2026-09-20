@@ -25,6 +25,7 @@ import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
 import NvrImportDialog from "@/components/admin/NvrImportDialog";
 
 import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
+import OnSiteModeGuide from "@/components/admin/OnSiteModeGuide";
 import LiveFeed from "@/components/app/LiveFeed";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
