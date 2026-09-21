@@ -890,6 +890,64 @@ const CameraConfig = () => {
                       </p>
                     )}
                   </div>
+                  <div className="col-span-2 space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2">
+                        <Radio className="mt-0.5 h-4 w-4 text-primary" />
+                        <div>
+                          <p className="text-sm font-semibold">Play on site without a gateway</p>
+                          <p className="text-xs text-muted-foreground">
+                            When the console is opened from a computer on the factory network, play straight from the
+                            recorder. No gateway, no certificate — the address below never leaves the building.
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={!!editing.local_direct_enabled}
+                        onCheckedChange={(v) => setEditing({ ...editing, local_direct_enabled: v })}
+                      />
+                    </div>
+                    {editing.local_direct_enabled && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <Label>On-site stream address</Label>
+                          <Input
+                            value={editing.local_stream_url ?? ""}
+                            onChange={(e) => setEditing({ ...editing, local_stream_url: e.target.value })}
+                            placeholder="http://192.168.1.64/ISAPI/Streaming/channels/602/httpPreview"
+                            className="font-mono text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Format</Label>
+                          <Select
+                            value={(editing.local_stream_type as StreamType) ?? "mjpeg"}
+                            onValueChange={(v: StreamType) => setEditing({ ...editing, local_stream_type: v })}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="mjpeg">MJPEG (direct from recorder)</SelectItem>
+                              <SelectItem value="hls">HLS (local converter)</SelectItem>
+                              <SelectItem value="webrtc">WebRTC (local converter)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="sm:col-span-3 space-y-1.5">
+                          <Label>On-site snapshot address (optional)</Label>
+                          <Input
+                            value={editing.local_snapshot_url ?? ""}
+                            onChange={(e) => setEditing({ ...editing, local_snapshot_url: e.target.value })}
+                            placeholder="http://192.168.1.64/ISAPI/Streaming/channels/601/picture"
+                            className="font-mono text-sm"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Used as the still-picture fallback on site. Operators outside the factory automatically fall
+                            back to the gateway stream or the hosted snapshot, so nothing breaks off site.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <div className="col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
                     <div className="flex items-start gap-2">
                       {connectionTested ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> : <Router className="mt-0.5 h-4 w-4 text-primary" />}
