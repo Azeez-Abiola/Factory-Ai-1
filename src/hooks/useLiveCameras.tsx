@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Camera as MockCamera } from "@/data/mockData";
 import { useTenants } from "@/hooks/useTenants";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
+import { isOnSiteBrowser } from "@/lib/onSite";
 
 
 export interface LiveCamera extends MockCamera {
@@ -107,11 +108,11 @@ function normalize(row: any, detections: DetectionPing[], token: string | null):
     referenceSamples: Array.isArray(row.reference_samples) ? (row.reference_samples as ReferenceSample[]) : [],
     clipAnalysisEnabled: !!row.clip_analysis_enabled,
     clipSeconds: row.clip_seconds ?? 5,
-    fallbackUrl: row.stream_url ? snapshotPlayback : null,
-    fallbackType: row.stream_url && snapshotPlayback ? "snapshot" : null,
-    playbackUrl: row.stream_url ?? snapshotPlayback ?? null,
-    playbackType: row.stream_url ? ((row.stream_type as any) ?? "hls") : snapshotPlayback ? "snapshot" : null,
-    isLive: !!(row.stream_url || row.snapshot_url),
+    fallbackUrl: primaryUrl ? fallback : null,
+    fallbackType: primaryUrl && fallback ? "snapshot" : null,
+    playbackUrl: primaryUrl ?? fallback ?? null,
+    playbackType: primaryUrl ? (primaryType as any) : fallback ? "snapshot" : null,
+    isLive: !!(primaryUrl || fallback || row.snapshot_url),
     isDbBacked: true,
 
   };
@@ -163,7 +164,7 @@ export function useLiveCameras() {
       setLoading(true);
       // Never pull camera credentials or ingest tokens into the operator console.
       let q = supabase.from("cameras").select(
-        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error, regions_of_interest, reference_match_enabled, reference_match_threshold, reference_samples, clip_analysis_enabled, clip_seconds"
+        "id, tenant_id, name, zone, type, status, resolution, stream_url, stream_type, last_seen_at, heartbeat_interval_seconds, audio_enabled, fps, ptz_enabled, snapshot_url, inference_enabled, inference_interval_seconds, inference_status, last_inference_at, last_inference_error, regions_of_interest, reference_match_enabled, reference_match_threshold, reference_samples, clip_analysis_enabled, clip_seconds, local_direct_enabled, local_stream_url, local_stream_type, local_snapshot_url"
       ).order("name");
       if (activeTenantId) q = q.eq("tenant_id", activeTenantId);
       const { data, error } = await q;
