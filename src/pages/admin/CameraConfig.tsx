@@ -75,6 +75,11 @@ interface CameraRow {
   reference_samples?: ReferenceSample[];
   clip_analysis_enabled?: boolean;
   clip_seconds?: number;
+  /** On-site mode: play straight from the recorder, no streaming gateway. */
+  local_direct_enabled?: boolean;
+  local_stream_url?: string | null;
+  local_stream_type?: StreamType;
+  local_snapshot_url?: string | null;
 }
 
 
@@ -110,6 +115,10 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   reference_samples: [],
   clip_analysis_enabled: false,
   clip_seconds: 5,
+  local_direct_enabled: false,
+  local_stream_url: "",
+  local_stream_type: "mjpeg",
+  local_snapshot_url: "",
 
 });
 
@@ -258,8 +267,14 @@ const CameraConfig = () => {
       return toast.error("Add an AI snapshot address before enabling continuous analysis.");
     }
 
+    const onSiteOnly = !!e.local_direct_enabled && !!e.local_stream_url?.trim();
+    if (e.local_direct_enabled && !e.local_stream_url?.trim()) {
+      return toast.error("Add the recorder's on-site stream address, or switch on-site playback off.");
+    }
+
     // New cameras must pass a stream test before we persist them.
-    if (!e.id) {
+    // On-site addresses live on the factory network and cannot be reached from here.
+    if (!e.id && !onSiteOnly) {
       if (!stream && !e.rtsp_url && !gatewayBase) {
         return toast.error("Provide an RTSP URL, a playback URL, or configure a streaming gateway first.");
       }
@@ -310,6 +325,10 @@ const CameraConfig = () => {
       reference_samples: (e.reference_samples ?? []) as unknown as any,
       clip_analysis_enabled: !!e.clip_analysis_enabled,
       clip_seconds: e.clip_seconds ?? 5,
+      local_direct_enabled: !!e.local_direct_enabled,
+      local_stream_url: e.local_stream_url?.trim() || null,
+      local_stream_type: e.local_stream_type ?? "mjpeg",
+      local_snapshot_url: e.local_snapshot_url?.trim() || null,
     };
 
 
@@ -869,6 +888,64 @@ const CameraConfig = () => {
                       <p className="text-xs text-warning flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" /> No stream URL. Configure a gateway base URL above to auto-generate on save.
                       </p>
+                    )}
+                  </div>
+                  <div className="col-span-2 space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2">
+                        <Radio className="mt-0.5 h-4 w-4 text-primary" />
+                        <div>
+                          <p className="text-sm font-semibold">Play on site without a gateway</p>
+                          <p className="text-xs text-muted-foreground">
+                            When the console is opened from a computer on the factory network, play straight from the
+                            recorder. No gateway, no certificate — the address below never leaves the building.
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={!!editing.local_direct_enabled}
+                        onCheckedChange={(v) => setEditing({ ...editing, local_direct_enabled: v })}
+                      />
+                    </div>
+                    {editing.local_direct_enabled && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <Label>On-site stream address</Label>
+                          <Input
+                            value={editing.local_stream_url ?? ""}
+                            onChange={(e) => setEditing({ ...editing, local_stream_url: e.target.value })}
+                            placeholder="http://192.168.1.64/ISAPI/Streaming/channels/602/httpPreview"
+                            className="font-mono text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Format</Label>
+                          <Select
+                            value={(editing.local_stream_type as StreamType) ?? "mjpeg"}
+                            onValueChange={(v: StreamType) => setEditing({ ...editing, local_stream_type: v })}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="mjpeg">MJPEG (direct from recorder)</SelectItem>
+                              <SelectItem value="hls">HLS (local converter)</SelectItem>
+                              <SelectItem value="webrtc">WebRTC (local converter)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="sm:col-span-3 space-y-1.5">
+                          <Label>On-site snapshot address (optional)</Label>
+                          <Input
+                            value={editing.local_snapshot_url ?? ""}
+                            onChange={(e) => setEditing({ ...editing, local_snapshot_url: e.target.value })}
+                            placeholder="http://192.168.1.64/ISAPI/Streaming/channels/601/picture"
+                            className="font-mono text-sm"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Used as the still-picture fallback on site. Operators outside the factory automatically fall
+                            back to the gateway stream or the hosted snapshot, so nothing breaks off site.
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div className="col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
