@@ -100,7 +100,7 @@ const InviteAccept = () => {
                 <p className="text-sm text-muted-foreground text-center">
                   Sign in or create an account with <span className="font-medium">{invite.email}</span> to accept.
                 </p>
-                <Button className="w-full" onClick={() => navigate(`/auth?redirect=/invite/${token}`)}>
+                <Button className="w-full" onClick={() => navigate(`/auth?redirect=/invite/${token}&email=${encodeURIComponent(invite.email)}`)}>
                   Sign in to accept
                 </Button>
               </div>
@@ -109,7 +109,7 @@ const InviteAccept = () => {
                 <p className="text-sm text-destructive text-center">
                   You're signed in as {user.email}. Please sign in with {invite.email} to accept this invite.
                 </p>
-                <Button variant="outline" className="w-full" onClick={async () => { await supabase.auth.signOut(); navigate(`/auth?redirect=/invite/${token}`); }}>
+                <Button variant="outline" className="w-full" onClick={async () => { await supabase.auth.signOut(); navigate(`/auth?redirect=/invite/${token}&email=${encodeURIComponent(invite.email)}`); }}>
                   Switch account
                 </Button>
               </div>

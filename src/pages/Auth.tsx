@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, ArrowRight, Shield, Zap, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -14,15 +14,25 @@ import { useAuth } from "@/hooks/useAuth";
 const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const redirectParam = searchParams.get("redirect");
+  const emailParam = searchParams.get("email");
+
+  const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"signin" | "signup">("signin");
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/app";
+  // A redirect from an invite link (e.g. /invite/:token) takes priority so
+  // signing up or in from that link actually finishes accepting the invite,
+  // rather than dropping the invitee onto /app with no tenant membership.
+  const from = useMemo(() => {
+    if (redirectParam && redirectParam.startsWith("/")) return redirectParam;
+    return (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/app";
+  }, [redirectParam, location.state]);
 
   useEffect(() => {
     if (!authLoading && user) navigate(from, { replace: true });
@@ -47,7 +57,7 @@ const Auth = () => {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/app`,
+        emailRedirectTo: `${window.location.origin}${from}`,
         data: { display_name: displayName || email.split("@")[0] },
       },
     });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight, Gauge, LockKeyhole, RotateCcw } from "lucide-react";
+import { Users, Search, Plus, Mail, Shield, Eye, Wrench, Copy, RefreshCw, Trash2, Clock, CheckCircle2, MoreHorizontal, BriefcaseBusiness, Phone, CalendarDays, Fingerprint, ChevronRight, Gauge, LockKeyhole, RotateCcw, UserCheck, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { useAuth } from "@/hooks/useAuth";
@@ -54,11 +54,21 @@ interface InvitationRow {
   created_at: string;
 }
 
+interface PendingSignupRow {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  created_at: string;
+}
+
 const UserManagement = () => {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const { activeTenant, activeTenantId } = useTenants();
+  const isSuperAdmin = hasRole("super_admin");
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
+  const [pendingSignups, setPendingSignups] = useState<PendingSignupRow[]>([]);
+  const [signupActionBusy, setSignupActionBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -140,6 +150,42 @@ const UserManagement = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Pending self-signups are platform-wide (they have no tenant yet), so this
+  // loads independently of the active tenant and only for super admins.
+  const loadPendingSignups = useCallback(async () => {
+    if (!isSuperAdmin) { setPendingSignups([]); return; }
+    const { data, error } = await supabase.rpc("pending_signups");
+    if (error) { toast.error(error.message); return; }
+    setPendingSignups((data ?? []) as PendingSignupRow[]);
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    loadPendingSignups();
+  }, [loadPendingSignups]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const channel = supabase
+      .channel("pending-signups")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => loadPendingSignups())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [isSuperAdmin, loadPendingSignups]);
+
+  const reviewSignup = async (row: PendingSignupRow, approve: boolean) => {
+    if (!user) return;
+    setSignupActionBusy(row.user_id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ approval_status: approve ? "approved" : "rejected", approved_by: user.id, approved_at: new Date().toISOString() })
+      .eq("id", row.user_id);
+    setSignupActionBusy(null);
+    if (error) { toast.error(error.message); return; }
+    await auditLog({ action: approve ? "signup.approved" : "signup.rejected", entityType: "profile", entityId: row.user_id, metadata: { email: row.email } });
+    toast.success(approve ? `${row.email} approved` : `${row.email} declined`);
+    setPendingSignups((current) => current.filter((r) => r.user_id !== row.user_id));
+  };
 
   // Keep the list live when membership or invitations change elsewhere.
   useEffect(() => {
@@ -344,6 +390,11 @@ const UserManagement = () => {
           </TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="roles">Role Management</TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="signups">
+              Pending Sign-ups {pendingSignups.length > 0 && <Badge className="ml-2" variant="secondary">{pendingSignups.length}</Badge>}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="members" className="space-y-4">
@@ -554,6 +605,64 @@ const UserManagement = () => {
           </div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="outline" onClick={resetPermissions} disabled={permissionRole === "owner" || savingPermissions}><RotateCcw className="mr-2 h-4 w-4" />Reset to defaults</Button><Button onClick={savePermissions} disabled={permissionRole === "owner" || savingPermissions}>{savingPermissions ? "Saving…" : "Save role permissions"}</Button></div>
         </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="signups" className="space-y-4">
+            <p className="text-xs text-muted-foreground max-w-2xl">
+              Platform-wide — people who created their own account through the sign-up page, awaiting approval before they can access the app. This is separate from tenant invitations, which are pre-approved by whoever sent them.
+            </p>
+            <div className="rounded-lg border border-border overflow-x-auto bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingSignups.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No sign-ups awaiting approval.</TableCell></TableRow>
+                  ) : (
+                    pendingSignups.map((row) => (
+                      <TableRow key={row.user_id}>
+                        <TableCell className="font-medium">{row.display_name ?? "Unnamed user"}</TableCell>
+                        <TableCell className="text-muted-foreground">{row.email}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(row.created_at).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="inline-flex gap-1">
+                            <Button
+                              variant="ghost" size="sm"
+                              className="text-[hsl(var(--success))] hover:text-[hsl(var(--success))]"
+                              disabled={signupActionBusy === row.user_id}
+                              onClick={() => reviewSignup(row, true)}
+                            >
+                              <UserCheck className="w-4 h-4 mr-1" /> Approve
+                            </Button>
+                            <Button
+                              variant="ghost" size="sm"
+                              className="text-destructive hover:text-destructive"
+                              disabled={signupActionBusy === row.user_id}
+                              onClick={() => reviewSignup(row, false)}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" /> Decline
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
 
       <Sheet open={Boolean(selectedMember)} onOpenChange={(open) => { if (!open) setSelectedMember(null); }}>
