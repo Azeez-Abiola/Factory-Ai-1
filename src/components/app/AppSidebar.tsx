@@ -1,13 +1,18 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Bell, Camera, FileText,
-  Shield, Factory, ChevronLeft, ChevronRight,
+  Shield, Factory, ChevronLeft, ChevronRight, LogOut,
   ClipboardList, Sparkles, Wrench, HelpCircle, ShieldCheck, Map, Gauge, PackageSearch
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useTenantPermissions } from "@/hooks/useTenantPermissions";
 import type { PermissionKey } from "@/lib/permissions";
 
@@ -42,10 +47,18 @@ const navGroups: { label: string; items: { to: string; icon: typeof Bell; label:
 
 const AppSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const location = useLocation();
-  const { roles } = useAuth();
+  const navigate = useNavigate();
+  const { roles, signOut } = useAuth();
   const { can } = useTenantPermissions();
   const canAdmin = roles.includes("super_admin") || roles.includes("tenant_admin") || ["admin_sites.manage", "users.manage", "admin_ai.manage", "kpis.manage", "budget.manage", "rules.manage", "escalation.manage", "notifications.manage", "audit.view", "settings.manage"].some((permission) => can(permission as PermissionKey));
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out.");
+    navigate("/");
+  };
 
   return (
     <aside
@@ -55,7 +68,7 @@ const AppSidebar = () => {
       )}
     >
       {/* Logo */}
-      <div className={cn("flex items-center gap-3 h-20 border-b border-sidebar-border", collapsed ? "px-3.5" : "px-6")}>
+      <div className={cn("flex items-center gap-3 h-16 border-b border-sidebar-border", collapsed ? "px-3.5 justify-center" : "px-6")}>
         <div className="relative w-10 h-10 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
           <Factory className="w-5 h-5 text-primary-foreground" />
         </div>
@@ -67,6 +80,20 @@ const AppSidebar = () => {
             <div className="text-[10px] uppercase font-semibold text-muted-foreground mt-0.5">Operator Console</div>
           </div>
         )}
+      </div>
+
+      {/* Collapse toggle */}
+      <div className={cn("flex items-center h-10 border-b border-sidebar-border shrink-0", collapsed ? "justify-center px-3.5" : "justify-end px-3")}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="h-7 w-7 text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </Button>
       </div>
 
       {/* Nav */}
@@ -123,16 +150,32 @@ const AppSidebar = () => {
             {!collapsed && <span className="max-md:hidden">Admin Panel</span>}
           </NavLink>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="justify-start gap-3 px-3 h-10 text-sm font-normal text-sidebar-foreground hover:bg-sidebar-accent w-full"
-        >
-          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          {!collapsed && <span className="max-md:hidden">Collapse</span>}
-        </Button>
+        <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="justify-start gap-3 px-3 h-10 text-sm font-normal text-destructive hover:bg-destructive/10 hover:text-destructive w-full"
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              {!collapsed && <span className="max-md:hidden">Sign out</span>}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sign out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You'll need to sign in again to access your factory intelligence dashboard.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Sign out
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </aside>
   );

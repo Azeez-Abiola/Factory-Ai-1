@@ -1,12 +1,18 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
-  Factory, ChevronLeft, ChevronRight, ArrowLeft,
+  Factory, ChevronLeft, ChevronRight, ArrowLeft, LogOut,
   ScrollText, Settings2, Target, Camera, ShieldCheck, Timer, Bell, Sparkles, Wallet, MapPinPlus, Database
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useTenantPermissions } from "@/hooks/useTenantPermissions";
 import type { PermissionKey } from "@/lib/permissions";
 
@@ -46,10 +52,18 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
 
 const AdminSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const location = useLocation();
-  const { hasRole } = useAuth();
+  const navigate = useNavigate();
+  const { hasRole, signOut } = useAuth();
   const isSuperAdmin = hasRole("super_admin");
   const { can } = useTenantPermissions();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out.");
+    navigate("/");
+  };
 
   return (
     <aside
@@ -59,7 +73,7 @@ const AdminSidebar = () => {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
+      <div className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border">
         <div className="relative w-9 h-9 rounded-md bg-primary flex items-center justify-center shrink-0 shadow-sm">
           <Factory className="w-5 h-5 text-primary-foreground" />
         </div>
@@ -71,6 +85,17 @@ const AdminSidebar = () => {
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Platform Admin</div>
           </div>
         )}
+      </div>
+
+      {/* Collapse toggle */}
+      <div className="flex items-center justify-center md:justify-end px-3 h-10 border-b border-sidebar-border shrink-0">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="flex items-center justify-center h-7 w-7 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
       </div>
 
       {/* Nav */}
@@ -121,14 +146,32 @@ const AdminSidebar = () => {
           <ArrowLeft className="w-5 h-5 shrink-0" />
           {!collapsed && <span className="hidden md:inline">Back to App</span>}
         </NavLink>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          {!collapsed && <span className="hidden md:inline">Collapse</span>}
-        </button>
+        <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="justify-start gap-3 px-3 h-9 text-sm font-normal text-destructive hover:bg-destructive/10 hover:text-destructive w-full"
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              {!collapsed && <span className="hidden md:inline">Sign out</span>}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sign out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You'll need to sign in again to access the admin panel.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Sign out
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </aside>
   );
