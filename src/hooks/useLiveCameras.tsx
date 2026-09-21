@@ -70,6 +70,14 @@ function snapshotProxyUrl(cameraId: string, token: string | null) {
 
 function normalize(row: any, detections: DetectionPing[], token: string | null): LiveCamera {
   const snapshotPlayback = row.snapshot_url ? snapshotProxyUrl(row.id, token) : null;
+  // On the factory network the browser can pull video straight from the recorder,
+  // so no streaming gateway is involved at all.
+  const onSite = isOnSiteBrowser();
+  const localStream = onSite && row.local_direct_enabled ? row.local_stream_url ?? null : null;
+  const localSnapshot = onSite && row.local_direct_enabled ? row.local_snapshot_url ?? null : null;
+  const primaryUrl = localStream ?? row.stream_url ?? null;
+  const primaryType = localStream ? (row.local_stream_type ?? "mjpeg") : row.stream_url ? (row.stream_type ?? "hls") : null;
+  const fallback = localSnapshot ?? snapshotPlayback;
   const camDetections = detections.filter((d) => d.cameraId === row.id);
   return {
     id: row.id,
