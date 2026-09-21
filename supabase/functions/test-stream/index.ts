@@ -79,16 +79,7 @@ async function probeWhep(url: string, credentials?: { username?: string; passwor
 
 async function probeMjpeg(url: string, credentials?: { username?: string; password?: string } | null) {
   const res = await fetchWithTimeout(url, { method: 'GET', headers: { ...requestHeaders(credentials, 'image/*'), Range: 'bytes=0-1023' } }, credentials);
-  if (res.status === 404) {
-    return {
-      ok: false,
-      reason: 'The address was reached but returned "not found" (404). The server is online, so the path or stream/channel name is wrong. Check the exact stream name your gateway publishes (it is case-sensitive) and that the base address has no extra path on the end.',
-    };
-  }
-  if (res.status === 401 || res.status === 403) {
-    return { ok: false, reason: `The stream requires a login (HTTP ${res.status}). Add the camera username and password in the credentials fields.` };
-  }
-  if (!res.ok) return { ok: false, reason: `MJPEG returned HTTP ${res.status}` };
+  if (!res.ok) return { ok: false, reason: explainHttpStatus(res.status, 'picture feed') };
   const ct = res.headers.get('content-type') ?? '';
   if (!ct.startsWith('image/') && !ct.startsWith('multipart/')) {
     return { ok: false, reason: `Unexpected content-type: ${ct}` };
