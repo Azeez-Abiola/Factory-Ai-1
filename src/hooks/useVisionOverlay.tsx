@@ -8,7 +8,7 @@ import {
 
 export type VisionCategory =
   | "ppe" | "intrusion" | "downtime" | "ergonomics"
-  | "quality" | "housekeeping" | "forklift" | "other";
+  | "quality" | "housekeeping" | "forklift" | "security" | "other";
 
 export interface VisionBox {
   id: string;
@@ -25,6 +25,7 @@ export const VISION_CATEGORIES: { id: VisionCategory; label: string }[] = [
   { id: "forklift", label: "Forklift / pedestrian" },
   { id: "quality", label: "Quality" },
   { id: "housekeeping", label: "Housekeeping" },
+  { id: "security", label: "Security & theft control" },
   { id: "ergonomics", label: "Ergonomics" },
   { id: "downtime", label: "Downtime" },
   { id: "other", label: "Other" },
@@ -32,7 +33,7 @@ export const VISION_CATEGORIES: { id: VisionCategory; label: string }[] = [
 
 export const categoryColor = (category: VisionCategory) => `hsl(var(--vision-${category}))`;
 
-const KNOWN: VisionCategory[] = ["ppe", "intrusion", "downtime", "ergonomics", "quality", "housekeeping", "forklift", "other"];
+const KNOWN: VisionCategory[] = ["ppe", "intrusion", "downtime", "ergonomics", "quality", "housekeeping", "forklift", "security", "other"];
 
 function guessCategory(raw: unknown, label: string): VisionCategory {
   const value = String(raw ?? "").toLowerCase();
@@ -44,6 +45,7 @@ function guessCategory(raw: unknown, label: string): VisionCategory {
   if (/spill|obstruct|clutter|exit|5s|housekeep/.test(text)) return "housekeeping";
   if (/defect|quality|damage|misalign|packag/.test(text)) return "quality";
   if (/lift|posture|ergonom|strain|bend/.test(text)) return "ergonomics";
+  if (/theft|steal|stolen|conceal|pilfer|tamper|unauthori[sz]ed|loiter|after.?hours|suspicious|security/.test(text)) return "security";
   if (/idle|downtime|stall|stopped/.test(text)) return "downtime";
   return "other";
 }
@@ -120,11 +122,17 @@ function parseBox(raw: any, frame?: { width: number; height: number } | null): {
 
   if (!(w > 0.005) || !(h > 0.005)) return null;
 
+  // Pad the box into a slightly wider "search area" (12% of its size on each
+  // side) so the item is always inside the highlight even when the analyser's
+  // placement is approximate on low-resolution frames.
+  const padX = w * 0.12;
+  const padY = h * 0.12;
+
   // Clip to the frame so a box never hangs off the picture.
-  const x0 = clamp01(x);
-  const y0 = clamp01(y);
-  const x1 = clamp01(x + w);
-  const y1 = clamp01(y + h);
+  const x0 = clamp01(x - padX);
+  const y0 = clamp01(y - padY);
+  const x1 = clamp01(x + w + padX);
+  const y1 = clamp01(y + h + padY);
   const outW = x1 - x0;
   const outH = y1 - y0;
   if (!(outW > 0.005) || !(outH > 0.005)) return null;

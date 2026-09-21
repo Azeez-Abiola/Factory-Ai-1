@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
 import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
+import { normaliseDetections, detectionsForViolation } from "../_shared/bbox.ts";
+import { upscaleDataUrl } from "../_shared/upscale.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -116,7 +118,8 @@ async function raiseAlerts(
         clip_seconds: media === "video" ? cam.clip_seconds ?? null : null,
         camera: cam.name,
         summary: analysis.summary ?? null,
-        detections,
+        detections: detectionsForViolation(v, detections),
+        all_detections: detections,
         recommended_actions: analysis.recommended_actions ?? [],
         reference_verdict: body.referenceVerdict ?? null,
         scene_delta: typeof body.sceneDelta === "number" ? Number(body.sceneDelta.toFixed(3)) : null,
@@ -144,44 +147,176 @@ const DEFAULT_CATEGORIES = [
   { id: "quality",      label: "Quality / Defect",     description: "visible product or packaging defects: crushed, torn, leaking, mislabelled, open flaps, misaligned or missing items on the line" },
   { id: "housekeeping", label: "Housekeeping",         description: "spills, debris, trailing cables, stock stacked in walkways, blocked exits, extinguishers or panels obstructed" },
   { id: "forklift",     label: "Forklift / Pedestrian",description: "forklift and pedestrian sharing an unsegregated path, no spotter, raised load in motion, unsafe speed or reversing without visibility" },
+  { id: "security",     label: "Security & Theft Control", description: "visible events or conditions suggesting unauthorized access, removal, concealment or movement of company assets: unauthorized persons in restricted areas; materials removed from designated locations; a person carrying materials away from the expected workflow; products, tools or equipment being concealed (under clothing, in bags, behind other stock); unusual movement of inventory or transfers with no obvious operational context; unauthorized access to stores, warehouses, offices, production or controlled zones; tampering with equipment, storage, locks, doors or security barriers; loitering around inventory or high-value assets; unusual after-hours activity where the timestamp or context shows it; vehicles or persons interacting with materials in an apparently abnormal manner" },
 ];
 
 
-const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision safety analyst for a factory floor monitoring platform.
-Analyze the provided camera frame and return a STRICT JSON object with this schema:
+const DEFAULT_SYSTEM_PROMPT = `You are an industrial vision analyst for a factory floor monitoring platform.
+You are responsible for EVERY active detection category listed below — not only the obvious hazard in the picture.
+
+METHOD (follow in order, silently):
+1. Describe the scene to yourself: area type, people, machines, vehicles, materials, lighting, time-of-day cues.
+2. Sweep the frame category by category, in the order the active categories are listed. For each one, decide explicitly: is there evidence for it here, yes or no? Never skip a category because another one already produced a finding.
+3. Only then write the JSON. A single frame may legitimately produce findings in several categories at once, or none at all.
+
+EVIDENCE RULES — a false finding is worse than a missed one:
+- Report only objects you can actually SEE in this frame. Never infer from context, from what a camera like this usually shows, or from what "should" be there. Do not name an object type (chair, box, spill, tool) unless its shape is clearly distinguishable — if you can only tell that "something" is there, do not report it.
+- Before you list any detection, state to yourself the pixels that prove it: its outline, colour and where it sits relative to a fixed landmark. If you cannot do that, drop it.
+- CCTV frames are often low-resolution, compressed, dark or back-lit. In those conditions distant blobs, shadows, wall stains, reflections, railings and parked objects are NOT findings. When the frame is too poor to judge a category, say so in "summary" and report nothing for it.
+- One entry per distinct subject or event. Do not repeat the same person, machine or defect across multiple detections, and do not emit one detection per video frame — summarise the whole clip once.
+- "confidence" is calibrated 0-1 and must reflect image quality as well as certainty: ≥0.85 only when the object is unmistakable at this resolution, 0.6-0.85 likely, <0.6 uncertain. Do not report anything below 0.6 on a low-quality frame.
+- Every safety_violation must correspond to at least one detection of the same category, so the operator can see where it is.
+- A clean frame is the most common correct answer: return empty "detections" and "safety_violations" arrays, a short summary and a low risk_score. You are never rewarded for finding something — only for being right.
+
+SEVERITY:
+- low = housekeeping or minor deviation, no injury or loss pathway.
+- medium = policy breach with plausible harm or loss if repeated.
+- high = imminent injury, significant product loss, or asset removal in progress.
+- critical = life-threatening exposure, fire/chemical/electrical emergency, or major theft/unauthorised access.
+"risk_score" must be the highest-severity finding in the frame and must agree with the "severity" band.
+
+Return a STRICT JSON object with this schema:
 {
-  "summary": string,
+  "summary": string,     // 1-2 sentences: what is happening and what matters
   "risk_score": number,  // integer 0-100 (low 1-30, medium 31-60, high 61-85, critical 86-100) — must agree with "severity"
   "severity": "low"|"medium"|"high"|"critical",
   "detections": [ {
       "label": string,
-      "category": "ppe"|"intrusion"|"downtime"|"ergonomics"|"quality"|"housekeeping"|"forklift"|"other",
+      "category": "ppe"|"intrusion"|"downtime"|"ergonomics"|"quality"|"housekeeping"|"forklift"|"security"|"other",
       "severity": "low"|"medium"|"high"|"critical",
       "confidence": number,
-      "bbox": [x, y, width, height],
+      "box_2d": [ymin, xmin, ymax, xmax],
       "bbox_hint": string
   } ],
-  "safety_violations": [ { "type": string, "description": string, "severity": "low"|"medium"|"high"|"critical" } ],
+  "safety_violations": [ { "type": string, "category": string, "description": string, "severity": "low"|"medium"|"high"|"critical" } ],
   "productivity_notes": string[],
   "recommended_actions": string[]
 }
-"bbox" is REQUIRED for every detection and must be normalised to the image size as fractions between 0 and 1:
-x = left edge, y = top edge, width and height are the box size (x + width <= 1, y + height <= 1).
-Coordinates are always measured against the FULL frame you were given (top-left = 0,0; bottom-right = 1,1) — never against a crop, an inspection area or the original camera resolution.
-Draw one box per distinct person, vehicle, machine or hazard you flag — boxes must tightly enclose the subject.
+LOCALISATION — this is graded as strictly as the finding itself:
+- "box_2d" uses your standard 2D grounding convention: [ymin, xmin, ymax, xmax] as INTEGERS on a 0-1000 grid, measured against the FULL frame supplied (top-left = 0,0; bottom-right = 1000,1000).
+- The box must tightly enclose the subject you are describing — nothing else. Before answering, re-read the frame at those coordinates and confirm the subject is actually inside them; correct the numbers if it is not.
+- Never output a box over empty floor, sky or wall. If you cannot place the subject confidently, set "box_2d": null and explain the location in words in "bbox_hint" — an honest missing box is correct, an invented one is a failure.
+- One box per distinct person, vehicle, machine, product or hazard. Do not reuse a box for a second subject.
+- Each safety_violation carries the "category" of the detection that shows it, so the operator sees the right box.
+"recommended_actions" are concrete, shift-level instructions ("stop line 3 and clear the spill at the palletiser"), never generic advice.
 Return ONLY the JSON object — no markdown, no prose.`;
 
 
 const SITE_PPE_MODEL_ID = "site/ppe-reference";
 const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
 
-const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, other), "severity", "confidence" (0-1) and "bbox": [x, y, width, height] normalised to the FULL frame as fractions between 0 and 1 (x/y = top-left corner, x+width <= 1, y+height <= 1). Never use pixels, percentages, 0-1000 units or crop-relative coordinates. One tight box per distinct subject you flag.`;
+const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, security, other), "severity", "confidence" (0-1) and "box_2d": [ymin, xmin, ymax, xmax] as integers on a 0-1000 grid measured against the FULL frame (top-left = 0,0, bottom-right = 1000,1000). The box must tightly enclose the subject — verify it before answering, and use "box_2d": null with a written location in "bbox_hint" when you cannot place the subject confidently. Never output a box over empty floor, sky or wall, and never reuse one box for two subjects.`;
 
-function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string }[]) {
+function buildSystemPrompt(base: string, categories: { id: string; label: string; description: string; severity_hint?: string }[]) {
   const focus = categories.length
-    ? `\n\nActive detection categories (focus your attention here):\n${categories.map((c) => `• ${c.label}: ${c.description}`).join("\n")}`
+    ? `\n\nACTIVE DETECTION CATEGORIES — check the frame against EVERY one of these, in this order, before answering. Use the exact id in the "category" field:\n${categories
+        .map((c, i) => `${i + 1}. ${c.id} — ${c.label}: ${c.description}${(c as any).severity_hint ? ` [default severity: ${(c as any).severity_hint}]` : ""}`)
+        .join("\n")}\n\nCoverage rule: these ${categories.length} categories are the complete scope for this site. Anything outside them is not reported. Anything inside them is reported even when a different category already yielded a more serious finding. Findings that fit none of the listed categories use "other" and are described plainly.`
     : "";
   return `${base}${focus}\n\n${BBOX_CONTRACT}`;
+}
+
+/**
+ * Verification pass: shows the same frame back with the findings the first pass
+ * produced and keeps only the ones the model can confirm at the coordinates it
+ * gave. Cheap insurance against hallucinated objects on grainy CCTV frames —
+ * runs only when the first pass actually reported something.
+ */
+async function verifyFindings(
+  analysis: any,
+  opts: { key: string; model: string; content: Record<string, unknown> },
+): Promise<void> {
+  if (!analysis || typeof analysis !== "object") return;
+  const detections: any[] = Array.isArray(analysis.detections) ? analysis.detections : [];
+  const violations: any[] = Array.isArray(analysis.safety_violations) ? analysis.safety_violations : [];
+  if (!detections.length && !violations.length) return;
+
+  const claims = detections.map((d, i) => {
+    const b = Array.isArray(d?.box_2d) ? d.box_2d.join(", ") : "no box";
+    return `${i}. "${d?.label}" (${d?.category}) at box_2d [${b}] — ${d?.bbox_hint ?? ""}`;
+  }).join("\n");
+
+  const verifyPrompt = `You are auditing another analyst's report on this CCTV frame. Be sceptical: their job was to spot problems, yours is to throw out anything that is not really there.
+For each numbered claim, look at the frame at the given coordinates (box_2d is [ymin, xmin, ymax, xmax] on a 0-1000 grid over the full frame) and decide:
+- keep it ONLY if the named object is clearly visible AND actually inside those coordinates;
+- reject it if the region is empty floor/wall/sky, if the object is a shadow, stain, reflection, railing or indistinct blob, or if the object is real but the box is in the wrong place;
+- reject it if the frame is too dark, small or compressed for you to confirm the object type by its shape.
+Claims:
+${claims}
+
+For every claim you keep, re-draw the box yourself from scratch by looking at the frame — do not copy their numbers unless they are already tight around the object.
+Return ONLY strict JSON:
+{"findings": [ { "index": number, "box_2d": [ymin, xmin, ymax, xmax] } ], "reason": "one short sentence"}
+List only the claims you confirm; omit the rest. An empty "findings" list is a perfectly good answer.`;
+
+  const res = await fetch(GEMINI_CHAT_URL, {
+    method: "POST",
+    headers: geminiHeaders(opts.key),
+    body: JSON.stringify({
+      model: toGeminiModel(opts.model),
+      messages: [
+        { role: "system", content: "You verify industrial vision findings against the image. You reject anything you cannot see with certainty. Answer with JSON only." },
+        { role: "user", content: [{ type: "text", text: verifyPrompt }, opts.content] },
+      ],
+    }),
+  });
+  if (!res.ok) return; // never let verification break a successful analysis
+
+  const raw: string = (await res.json())?.choices?.[0]?.message?.content ?? "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+  let verdict: any = null;
+  try { verdict = JSON.parse(cleaned); } catch {
+    const m = cleaned.match(/\{[\s\S]*\}/);
+    if (m) { try { verdict = JSON.parse(m[0]); } catch { /* noop */ } }
+  }
+  const findings: any[] = Array.isArray(verdict?.findings)
+    ? verdict.findings
+    : Array.isArray(verdict?.keep)
+      ? verdict.keep.map((n: unknown) => ({ index: n })) // tolerate the simpler shape
+      : [];
+  if (!verdict || (!Array.isArray(verdict.findings) && !Array.isArray(verdict.keep))) return;
+
+  const corrections = new Map<number, unknown>();
+  for (const f of findings) {
+    const i = Number(f?.index);
+    if (Number.isInteger(i)) corrections.set(i, f?.box_2d);
+  }
+
+  const kept = detections.filter((_d, i) => corrections.has(i));
+  // The second look re-draws each box; keep the first pass's box only if the
+  // re-drawn one is unusable.
+  detections.forEach((d, i) => {
+    const fresh = corrections.get(i);
+    if (fresh) d.box_2d = fresh;
+  });
+  const dropped = detections.length - kept.length;
+  analysis.detections = kept;
+  normaliseDetections(analysis);
+
+  // A violation with no surviving evidence is dropped with it.
+  const keptCategories = new Set(kept.map((d) => String(d?.category ?? "").toLowerCase()));
+  analysis.safety_violations = violations.filter((v) => {
+    const cat = String(v?.category ?? "").toLowerCase();
+    if (!kept.length) return false;
+    return !cat || keptCategories.has(cat);
+  });
+
+  analysis.verification = {
+    checked: detections.length,
+    kept: kept.length,
+    dropped,
+    reason: typeof verdict.reason === "string" ? verdict.reason.slice(0, 300) : null,
+  };
+
+  if (!analysis.safety_violations.length && !kept.length) {
+    analysis.severity = "low";
+    analysis.risk_score = Math.min(Number(analysis.risk_score) || 10, 20);
+    if (dropped > 0) {
+      analysis.summary = `No confirmed findings in this frame${
+        verdict.reason ? ` — ${String(verdict.reason).slice(0, 200)}` : ""
+      }`;
+    }
+  }
 }
 
 
@@ -352,6 +487,10 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Small recorder snapshots get upscaled first — the model localises much
+    // better on a larger frame, and normalised boxes are unaffected.
+    const analysisImageUrl = body.videoUrl ? undefined : await upscaleDataUrl(body.imageUrl);
+
     const gwRes = await fetch(GEMINI_CHAT_URL, {
       method: "POST",
       headers: geminiHeaders(key),
@@ -370,7 +509,7 @@ Deno.serve(async (req) => {
             { type: "text", text: userText },
             body.videoUrl
               ? { type: "video_url", video_url: { url: body.videoUrl } }
-              : { type: "image_url", image_url: { url: body.imageUrl } },
+              : { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
           ]},
         ],
       }),
@@ -418,6 +557,24 @@ Deno.serve(async (req) => {
       if (match) { try { analysis = JSON.parse(match[0]); } catch { /* noop */ } }
     }
 
+    // Resolve every detection's box before anything stores or draws it.
+    normaliseDetections(analysis);
+
+    // Second look: CCTV frames are noisy and the first pass sometimes names
+    // objects that are not there. Re-show the frame and keep only findings the
+    // model can confirm at the exact coordinates it gave.
+    try {
+      await verifyFindings(analysis, {
+        key,
+        model,
+        content: body.videoUrl
+          ? { type: "video_url", video_url: { url: body.videoUrl } }
+          : { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
+      });
+    } catch (e) {
+      console.warn("verification pass skipped", e instanceof Error ? e.message : e);
+    }
+
     // Models sometimes answer on a 0-10 scale. Normalise to 0-100 and keep the
     // score consistent with the severity word so the UI never disagrees itself.
     if (analysis && typeof analysis === "object") {
@@ -445,7 +602,11 @@ Deno.serve(async (req) => {
         media,
         sceneChanged: body.sceneChanged !== false,
         sceneDelta: typeof body.sceneDelta === "number" ? body.sceneDelta : null,
-        metadata: { camera: body.cameraName ?? null, zone: body.zone ?? null },
+        metadata: {
+          camera: body.cameraName ?? null,
+          zone: body.zone ?? null,
+          verification: analysis?.verification ?? null,
+        },
       }, budget ?? undefined);
     }
 

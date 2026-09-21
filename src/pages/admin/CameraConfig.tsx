@@ -26,9 +26,11 @@ import CameraInspectionTab from "@/components/admin/CameraInspectionTab";
 import NvrImportDialog from "@/components/admin/NvrImportDialog";
 
 import GatewaySetupGuide from "@/components/admin/GatewaySetupGuide";
+import OnSiteModeGuide from "@/components/admin/OnSiteModeGuide";
 import LiveFeed from "@/components/app/LiveFeed";
 import { GATEWAY_PATTERNS, getGatewayPattern, guessSnapshotFromRtsp, type GatewayVendor } from "@/lib/gatewayPatterns";
 import type { Region, ReferenceSample } from "@/lib/visionMatch";
+import { useDetectionCategories } from "@/lib/detectionCategories";
 
 
 
@@ -74,16 +76,14 @@ interface CameraRow {
   reference_samples?: ReferenceSample[];
   clip_analysis_enabled?: boolean;
   clip_seconds?: number;
+  /** On-site mode: play straight from the recorder, no streaming gateway. */
+  local_direct_enabled?: boolean;
+  local_stream_url?: string | null;
+  local_stream_type?: StreamType;
+  local_snapshot_url?: string | null;
 }
 
 
-const AI_MODEL_DEFS = [
-  { key: "ppe", label: "PPE Compliance", desc: "Hard hats, vests, gloves, goggles" },
-  { key: "intrusion", label: "Restricted Zone Intrusion", desc: "Unauthorized personnel detection" },
-  { key: "downtime", label: "Downtime & Idle Detection", desc: "Machine idle, unattended stations" },
-  { key: "quality", label: "Quality Defect Detection", desc: "Label, color, alignment anomalies" },
-  { key: "ergonomics", label: "Ergonomic Risk", desc: "Unsafe postures, lifting hazards" },
-] as const;
 
 const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   tenant_id: tenantId,
@@ -116,6 +116,10 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   reference_samples: [],
   clip_analysis_enabled: false,
   clip_seconds: 5,
+  local_direct_enabled: false,
+  local_stream_url: "",
+  local_stream_type: "mjpeg",
+  local_snapshot_url: "",
 
 });
 
@@ -149,6 +153,10 @@ const CameraConfig = () => {
   const [nvrOpen, setNvrOpen] = useState(false);
 
   const [connectionTested, setConnectionTested] = useState(false);
+
+  // Detection categories come from this site's AI Model & Categories module,
+  // so the camera editor always offers exactly what the analyser looks for.
+  const { categories: detectionCategories } = useDetectionCategories(editing?.tenant_id ?? activeTenantId);
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -260,8 +268,14 @@ const CameraConfig = () => {
       return toast.error("Add an AI snapshot address before enabling continuous analysis.");
     }
 
+    const onSiteOnly = !!e.local_direct_enabled && !!e.local_stream_url?.trim();
+    if (e.local_direct_enabled && !e.local_stream_url?.trim()) {
+      return toast.error("Add the recorder's on-site stream address, or switch on-site playback off.");
+    }
+
     // New cameras must pass a stream test before we persist them.
-    if (!e.id) {
+    // On-site addresses live on the factory network and cannot be reached from here.
+    if (!e.id && !onSiteOnly) {
       if (!stream && !e.rtsp_url && !gatewayBase) {
         return toast.error("Provide an RTSP URL, a playback URL, or configure a streaming gateway first.");
       }
@@ -312,6 +326,10 @@ const CameraConfig = () => {
       reference_samples: (e.reference_samples ?? []) as unknown as any,
       clip_analysis_enabled: !!e.clip_analysis_enabled,
       clip_seconds: e.clip_seconds ?? 5,
+      local_direct_enabled: !!e.local_direct_enabled,
+      local_stream_url: e.local_stream_url?.trim() || null,
+      local_stream_type: e.local_stream_type ?? "mjpeg",
+      local_snapshot_url: e.local_snapshot_url?.trim() || null,
     };
 
 
@@ -491,7 +509,7 @@ const CameraConfig = () => {
           <Settings2 className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Streaming Gateway</h3>
           <Badge variant="outline" className="text-xs">MediaMTX · go2rtc · Frigate · Ant Media</Badge>
-          <div className="ml-auto"><GatewaySetupGuide /></div>
+          <div className="ml-auto flex flex-wrap gap-2"><OnSiteModeGuide /><GatewaySetupGuide /></div>
         </div>
         <p className="text-xs text-muted-foreground">
           Browsers can't pull RTSP directly. Point a gateway at your RTSP cameras and paste its base URL here.
@@ -523,6 +541,15 @@ const CameraConfig = () => {
           </div>
         )}
 
+        {gatewayBase.startsWith("http://") && typeof window !== "undefined" && window.location.protocol === "https:" && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-foreground space-y-1">
+            <p className="font-medium">This address only plays from inside the factory network</p>
+            <p className="text-muted-foreground">
+              You are viewing the hosted console, which cannot load pictures from a local address. Open the console
+              from the plant PC instead, or publish the gateway properly — both routes are explained in the guides above.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Camera grid */}
@@ -864,6 +891,64 @@ const CameraConfig = () => {
                       </p>
                     )}
                   </div>
+                  <div className="col-span-2 space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2">
+                        <Radio className="mt-0.5 h-4 w-4 text-primary" />
+                        <div>
+                          <p className="text-sm font-semibold">Play on site without a gateway</p>
+                          <p className="text-xs text-muted-foreground">
+                            When the console is opened from a computer on the factory network, play straight from the
+                            recorder. No gateway, no certificate — the address below never leaves the building.
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={!!editing.local_direct_enabled}
+                        onCheckedChange={(v) => setEditing({ ...editing, local_direct_enabled: v })}
+                      />
+                    </div>
+                    {editing.local_direct_enabled && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-2 space-y-1.5">
+                          <Label>On-site stream address</Label>
+                          <Input
+                            value={editing.local_stream_url ?? ""}
+                            onChange={(e) => setEditing({ ...editing, local_stream_url: e.target.value })}
+                            placeholder="http://192.168.1.64/ISAPI/Streaming/channels/602/httpPreview"
+                            className="font-mono text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Format</Label>
+                          <Select
+                            value={(editing.local_stream_type as StreamType) ?? "mjpeg"}
+                            onValueChange={(v: StreamType) => setEditing({ ...editing, local_stream_type: v })}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="mjpeg">MJPEG (direct from recorder)</SelectItem>
+                              <SelectItem value="hls">HLS (local converter)</SelectItem>
+                              <SelectItem value="webrtc">WebRTC (local converter)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="sm:col-span-3 space-y-1.5">
+                          <Label>On-site snapshot address (optional)</Label>
+                          <Input
+                            value={editing.local_snapshot_url ?? ""}
+                            onChange={(e) => setEditing({ ...editing, local_snapshot_url: e.target.value })}
+                            placeholder="http://192.168.1.64/ISAPI/Streaming/channels/601/picture"
+                            className="font-mono text-sm"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Used as the still-picture fallback on site. Operators outside the factory automatically fall
+                            back to the gateway stream or the hosted snapshot, so nothing breaks off site.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <div className="col-span-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border bg-muted/20 p-4">
                     <div className="flex items-start gap-2">
                       {connectionTested ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> : <Router className="mt-0.5 h-4 w-4 text-primary" />}
@@ -905,19 +990,24 @@ const CameraConfig = () => {
 
               <TabsContent value="ai" className="space-y-3 pt-4">
                 <p className="text-xs text-muted-foreground">
-                  Enable models to process frames from this camera. Powered by Gemini 2.5 vision via the AI Gateway.
+                  Choose what this camera is analysed for. This list mirrors the detection categories set up for this site
+                  in AI Model &amp; Categories — add or rename categories there and they appear here.
                 </p>
-                {AI_MODEL_DEFS.map((m) => (
-                  <div key={m.key} className="flex items-center justify-between p-3 rounded-lg border border-border">
-                    <div>
-                      <p className="text-sm font-medium">{m.label}</p>
-                      <p className="text-xs text-muted-foreground">{m.desc}</p>
+                {detectionCategories.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                    <div className="pr-3">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {m.label}
+                        {m.enabled === false && <Badge variant="outline" className="text-[10px]">off for this site</Badge>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{m.description}</p>
                     </div>
                     <Switch
-                      checked={!!editing.ai_models?.[m.key]}
+                      disabled={m.enabled === false}
+                      checked={!!editing.ai_models?.[m.id]}
                       onCheckedChange={(v) => setEditing({
                         ...editing,
-                        ai_models: { ...(editing.ai_models ?? {}), [m.key]: v },
+                        ai_models: { ...(editing.ai_models ?? {}), [m.id]: v },
                       })}
                     />
                   </div>

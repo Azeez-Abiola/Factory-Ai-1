@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ai_analysis_config: {
@@ -440,6 +465,10 @@ export type Database = {
           last_inference_error: string | null
           last_scene_delta: number | null
           last_seen_at: string | null
+          local_direct_enabled: boolean
+          local_snapshot_url: string | null
+          local_stream_type: string
+          local_stream_url: string | null
           max_idle_seconds: number
           metadata: Json | null
           name: string
@@ -486,6 +515,10 @@ export type Database = {
           last_inference_error?: string | null
           last_scene_delta?: number | null
           last_seen_at?: string | null
+          local_direct_enabled?: boolean
+          local_snapshot_url?: string | null
+          local_stream_type?: string
+          local_stream_url?: string | null
           max_idle_seconds?: number
           metadata?: Json | null
           name: string
@@ -532,6 +565,10 @@ export type Database = {
           last_inference_error?: string | null
           last_scene_delta?: number | null
           last_seen_at?: string | null
+          local_direct_enabled?: boolean
+          local_snapshot_url?: string | null
+          local_stream_type?: string
+          local_stream_url?: string | null
           max_idle_seconds?: number
           metadata?: Json | null
           name?: string
@@ -2007,6 +2044,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

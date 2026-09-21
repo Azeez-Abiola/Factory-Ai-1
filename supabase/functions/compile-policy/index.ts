@@ -26,7 +26,7 @@ Return STRICT JSON only, no markdown, matching this schema:
   "summary": string,
   "suggested_actions": string[]
 }
-Focus on: PPE, restricted zones, downtime, ergonomics, quality/defect, housekeeping, ingress/egress.`;
+Focus on: PPE, restricted zones, downtime, ergonomics, quality/defect, housekeeping, security & theft control, ingress/egress.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

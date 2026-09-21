@@ -30,6 +30,14 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
   const evidencePath = typeof metadata?.evidence_path === "string" ? (metadata.evidence_path as string) : null;
   const boxes: VisionBox[] = useMemo(() => detectionsToBoxes(metadata ?? {}), [metadata]);
 
+  /** Detections the analyser could not place on the frame — described, never drawn. */
+  const unlocated = useMemo(() => {
+    const detections = Array.isArray((metadata as any)?.detections) ? ((metadata as any).detections as any[]) : [];
+    return detections
+      .filter((d) => d?.located === false || (!d?.bbox && !d?.box_2d))
+      .map((d) => ({ label: String(d?.label ?? "Detection"), hint: String(d?.bbox_hint ?? "") }));
+  }, [metadata]);
+
   useEffect(() => {
     let active = true;
     const resolve = async () => {
@@ -158,18 +166,31 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
       </div>
 
       {!isThumb && (
-        <div className="flex flex-wrap items-center gap-2">
-          {boxes.map((b) => (
-            <span key={`legend-${b.id}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span className="h-2 w-2 rounded-sm" style={{ background: categoryColor(b.category) }} />
-              {b.label}
-            </span>
-          ))}
-          <Button asChild size="sm" variant="outline" className="ml-auto h-7 gap-1.5 text-xs">
-            <a href={url} target="_blank" rel="noreferrer" download>
-              <Download className="h-3 w-3" /> Frame
-            </a>
-          </Button>
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {boxes.map((b) => (
+              <span key={`legend-${b.id}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="h-2 w-2 rounded-sm" style={{ background: categoryColor(b.category) }} />
+                {b.label}
+              </span>
+            ))}
+            <Button asChild size="sm" variant="outline" className="ml-auto h-7 gap-1.5 text-xs">
+              <a href={url} target="_blank" rel="noreferrer" download>
+                <Download className="h-3 w-3" /> Frame
+              </a>
+            </Button>
+          </div>
+          {boxes.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              Highlights show where the analyser believes each item is — treat them as a pointer, and judge the picture itself.
+            </p>
+          )}
+          {unlocated.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              Not marked on the picture: {unlocated.map((d) => d.label).join(", ")} — the analyser described the location instead
+              of drawing a box.
+            </p>
+          )}
         </div>
       )}
     </div>
