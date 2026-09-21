@@ -75,6 +75,11 @@ interface CameraRow {
   reference_samples?: ReferenceSample[];
   clip_analysis_enabled?: boolean;
   clip_seconds?: number;
+  /** On-site mode: play straight from the recorder, no streaming gateway. */
+  local_direct_enabled?: boolean;
+  local_stream_url?: string | null;
+  local_stream_type?: StreamType;
+  local_snapshot_url?: string | null;
 }
 
 
@@ -110,6 +115,10 @@ const emptyCam = (tenantId: string): Partial<CameraRow> => ({
   reference_samples: [],
   clip_analysis_enabled: false,
   clip_seconds: 5,
+  local_direct_enabled: false,
+  local_stream_url: "",
+  local_stream_type: "mjpeg",
+  local_snapshot_url: "",
 
 });
 
@@ -258,8 +267,14 @@ const CameraConfig = () => {
       return toast.error("Add an AI snapshot address before enabling continuous analysis.");
     }
 
+    const onSiteOnly = !!e.local_direct_enabled && !!e.local_stream_url?.trim();
+    if (e.local_direct_enabled && !e.local_stream_url?.trim()) {
+      return toast.error("Add the recorder's on-site stream address, or switch on-site playback off.");
+    }
+
     // New cameras must pass a stream test before we persist them.
-    if (!e.id) {
+    // On-site addresses live on the factory network and cannot be reached from here.
+    if (!e.id && !onSiteOnly) {
       if (!stream && !e.rtsp_url && !gatewayBase) {
         return toast.error("Provide an RTSP URL, a playback URL, or configure a streaming gateway first.");
       }
@@ -310,6 +325,10 @@ const CameraConfig = () => {
       reference_samples: (e.reference_samples ?? []) as unknown as any,
       clip_analysis_enabled: !!e.clip_analysis_enabled,
       clip_seconds: e.clip_seconds ?? 5,
+      local_direct_enabled: !!e.local_direct_enabled,
+      local_stream_url: e.local_stream_url?.trim() || null,
+      local_stream_type: e.local_stream_type ?? "mjpeg",
+      local_snapshot_url: e.local_snapshot_url?.trim() || null,
     };
 
 
