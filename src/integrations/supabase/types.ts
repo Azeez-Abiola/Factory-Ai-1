@@ -1901,6 +1901,16 @@ export type Database = {
         Args: { _permission_key: string; _tenant_id: string }
         Returns: boolean
       }
+      invitation_preview: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          expires_at: string
+          role: string
+          status: string
+          tenant_name: string
+        }[]
+      }
       is_tenant_member: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean

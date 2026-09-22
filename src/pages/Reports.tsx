@@ -10,7 +10,7 @@ import CreateReportDialog from "@/components/reports/CreateReportDialog";
 import { downloadCSV } from "@/lib/exporters";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
-import { REPORT_TYPE_LABELS, type ReportRow } from "@/lib/reportBuilder";
+import { REPORT_TYPE_LABELS, REPORT_TYPES, type ReportRow } from "@/lib/reportBuilder";
 import {
   Select,
   SelectContent,
@@ -177,15 +177,14 @@ const Reports = () => {
           />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-40 bg-card border-border">
-            <SelectValue placeholder="Type" />
+          <SelectTrigger className="w-full sm:w-56 bg-card border-border">
+            <SelectValue placeholder="Focus area" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="safety">Safety</SelectItem>
-            <SelectItem value="quality">Quality</SelectItem>
-            <SelectItem value="audit">Audit</SelectItem>
-            <SelectItem value="productivity">Productivity</SelectItem>
+            <SelectItem value="all">All focus areas</SelectItem>
+            {REPORT_TYPES.map((t) => (
+              <SelectItem key={t} value={t}>{REPORT_TYPE_LABELS[t]}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>

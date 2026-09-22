@@ -135,8 +135,7 @@ const AIConfig = () => {
       if (data) {
         setSystemPrompt(data.system_prompt || DEFAULT_PROMPT);
         setModel(data.model || "google/gemini-2.5-pro");
-        const cats = Array.isArray(data.categories) ? (data.categories as unknown as Category[]) : [];
-        setCategories(mergeWithDefaults(cats));
+        setCategories(mergeWithDefaults(data.categories));
         const defects = Array.isArray((data as any).defect_types) ? ((data as any).defect_types as DefectType[]) : [];
         setDefectTypes(defects);
         const models = Array.isArray((data as any).custom_models) ? ((data as any).custom_models as CustomModel[]) : [];
@@ -342,7 +341,7 @@ const AIConfig = () => {
       <Tabs defaultValue="prompt" className="space-y-4">
         <TabsList>
           <TabsTrigger value="prompt">System Prompt</TabsTrigger>
-          <TabsTrigger value="categories">Detection Categories ({categories.length})</TabsTrigger>
+          <TabsTrigger value="categories">Detection Categories{loading ? "" : ` (${categories.length})`}</TabsTrigger>
           <TabsTrigger value="model">Model</TabsTrigger>
           <TabsTrigger value="help">How it works</TabsTrigger>
         </TabsList>

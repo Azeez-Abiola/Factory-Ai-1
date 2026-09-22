@@ -387,7 +387,16 @@ Deno.serve(async (req) => {
           if (data.system_prompt && data.system_prompt.trim().length > 20) systemPrompt = data.system_prompt;
           if (data.model) model = data.model;
           if (Array.isArray(data.categories) && data.categories.length) {
-            categories = data.categories.filter((c: any) => c?.enabled !== false);
+            // Older sites saved categories as plain id strings — coerce them so
+            // the prompt never lists an empty/undefined category.
+            const coerced = (data.categories as any[])
+              .map((c: any) =>
+                typeof c === "string"
+                  ? { id: c, label: c.replace(/[_-]+/g, " "), description: "", severity_hint: "medium", enabled: true }
+                  : c,
+              )
+              .filter((c: any) => c?.id && c?.enabled !== false);
+            if (coerced.length) categories = coerced;
           }
           if (Array.isArray((data as any).reference_images)) {
             referenceImages = (data as any).reference_images.filter((r: any) => r?.path);
