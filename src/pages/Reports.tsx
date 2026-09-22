@@ -177,8 +177,8 @@ const Reports = () => {
           />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-40 bg-card border-border">
-            <SelectValue placeholder="Type" />
+          <SelectTrigger className="w-full sm:w-56 bg-card border-border">
+            <SelectValue placeholder="Focus area" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All focus areas</SelectItem>

@@ -65,7 +65,8 @@ const ReportDetail = () => {
     try {
       const start = report.period_start ? new Date(report.period_start) : new Date(Date.now() - 7 * 864e5);
       const end = report.period_end ? new Date(report.period_end) : new Date();
-      const built = await buildReport(report.tenant_id, report.type, start, end);
+      const scope = (report.data as unknown as { scope?: { cameraIds?: string[]; zones?: string[] } })?.scope;
+      const built = await buildReport(report.tenant_id, report.type, start, end, scope);
       const { error } = await supabase
         .from("reports")
         .update({
@@ -73,7 +74,7 @@ const ReportDetail = () => {
           status: built.status,
           findings_count: built.findings_count,
           summary: built.summary,
-          data: JSON.parse(JSON.stringify(built.data)),
+          data: JSON.parse(JSON.stringify({ ...built.data, scope: scope ?? null })),
         })
         .eq("id", report.id);
       if (error) throw error;
