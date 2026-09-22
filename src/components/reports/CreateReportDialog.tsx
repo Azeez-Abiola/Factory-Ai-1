@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import FieldLabel from "@/components/forms/FieldLabel";
+import MultiSelect from "@/components/admin/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
-import { buildReport, REPORT_TYPE_LABELS, type ReportType } from "@/lib/reportBuilder";
+import { buildReport, REPORT_TYPE_LABELS, REPORT_TYPES, type ReportType } from "@/lib/reportBuilder";
 import {
   Dialog,
   DialogContent,
@@ -36,27 +37,72 @@ const PERIODS = [
   { value: "7", label: "Last 7 days" },
   { value: "30", label: "Last 30 days" },
   { value: "90", label: "Last quarter" },
+  { value: "365", label: "Last 12 months" },
+  { value: "custom", label: "Custom date range" },
 ];
+
+const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 
 const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCount, onCreated }: CreateReportDialogProps) => {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<ReportType>("safety");
   const [days, setDays] = useState("7");
+  const [from, setFrom] = useState(toDateInput(new Date(Date.now() - 7 * 864e5)));
+  const [to, setTo] = useState(toDateInput(new Date()));
+  const [cameras, setCameras] = useState<{ id: string; name: string; zone: string | null }[]>([]);
+  const [cameraIds, setCameraIds] = useState<string[]>([]);
+  const [zones, setZones] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open || !tenantId) return;
+    supabase
+      .from("cameras")
+      .select("id,name,zone")
+      .eq("tenant_id", tenantId)
+      .order("name")
+      .then(({ data }) => setCameras(data ?? []));
+  }, [open, tenantId]);
+
+  const zoneOptions = useMemo(() => {
+    const set = new Set(cameras.map((c) => c.zone).filter((z): z is string => !!z && z.trim() !== ""));
+    return [...set].sort().map((z) => ({ value: z, label: z }));
+  }, [cameras]);
 
   const reset = () => {
     setTitle("");
     setType("safety");
     setDays("7");
+    setCameraIds([]);
+    setZones([]);
+  };
+
+  const resolvePeriod = (): { start: Date; end: Date; label: string } | null => {
+    if (days === "custom") {
+      const start = new Date(`${from}T00:00:00`);
+      const end = new Date(`${to}T23:59:59`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        toast.error("Pick a valid start and end date");
+        return null;
+      }
+      if (start > end) {
+        toast.error("The start date must come before the end date");
+        return null;
+      }
+      return { start, end, label: `${from} to ${to}` };
+    }
+    const end = new Date();
+    const start = new Date(end.getTime() - Number(days) * 864e5);
+    return { start, end, label: PERIODS.find((p) => p.value === days)?.label ?? `Last ${days} days` };
   };
 
   const handleSubmit = async () => {
     if (!tenantId) return toast.error("Select a site first");
+    const period = resolvePeriod();
+    if (!period) return;
     setSaving(true);
     try {
-      const end = new Date();
-      const start = new Date(end.getTime() - Number(days) * 24 * 60 * 60 * 1000);
-      const built = await buildReport(tenantId, type, start, end);
+      const built = await buildReport(tenantId, type, period.start, period.end, { cameraIds, zones });
 
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes?.user ?? null;
@@ -66,19 +112,35 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
         name = profile?.display_name || user.email || "AI System";
       }
 
-      const label = PERIODS.find((p) => p.value === days)?.label ?? `Last ${days} days`;
+      // Next reference number, based on the highest one already used for this site.
+      const { data: last } = await supabase
+        .from("reports")
+        .select("reference")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      const highest = (last ?? []).reduce((max, r) => {
+        const n = Number(String(r.reference).replace(/\D/g, ""));
+        return Number.isFinite(n) && n > max ? n : max;
+      }, reportCount);
+
+      const scopeNote =
+        cameraIds.length || zones.length
+          ? ` · ${[zones.length ? `${zones.length} zone${zones.length > 1 ? "s" : ""}` : "", cameraIds.length ? `${cameraIds.length} camera${cameraIds.length > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ")}`
+          : "";
+
       const { error } = await supabase.from("reports").insert({
         tenant_id: tenantId,
-        reference: `RPT-${String(reportCount + 1).padStart(4, "0")}`,
-        title: title.trim() || `${REPORT_TYPE_LABELS[type]} report — ${tenantName ?? "site"} (${label})`,
+        reference: `RPT-${String(highest + 1).padStart(4, "0")}`,
+        title: title.trim() || `${REPORT_TYPE_LABELS[type]} report — ${tenantName ?? "site"} (${period.label})`,
         type,
         status: built.status,
         score: built.score,
         findings_count: built.findings_count,
-        period_start: start.toISOString(),
-        period_end: end.toISOString(),
-        summary: built.summary,
-        data: JSON.parse(JSON.stringify(built.data)),
+        period_start: period.start.toISOString(),
+        period_end: period.end.toISOString(),
+        summary: `${built.summary}${scopeNote ? ` Scope:${scopeNote.replace(" · ", " ")}.` : ""}`,
+        data: JSON.parse(JSON.stringify({ ...built.data, scope: { cameraIds, zones } })),
         generated_by: user?.id ?? null,
         generated_by_name: name,
       });
@@ -97,7 +159,7 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
 
   return (
     <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
-      <DialogContent className="max-w-lg bg-card">
+      <DialogContent className="max-w-lg bg-card max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary" />
@@ -122,14 +184,13 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <FieldLabel required>Focus</FieldLabel>
+              <FieldLabel required>Focus area</FieldLabel>
               <Select value={type} onValueChange={(v) => setType(v as ReportType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="safety">Safety</SelectItem>
-                  <SelectItem value="quality">Quality</SelectItem>
-                  <SelectItem value="audit">Audit (everything)</SelectItem>
-                  <SelectItem value="productivity">Productivity</SelectItem>
+                  {REPORT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{REPORT_TYPE_LABELS[t]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -147,11 +208,49 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
             </div>
           </div>
 
+          {days === "custom" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <FieldLabel required htmlFor="rpt-from">From</FieldLabel>
+                <Input id="rpt-from" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <FieldLabel required htmlFor="rpt-to">To</FieldLabel>
+                <Input id="rpt-to" type="date" value={to} min={from} max={toDateInput(new Date())} onChange={(e) => setTo(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <FieldLabel optional htmlFor="rpt-zones">Limit to zones</FieldLabel>
+              <MultiSelect
+                id="rpt-zones"
+                options={zoneOptions}
+                value={zones}
+                onChange={setZones}
+                placeholder="All zones"
+                emptyText="No zones set on this site's cameras yet."
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel optional htmlFor="rpt-cameras">Limit to cameras</FieldLabel>
+              <MultiSelect
+                id="rpt-cameras"
+                options={cameras.map((c) => ({ value: c.id, label: c.name, hint: c.zone ?? undefined }))}
+                value={cameraIds}
+                onChange={setCameraIds}
+                placeholder="All cameras"
+                emptyText="No cameras on this site yet."
+              />
+            </div>
+          </div>
+
           <div className="flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 p-3">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <p className="text-xs text-muted-foreground">
               The score starts at 100 and drops with every open issue — critical issues weigh most, closed ones count far less.
-              Below 75% the report is marked failed.
+              Below 75% the report is marked failed. Choosing "Audit" covers every focus area at once.
             </p>
           </div>
         </div>
