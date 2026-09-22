@@ -570,7 +570,7 @@ const CameraConfig = () => {
           </Select>
           <Input
             value={gatewayBase}
-            onChange={(e) => setGatewayBase(e.target.value)}
+            onChange={(e) => { gatewayDirty.current = true; setGatewayBase(e.target.value); }}
             placeholder="https://gateway.example.com"
             className="font-mono text-sm"
           />
