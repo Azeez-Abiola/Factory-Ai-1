@@ -147,6 +147,8 @@ const CameraConfig = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
   const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
+  // Tracks unsaved edits so a late tenant refresh never overwrites what is being typed.
+  const gatewayDirty = useRef(false);
 
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
   const [nvrOpen, setNvrOpen] = useState(false);
