@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera, Plus, Trash2, Wifi, Edit2, Save, X, RefreshCw, Copy, CheckCircle2,
   AlertCircle, Radio, Terminal, Settings2, Loader2, Router, KeyRound,
