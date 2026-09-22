@@ -562,7 +562,7 @@ const CameraConfig = () => {
           New cameras auto-generate their playback and snapshot addresses from this base plus the camera ID.
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Select value={gatewayVendor} onValueChange={(v: GatewayVendor) => setGatewayVendor(v)}>
+          <Select value={gatewayVendor} onValueChange={(v: GatewayVendor) => { gatewayDirty.current = true; setGatewayVendor(v); }}>
             <SelectTrigger className="sm:w-52"><SelectValue placeholder="Gateway software" /></SelectTrigger>
             <SelectContent>
               {GATEWAY_PATTERNS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
