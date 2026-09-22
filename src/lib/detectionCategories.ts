@@ -22,11 +22,39 @@ export const DEFAULT_CATEGORIES: DetectionCategory[] = [
   { id: "security",     label: "Security & Theft Control", description: "unauthorized access, removal, concealment or abnormal movement of company assets/materials", severity_hint: "critical", enabled: true },
 ];
 
+const titleise = (id: string) => id.replace(/[_-]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+
+/** Older sites stored categories as plain id strings. Coerce anything we read
+ *  into the full object shape so the UI and the analyser never see blanks. */
+export const normaliseCategories = (raw: unknown): DetectionCategory[] => {
+  if (!Array.isArray(raw)) return [];
+  const out: DetectionCategory[] = [];
+  for (const entry of raw) {
+    if (typeof entry === "string" && entry.trim()) {
+      const id = entry.trim();
+      out.push({ id, label: titleise(id), description: "", severity_hint: "medium", enabled: true });
+    } else if (entry && typeof entry === "object") {
+      const c = entry as Partial<DetectionCategory>;
+      if (!c.id) continue;
+      out.push({
+        id: c.id,
+        label: c.label || titleise(c.id),
+        description: c.description ?? "",
+        severity_hint: c.severity_hint ?? "medium",
+        enabled: c.enabled !== false,
+      });
+    }
+  }
+  // Last entry wins on duplicate ids.
+  return Array.from(new Map(out.map((c) => [c.id, c])).values());
+};
+
 /** Keeps a tenant's saved list but adds any newly shipped built-in categories. */
-export const mergeWithDefaults = (saved: DetectionCategory[]): DetectionCategory[] => {
-  if (!saved.length) return DEFAULT_CATEGORIES;
-  const missing = DEFAULT_CATEGORIES.filter((d) => !saved.some((c) => c.id === d.id));
-  return [...saved, ...missing];
+export const mergeWithDefaults = (saved: unknown): DetectionCategory[] => {
+  const list = normaliseCategories(saved);
+  if (!list.length) return DEFAULT_CATEGORIES;
+  const missing = DEFAULT_CATEGORIES.filter((d) => !list.some((c) => c.id === d.id));
+  return [...list, ...missing];
 };
 
 /** Live list of a site's detection categories (built-ins + the site's own),
