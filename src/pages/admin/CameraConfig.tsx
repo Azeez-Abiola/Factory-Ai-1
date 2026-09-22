@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera, Plus, Trash2, Wifi, Edit2, Save, X, RefreshCw, Copy, CheckCircle2,
   AlertCircle, Radio, Terminal, Settings2, Loader2, Router, KeyRound,
@@ -138,7 +138,7 @@ const isLikelyStreamUrl = (u: string, t: StreamType) => {
 const isLikelyRtsp = (u: string) => /^rtsp(s)?:\/\/.+/i.test(u);
 
 const CameraConfig = () => {
-  const { activeTenant, activeTenantId, tenants } = useTenants();
+  const { activeTenant, activeTenantId, tenants, reload: reloadTenants } = useTenants();
   const [rows, setRows] = useState<CameraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<CameraRow> | null>(null);
@@ -147,6 +147,8 @@ const CameraConfig = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
   const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
+  // Tracks unsaved edits so a late tenant refresh never overwrites what is being typed.
+  const gatewayDirty = useRef(false);
 
   const [heartbeatFor, setHeartbeatFor] = useState<CameraRow | null>(null);
   const [nvrOpen, setNvrOpen] = useState(false);
@@ -172,10 +174,18 @@ const CameraConfig = () => {
 
   useEffect(() => {
     load();
-    setGatewayBase((activeTenant as any)?.settings?.gateway_base_url ?? "");
-    setGatewayVendor(((activeTenant as any)?.settings?.gateway_vendor as GatewayVendor) ?? "mediamtx");
+    gatewayDirty.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenantId]);
+
+  // Keep the gateway fields in step with the saved site settings, which may arrive
+  // after this page mounts — but never clobber edits the user is in the middle of.
+  useEffect(() => {
+    if (gatewayDirty.current) return;
+    const settings = ((activeTenant as any)?.settings ?? {}) as Record<string, unknown>;
+    setGatewayBase(typeof settings.gateway_base_url === "string" ? settings.gateway_base_url : "");
+    setGatewayVendor((settings.gateway_vendor as GatewayVendor) ?? "mediamtx");
+  }, [activeTenantId, activeTenant]);
 
 
   // Realtime sync so the wall + config stay in lockstep as soon as gateways emit heartbeats
@@ -201,15 +211,52 @@ const CameraConfig = () => {
 
   const saveGatewaySettings = async () => {
     if (!activeTenantId) return;
+    const cleaned = gatewayBase.trim().replace(/\/+$/, "");
+    if (cleaned && !/^https?:\/\/[^\s/]+/i.test(cleaned)) {
+      toast.error("Gateway address must start with http:// or https:// — for example http://192.168.10.50:8888");
+      return;
+    }
     setSavingSettings(true);
-    const existing = ((activeTenant as any)?.settings ?? {}) as Record<string, unknown>;
-    const { error } = await supabase
+
+    // Read the current settings straight from the database so a stale copy in the
+    // page can never wipe other site settings, and so re-saving always works.
+    const { data: current, error: readError } = await supabase
       .from("tenants")
-      .update({ settings: { ...existing, gateway_base_url: gatewayBase.replace(/\/$/, ""), gateway_vendor: gatewayVendor } })
-      .eq("id", activeTenantId);
+      .select("settings")
+      .eq("id", activeTenantId)
+      .maybeSingle();
+    if (readError) {
+      setSavingSettings(false);
+      toast.error(readError.message);
+      return;
+    }
+    const existing = ((current?.settings ?? {}) as Record<string, unknown>);
+
+    const { data: saved, error } = await supabase
+      .from("tenants")
+      .update({
+        settings: {
+          ...existing,
+          gateway_base_url: cleaned || null,
+          gateway_vendor: gatewayVendor,
+        },
+      })
+      .eq("id", activeTenantId)
+      .select("settings")
+      .maybeSingle();
     setSavingSettings(false);
-    if (error) toast.error(error.message);
-    else toast.success("Gateway settings saved");
+
+    if (error) { toast.error(error.message); return; }
+    if (!saved) {
+      toast.error("Gateway address was not saved — you may not have permission to change this site's settings.");
+      return;
+    }
+
+    const persisted = ((saved.settings ?? {}) as Record<string, unknown>).gateway_base_url;
+    setGatewayBase(typeof persisted === "string" ? persisted : "");
+    gatewayDirty.current = false;
+    await reloadTenants();
+    toast.success(cleaned ? "Gateway address saved" : "Gateway address cleared");
   };
 
 
@@ -515,7 +562,7 @@ const CameraConfig = () => {
           New cameras auto-generate their playback and snapshot addresses from this base plus the camera ID.
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Select value={gatewayVendor} onValueChange={(v: GatewayVendor) => setGatewayVendor(v)}>
+          <Select value={gatewayVendor} onValueChange={(v: GatewayVendor) => { gatewayDirty.current = true; setGatewayVendor(v); }}>
             <SelectTrigger className="sm:w-52"><SelectValue placeholder="Gateway software" /></SelectTrigger>
             <SelectContent>
               {GATEWAY_PATTERNS.map((p) => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
@@ -523,7 +570,7 @@ const CameraConfig = () => {
           </Select>
           <Input
             value={gatewayBase}
-            onChange={(e) => setGatewayBase(e.target.value)}
+            onChange={(e) => { gatewayDirty.current = true; setGatewayBase(e.target.value); }}
             placeholder="https://gateway.example.com"
             className="font-mono text-sm"
           />
