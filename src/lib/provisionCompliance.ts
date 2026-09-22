@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { mergeWithDefaults, normaliseCategories } from "@/lib/detectionCategories";
 import {
   POLICY_TEMPLATES,
   STARTER_PACKS,
@@ -80,12 +81,18 @@ export async function provisionTenantCompliance(
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  const current: string[] = Array.isArray(cfg?.categories) ? (cfg!.categories as string[]) : [];
-  const merged = Array.from(new Set([...current, ...pack.categories]));
+  // Always store the full object shape — plain id strings break the category
+  // editor and the analyser prompt.
+  const current = normaliseCategories(cfg?.categories);
+  const merged = mergeWithDefaults([
+    ...current,
+    ...normaliseCategories(pack.categories as unknown),
+  ]);
   if (merged.length !== current.length) {
+    const payload = merged as unknown as never;
     const { error } = cfg
-      ? await supabase.from("ai_analysis_config").update({ categories: merged }).eq("id", cfg.id)
-      : await supabase.from("ai_analysis_config").insert({ tenant_id: tenantId, categories: merged });
+      ? await supabase.from("ai_analysis_config").update({ categories: payload }).eq("id", cfg.id)
+      : await supabase.from("ai_analysis_config").insert({ tenant_id: tenantId, categories: payload });
     if (error) result.errors.push(`Detection categories: ${error.message}`);
     else result.categoriesCreated = merged.length - current.length;
   }

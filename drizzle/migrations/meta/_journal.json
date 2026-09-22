@@ -8,6 +8,13 @@
       "when": 1789970953522,
       "tag": "0000_camera_onsite_direct_stream",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790063728220,
+      "tag": "0001_fix_categories_and_invitation_preview",
+      "breakpoints": true
     }
   ]
 }

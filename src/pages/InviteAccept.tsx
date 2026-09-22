@@ -10,7 +10,7 @@ const InviteAccept = () => {
   const { token } = useParams<{ token: string }>();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [invite, setInvite] = useState<{ email: string; tenant_id: string; role: string; status: string; expires_at: string } | null>(null);
+  const [invite, setInvite] = useState<{ email: string; role: string; status: string; expires_at: string } | null>(null);
   const [tenantName, setTenantName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
@@ -20,17 +20,15 @@ const InviteAccept = () => {
     if (!token) return;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("tenant_invitations")
-        .select("email,tenant_id,role,status,expires_at")
-        .eq("token", token)
-        .maybeSingle();
-      if (error || !data) {
-        setError("This invitation link is invalid.");
+      // Read through a secure lookup so the page works before sign-in and for
+      // people signed in with a different email.
+      const { data, error } = await supabase.rpc("invitation_preview", { _token: token });
+      const row = Array.isArray(data) ? data[0] : null;
+      if (error || !row) {
+        setError("This invitation link is invalid or has been removed.");
       } else {
-        setInvite(data);
-        const { data: t } = await supabase.from("tenants").select("name").eq("id", data.tenant_id).maybeSingle();
-        setTenantName(t?.name ?? "the tenant");
+        setInvite({ email: row.email, role: row.role, status: row.status, expires_at: row.expires_at });
+        setTenantName(row.tenant_name ?? "the workspace");
       }
       setLoading(false);
     })();
