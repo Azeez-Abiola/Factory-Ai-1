@@ -174,10 +174,18 @@ const CameraConfig = () => {
 
   useEffect(() => {
     load();
-    setGatewayBase((activeTenant as any)?.settings?.gateway_base_url ?? "");
-    setGatewayVendor(((activeTenant as any)?.settings?.gateway_vendor as GatewayVendor) ?? "mediamtx");
+    gatewayDirty.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTenantId]);
+
+  // Keep the gateway fields in step with the saved site settings, which may arrive
+  // after this page mounts — but never clobber edits the user is in the middle of.
+  useEffect(() => {
+    if (gatewayDirty.current) return;
+    const settings = ((activeTenant as any)?.settings ?? {}) as Record<string, unknown>;
+    setGatewayBase(typeof settings.gateway_base_url === "string" ? settings.gateway_base_url : "");
+    setGatewayVendor((settings.gateway_vendor as GatewayVendor) ?? "mediamtx");
+  }, [activeTenantId, activeTenant]);
 
 
   // Realtime sync so the wall + config stay in lockstep as soon as gateways emit heartbeats
