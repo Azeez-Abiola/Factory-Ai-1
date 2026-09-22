@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Building2, Users, Activity, CreditCard,
   Factory, ChevronLeft, ChevronRight, ArrowLeft, LogOut,
-  ScrollText, Settings2, Target, Camera, ShieldCheck, Timer, Bell, Sparkles, Wallet, MapPinPlus, Database
+  ScrollText, Settings2, Target, Camera, ShieldCheck, Timer, Bell, Sparkles, Wallet, MapPinPlus, Database, UsersRound
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ const navGroups: { label: string; items: { to: string; icon: typeof Users; label
     items: [
       { to: "/admin", icon: Building2, label: "Sites & Tenants", end: true, permission: "admin_sites.manage" },
       { to: "/admin/users", icon: Users, label: "User Management", permission: "users.manage" },
+      { to: "/admin/platform-users", icon: UsersRound, label: "All Users", platformOnly: true },
       { to: "/admin/sites", icon: Factory, label: "Site Overview", permission: "admin_sites.manage" },
       { to: "/admin/site-requests", icon: MapPinPlus, label: "Site Requests", permission: "admin_sites.manage" },
     ],

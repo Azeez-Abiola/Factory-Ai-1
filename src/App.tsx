@@ -29,6 +29,7 @@ import ReportDetail from "./pages/ReportDetail.tsx";
 import AdminLayout from "./components/admin/AdminLayout.tsx";
 import Tenants from "./pages/admin/Tenants.tsx";
 import UserManagement from "./pages/admin/UserManagement.tsx";
+import PlatformUsers from "./pages/admin/PlatformUsers.tsx";
 import SystemMonitoring from "./pages/admin/SystemMonitoring.tsx";
 import Billing from "./pages/admin/Billing.tsx";
 import AuditLog from "./pages/admin/AuditLog.tsx";
@@ -113,6 +114,7 @@ const App = () => (
             >
               <Route index element={<PermissionRoute permission="admin_sites.manage"><Tenants /></PermissionRoute>} />
               <Route path="users" element={<PermissionRoute permission="users.manage"><UserManagement /></PermissionRoute>} />
+              <Route path="platform-users" element={<ProtectedRoute requireRoles={["super_admin"]}><PlatformUsers /></ProtectedRoute>} />
               <Route path="system" element={<ProtectedRoute requireRoles={["super_admin"]}><SystemMonitoring /></ProtectedRoute>} />
               <Route path="billing" element={<ProtectedRoute requireRoles={["super_admin"]}><Billing /></ProtectedRoute>} />
               <Route path="audit-log" element={<PermissionRoute permission="audit.view"><AuditLog /></PermissionRoute>} />
