@@ -341,7 +341,7 @@ const AIConfig = () => {
       <Tabs defaultValue="prompt" className="space-y-4">
         <TabsList>
           <TabsTrigger value="prompt">System Prompt</TabsTrigger>
-          <TabsTrigger value="categories">Detection Categories ({categories.length})</TabsTrigger>
+          <TabsTrigger value="categories">Detection Categories{loading ? "" : ` (${categories.length})`}</TabsTrigger>
           <TabsTrigger value="model">Model</TabsTrigger>
           <TabsTrigger value="help">How it works</TabsTrigger>
         </TabsList>
