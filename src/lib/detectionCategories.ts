@@ -74,8 +74,7 @@ export function useDetectionCategories(tenantId?: string | null) {
         .eq("tenant_id", tenantId)
         .maybeSingle();
       if (cancelled) return;
-      const saved = Array.isArray(data?.categories) ? (data!.categories as unknown as DetectionCategory[]) : [];
-      setCategories(mergeWithDefaults(saved.filter((c) => c?.id && c?.label)));
+      setCategories(mergeWithDefaults(data?.categories));
       setLoading(false);
     };
     void load();
