@@ -94,14 +94,46 @@ const InviteAccept = () => {
             </div>
 
             {!user ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground text-center">
-                  Sign in or create an account with <span className="font-medium">{invite.email}</span> to accept.
-                </p>
-                <Button className="w-full" onClick={() => navigate(`/auth?redirect=/invite/${token}`)}>
-                  Sign in to accept
-                </Button>
-              </div>
+              sentConfirm ? (
+                <div className="text-center space-y-2">
+                  <CheckCircle2 className="w-8 h-8 text-primary mx-auto" />
+                  <p className="text-sm text-muted-foreground">
+                    Almost there — we sent a confirmation email to{" "}
+                    <span className="font-medium text-foreground">{invite.email}</span>. Open it to activate your
+                    account, then come back to this link to join {tenantName}.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={createAccount} className="space-y-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Choose a password to create your account for{" "}
+                    <span className="font-medium text-foreground">{invite.email}</span>.
+                  </p>
+                  <div>
+                    <Label htmlFor="inv-name">Full name</Label>
+                    <Input id="inv-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ada Lovelace" className="mt-1.5 h-11" />
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-pw">Create password</Label>
+                    <Input id="inv-pw" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" />
+                    <p className="text-xs text-muted-foreground mt-1.5">At least 8 characters. Only you will know it.</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-pw2">Confirm password</Label>
+                    <Input id="inv-pw2" type="password" required value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} className="mt-1.5 h-11" />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={creating}>
+                    {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account…</> : "Create account & join"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/auth?redirect=/invite/${token}`)}
+                    className="w-full text-xs text-primary hover:underline"
+                  >
+                    I already have an account — sign in
+                  </button>
+                </form>
+              )
             ) : user.email?.toLowerCase() !== invite.email.toLowerCase() ? (
               <div className="space-y-3">
                 <p className="text-sm text-destructive text-center">
