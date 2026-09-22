@@ -15,6 +15,41 @@ const InviteAccept = () => {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [sentConfirm, setSentConfirm] = useState(false);
+
+  const createAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invite) return;
+    if (password.length < 8) return toast.error("Password must be at least 8 characters.");
+    if (password !== confirmPw) return toast.error("Passwords don't match.");
+    setCreating(true);
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: invite.email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/invite/${token}`,
+        data: { display_name: fullName || invite.email.split("@")[0] },
+      },
+    });
+    setCreating(false);
+    if (signUpError) {
+      toast.error(
+        signUpError.message.includes("already")
+          ? "This email already has an account. Sign in instead."
+          : signUpError.message,
+      );
+      return;
+    }
+    if (data.session) {
+      toast.success("Account created.");
+      return;
+    }
+    setSentConfirm(true);
+  };
 
   useEffect(() => {
     if (!token) return;
