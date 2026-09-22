@@ -123,6 +123,7 @@ export const buildReport = async (
   type: ReportType,
   periodStart: Date,
   periodEnd: Date,
+  scope?: { cameraIds?: string[]; zones?: string[] },
 ): Promise<{ score: number; status: ReportStatus; findings_count: number; summary: string; data: ReportData }> => {
   const [alertsRes, camerasRes, incidentsRes, historyRes] = await Promise.all([
     supabase
@@ -153,7 +154,17 @@ export const buildReport = async (
   (camerasRes.data ?? []).forEach((c) => cameraMap.set(c.id, { name: c.name, zone: c.zone }));
 
   const all = (alertsRes.data ?? []) as AlertLike[];
-  const scoped = all.filter((a) => matchesType(a, type));
+  const cameraFilter = scope?.cameraIds?.length ? new Set(scope.cameraIds) : null;
+  const zoneFilter = scope?.zones?.length ? new Set(scope.zones.map((z) => z.toLowerCase())) : null;
+  const scoped = all.filter((a) => {
+    if (!matchesType(a, type)) return false;
+    if (cameraFilter && !(a.camera_id && cameraFilter.has(a.camera_id))) return false;
+    if (zoneFilter) {
+      const zone = (a.zone ?? cameraMap.get(a.camera_id ?? "")?.zone ?? "").toLowerCase();
+      if (!zoneFilter.has(zone)) return false;
+    }
+    return true;
+  });
 
   // Group repeat alerts of the same kind in the same zone into one finding.
   const groups = new Map<string, AlertLike[]>();
