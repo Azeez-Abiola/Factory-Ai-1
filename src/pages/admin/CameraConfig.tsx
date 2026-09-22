@@ -138,7 +138,7 @@ const isLikelyStreamUrl = (u: string, t: StreamType) => {
 const isLikelyRtsp = (u: string) => /^rtsp(s)?:\/\/.+/i.test(u);
 
 const CameraConfig = () => {
-  const { activeTenant, activeTenantId, tenants } = useTenants();
+  const { activeTenant, activeTenantId, tenants, reload: reloadTenants } = useTenants();
   const [rows, setRows] = useState<CameraRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<CameraRow> | null>(null);
