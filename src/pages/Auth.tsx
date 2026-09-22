@@ -31,7 +31,11 @@ const Auth = () => {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"signin" | "signup">("signin");
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/app";
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
+  const from =
+    (redirectParam && redirectParam.startsWith("/") ? redirectParam : null) ??
+    (location.state as { from?: { pathname: string } } | null)?.from?.pathname ??
+    "/app";
 
   useEffect(() => {
     if (!authLoading && user) navigate(from, { replace: true });
