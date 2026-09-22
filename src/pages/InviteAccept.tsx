@@ -3,6 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, XCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +18,41 @@ const InviteAccept = () => {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [sentConfirm, setSentConfirm] = useState(false);
+
+  const createAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!invite) return;
+    if (password.length < 8) return toast.error("Password must be at least 8 characters.");
+    if (password !== confirmPw) return toast.error("Passwords don't match.");
+    setCreating(true);
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: invite.email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/invite/${token}`,
+        data: { display_name: fullName || invite.email.split("@")[0] },
+      },
+    });
+    setCreating(false);
+    if (signUpError) {
+      toast.error(
+        signUpError.message.includes("already")
+          ? "This email already has an account. Sign in instead."
+          : signUpError.message,
+      );
+      return;
+    }
+    if (data.session) {
+      toast.success("Account created.");
+      return;
+    }
+    setSentConfirm(true);
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -94,14 +132,46 @@ const InviteAccept = () => {
             </div>
 
             {!user ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground text-center">
-                  Sign in or create an account with <span className="font-medium">{invite.email}</span> to accept.
-                </p>
-                <Button className="w-full" onClick={() => navigate(`/auth?redirect=/invite/${token}&email=${encodeURIComponent(invite.email)}`)}>
-                  Sign in to accept
-                </Button>
-              </div>
+              sentConfirm ? (
+                <div className="text-center space-y-2">
+                  <CheckCircle2 className="w-8 h-8 text-primary mx-auto" />
+                  <p className="text-sm text-muted-foreground">
+                    Almost there — we sent a confirmation email to{" "}
+                    <span className="font-medium text-foreground">{invite.email}</span>. Open it to activate your
+                    account, then come back to this link to join {tenantName}.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={createAccount} className="space-y-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Choose a password to create your account for{" "}
+                    <span className="font-medium text-foreground">{invite.email}</span>.
+                  </p>
+                  <div>
+                    <Label htmlFor="inv-name">Full name</Label>
+                    <Input id="inv-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ada Lovelace" className="mt-1.5 h-11" />
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-pw">Create password</Label>
+                    <PasswordInput id="inv-pw" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" />
+                    <p className="text-xs text-muted-foreground mt-1.5">At least 8 characters. Only you will know it.</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="inv-pw2">Confirm password</Label>
+                    <PasswordInput id="inv-pw2" required value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} className="mt-1.5 h-11" />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={creating}>
+                    {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account…</> : "Create account & join"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/auth?redirect=/invite/${token}&email=${encodeURIComponent(invite.email)}`)}
+                    className="w-full text-xs text-primary hover:underline"
+                  >
+                    I already have an account — sign in
+                  </button>
+                </form>
+              )
             ) : user.email?.toLowerCase() !== invite.email.toLowerCase() ? (
               <div className="space-y-3">
                 <p className="text-sm text-destructive text-center">
