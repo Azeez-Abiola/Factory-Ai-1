@@ -35,16 +35,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Listener first to avoid missed events
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        // Defer to prevent deadlock
-        setTimeout(() => loadAccount(newSession.user.id), 0);
-      } else {
+      if (!newSession?.user) {
         setRoles([]);
         setApprovalStatus(null);
+        return;
       }
+      // TOKEN_REFRESHED fires whenever the client silently renews the
+      // session — notably whenever the browser tab regains focus — even
+      // though nothing about the account actually changed. Refetching
+      // roles/profile on every one of those caused a visible reload of
+      // every page reading them each time the user switched back to this
+      // tab. Only re-fetch for events that can actually change the account.
+      if (event === "TOKEN_REFRESHED") return;
+      // Defer to prevent deadlock
+      setTimeout(() => loadAccount(newSession.user.id), 0);
     });
 
     supabase.auth.getSession().then(async ({ data }) => {

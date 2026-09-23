@@ -59,8 +59,14 @@ export function useTenants() {
       else localStorage.removeItem(ACTIVE_KEY);
     }
     setLoading(false);
+    // Keyed on user?.id (a stable primitive), not the user object itself —
+    // Supabase's client refreshes the session (and fires a new user object
+    // reference through onAuthStateChange) whenever the browser tab regains
+    // focus, even when the signed-in user hasn't actually changed. Keying on
+    // the object caused a full tenants reload — and its loading-state
+    // flicker — on every tab refocus, not just on real sign-in/out.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     load();
