@@ -711,6 +711,13 @@ const AIConfig = () => {
               <>
                 <Label>Clip</Label>
                 <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => { setTestVideo("/sample-test-clip.mp4"); setVideoLabel("Sample test clip (5s)"); setTestResult(null); }}
+                  >
+                    Use sample clip
+                  </Button>
                   <Button type="button" variant="outline" asChild>
                     <label className="cursor-pointer">
                       Upload clip
