@@ -16,6 +16,7 @@ import { DEFAULT_DEFECT_TYPES, type DefectType } from "@/lib/defectTypes";
 import { useTenants } from "@/hooks/useTenants";
 import { DEFAULT_CATEGORIES, mergeWithDefaults } from "@/lib/detectionCategories";
 import { auditLog } from "@/lib/audit";
+import { describeEdgeFunctionError } from "@/lib/edgeFunctionError";
 import { toast } from "sonner";
 
 interface Category {
@@ -324,7 +325,7 @@ const AIConfig = () => {
       setTestResult(data);
       toast.success("Analysis complete");
     } catch (e) {
-      toast.error("Test failed: " + (e as Error).message);
+      toast.error("Test failed: " + (await describeEdgeFunctionError(e)));
     } finally {
       setTesting(false);
     }

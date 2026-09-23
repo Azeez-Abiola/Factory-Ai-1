@@ -6,6 +6,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { describeEdgeFunctionError } from "@/lib/edgeFunctionError";
 import { toast } from "sonner";
 
 interface Props {
@@ -116,7 +117,7 @@ const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl
       });
       toast.success(result.alerts_created ? `${result.alerts_created} alert raised from this frame` : "Live frame analysis complete");
     } catch (e) {
-      toast.error("Analysis failed: " + (e as Error).message);
+      toast.error("Analysis failed: " + (await describeEdgeFunctionError(e)));
     } finally {
       setLoading(false);
     }
