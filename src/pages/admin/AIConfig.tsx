@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Sparkles, Save, Plus, Trash2, RotateCcw, ImageIcon, Loader2, Info, Eye, Copy } from "lucide-react";
+import { Sparkles, Save, Plus, Trash2, RotateCcw, ImageIcon, Loader2, Info, Eye, Copy, ShieldCheck, AlertTriangle, Zap } from "lucide-react";
 import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import { useTenants } from "@/hooks/useTenants";
 import { DEFAULT_CATEGORIES, mergeWithDefaults } from "@/lib/detectionCategories";
 import { auditLog } from "@/lib/audit";
 import { toast } from "sonner";
-import sampleClip from "@/assets/sample-factory-clip.mp4.asset.json";
 
 interface Category {
   id: string;
@@ -85,6 +84,13 @@ const MODELS = [
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+const TEST_SEVERITY_COLOR: Record<string, string> = {
+  low: "text-success border-success/30",
+  medium: "text-primary border-primary/30",
+  high: "text-warning border-warning/30",
+  critical: "text-destructive border-destructive/30",
+};
+
 const SAMPLE_IMAGE = "https://images.unsplash.com/photo-1565043666747-69f6646db940?w=1200";
 
 const AIConfig = () => {
@@ -101,8 +107,8 @@ const AIConfig = () => {
   const [testOpen, setTestOpen] = useState(false);
   const [testImage, setTestImage] = useState(SAMPLE_IMAGE);
   const [testMode, setTestMode] = useState<"image" | "video">("image");
-  const [testVideo, setTestVideo] = useState<string>(sampleClip.url);
-  const [videoLabel, setVideoLabel] = useState<string>("Sample factory clip (5s)");
+  const [testVideo, setTestVideo] = useState<string>("");
+  const [videoLabel, setVideoLabel] = useState<string>("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [newCatLabel, setNewCatLabel] = useState("");
@@ -705,13 +711,6 @@ const AIConfig = () => {
               <>
                 <Label>Clip</Label>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => { setTestVideo(sampleClip.url); setVideoLabel("Sample factory clip (5s)"); setTestResult(null); }}
-                  >
-                    Use sample clip
-                  </Button>
                   <Button type="button" variant="outline" asChild>
                     <label className="cursor-pointer">
                       Upload clip
@@ -738,11 +737,94 @@ const AIConfig = () => {
                 </p>
               </>
             )}
-            {testResult && (
-              <pre className="text-[11px] bg-muted/40 rounded-lg p-3 overflow-x-auto max-h-80">
-                {JSON.stringify(testResult.analysis ?? testResult, null, 2)}
-              </pre>
-            )}
+            {testResult && (() => {
+              const a = testResult.analysis ?? testResult;
+              return (
+                <div className="space-y-3">
+                  <div className="glass rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold flex items-center gap-2 text-sm">
+                        <ShieldCheck className="w-4 h-4 text-primary" /> Scene Summary
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        {a.severity && (
+                          <Badge variant="outline" className={TEST_SEVERITY_COLOR[a.severity] ?? ""}>
+                            {String(a.severity).toUpperCase()}
+                          </Badge>
+                        )}
+                        {typeof a.risk_score === "number" && <Badge variant="outline">Risk {a.risk_score}/100</Badge>}
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{a.summary}</p>
+                  </div>
+
+                  {Array.isArray(a.detections) && a.detections.length > 0 && (
+                    <div className="glass rounded-lg border border-border p-4">
+                      <h4 className="font-semibold mb-2 text-sm">Detections ({a.detections.length})</h4>
+                      <div className="space-y-1.5">
+                        {a.detections.map((d: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-sm gap-2">
+                            <span className="text-foreground truncate">
+                              {d.label}{d.category ? <span className="text-muted-foreground text-xs"> · {d.category}</span> : null}
+                              {d.bbox_hint && <span className="text-muted-foreground text-xs"> — {d.bbox_hint}</span>}
+                            </span>
+                            {typeof d.confidence === "number" && (
+                              <Badge variant="outline" className="text-xs shrink-0">{Math.round(d.confidence * 100)}%</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {Array.isArray(a.safety_violations) && a.safety_violations.length > 0 && (
+                    <div className="glass rounded-lg border border-destructive/30 p-4">
+                      <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="w-4 h-4" /> Safety Violations
+                      </h4>
+                      <div className="space-y-2">
+                        {a.safety_violations.map((v: any, i: number) => (
+                          <div key={i} className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={TEST_SEVERITY_COLOR[v.severity] ?? ""}>{v.severity}</Badge>
+                              <span className="font-medium">{v.type}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{v.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {Array.isArray(a.productivity_notes) && a.productivity_notes.length > 0 && (
+                    <div className="glass rounded-lg border border-border p-4">
+                      <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-warning" /> Productivity Notes
+                      </h4>
+                      <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-5">
+                        {a.productivity_notes.map((n: string, i: number) => <li key={i}>{n}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {Array.isArray(a.recommended_actions) && a.recommended_actions.length > 0 && (
+                    <div className="glass rounded-lg border border-primary/30 p-4">
+                      <h4 className="font-semibold mb-2 text-sm text-primary">Recommended Actions</h4>
+                      <ul className="space-y-1 text-sm text-foreground list-disc pl-5">
+                        {a.recommended_actions.map((act: string, i: number) => <li key={i}>{act}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer select-none">Raw JSON response</summary>
+                    <pre className="mt-2 bg-muted/40 rounded-lg p-3 overflow-x-auto max-h-80 text-[11px]">
+                      {JSON.stringify(a, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTestOpen(false)}>Close</Button>

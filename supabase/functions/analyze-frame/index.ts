@@ -2,9 +2,9 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
-import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
+import { GEMINI_CHAT_URL, geminiHeaders, geminiNativeUrl, geminiNativeHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
 import { normaliseDetections, detectionsForViolation } from "../_shared/bbox.ts";
-import { upscaleDataUrl, ensureDataUrl } from "../_shared/upscale.ts";
+import { upscaleDataUrl, ensureDataUrl, splitDataUrl } from "../_shared/upscale.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -507,29 +507,65 @@ Deno.serve(async (req) => {
     // better on a larger frame, and normalised boxes are unaffected.
     const analysisImageUrl = body.videoUrl ? undefined : await upscaleDataUrl(await ensureDataUrl(body.imageUrl));
 
-    const gwRes = await fetch(GEMINI_CHAT_URL, {
-      method: "POST",
-      headers: geminiHeaders(key),
-      body: JSON.stringify({
-        model: toGeminiModel(model),
-        messages: [
-          { role: "system", content: finalSystemPrompt },
-          ...exemplars.map((ex) => ({
-            role: "user" as const,
-            content: [
-              { type: "text", text: `Site PPE reference — ${ex.caption}` },
-              { type: "image_url", image_url: { url: ex.url } },
+    // Video has no OpenAI-compat equivalent — Gemini's chat/completions shim
+    // rejects a "video_url" content part outright ("Invalid content part
+    // type: video_url"), since that's a Lovable-gateway invention with no
+    // basis in the OpenAI spec Gemini is actually implementing there. Only
+    // Gemini's own native generateContent endpoint accepts inline video, with
+    // a different auth header and request/response shape entirely.
+    const analysisVideoUrl = body.videoUrl ? await ensureDataUrl(body.videoUrl) : undefined;
+
+    const gwRes = analysisVideoUrl
+      ? await (() => {
+          const video = splitDataUrl(analysisVideoUrl);
+          return fetch(geminiNativeUrl(model), {
+            method: "POST",
+            headers: geminiNativeHeaders(key),
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: finalSystemPrompt }] },
+              contents: [
+                ...exemplars.map((ex) => {
+                  const img = splitDataUrl(ex.url);
+                  return {
+                    role: "user" as const,
+                    parts: [
+                      { text: `Site PPE reference — ${ex.caption}` },
+                      { inlineData: { mimeType: img.mimeType, data: img.data } },
+                    ],
+                  };
+                }),
+                {
+                  role: "user" as const,
+                  parts: [
+                    { text: userText },
+                    { inlineData: { mimeType: video.mimeType, data: video.data } },
+                  ],
+                },
+              ],
+            }),
+          });
+        })()
+      : await fetch(GEMINI_CHAT_URL, {
+          method: "POST",
+          headers: geminiHeaders(key),
+          body: JSON.stringify({
+            model: toGeminiModel(model),
+            messages: [
+              { role: "system", content: finalSystemPrompt },
+              ...exemplars.map((ex) => ({
+                role: "user" as const,
+                content: [
+                  { type: "text", text: `Site PPE reference — ${ex.caption}` },
+                  { type: "image_url", image_url: { url: ex.url } },
+                ],
+              })),
+              { role: "user", content: [
+                { type: "text", text: userText },
+                { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
+              ]},
             ],
-          })),
-          { role: "user", content: [
-            { type: "text", text: userText },
-            body.videoUrl
-              ? { type: "video_url", video_url: { url: body.videoUrl } }
-              : { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
-          ]},
-        ],
-      }),
-    });
+          }),
+        });
 
     if (!gwRes.ok) {
       const errText = await gwRes.text();
@@ -540,7 +576,7 @@ Deno.serve(async (req) => {
       if (gwRes.status === 402) {
         code = "ai_credits_exhausted";
         message = "AI credits have run out for this workspace. Contact your platform administrator to restore analysis capacity.";
-      } else if (gwRes.status === 403) {
+      } else if (gwRes.status === 403 || gwRes.status === 401) {
         code = "ai_blocked";
         message = "AI analysis was rejected — check that GEMINI_API_KEY is valid and has access to this model.";
       } else if (gwRes.status === 429) {
@@ -563,7 +599,10 @@ Deno.serve(async (req) => {
     }
 
     const payload = await gwRes.json();
-    const raw: string = payload?.choices?.[0]?.message?.content ?? "";
+    const raw: string = analysisVideoUrl
+      ? (payload?.candidates?.[0]?.content?.parts ?? [])
+          .map((p: any) => p?.text ?? "").join("")
+      : (payload?.choices?.[0]?.message?.content ?? "");
     const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
     let analysis: any = null;
@@ -578,17 +617,19 @@ Deno.serve(async (req) => {
 
     // Second look: CCTV frames are noisy and the first pass sometimes names
     // objects that are not there. Re-show the frame and keep only findings the
-    // model can confirm at the exact coordinates it gave.
-    try {
-      await verifyFindings(analysis, {
-        key,
-        model,
-        content: body.videoUrl
-          ? { type: "video_url", video_url: { url: body.videoUrl } }
-          : { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
-      });
-    } catch (e) {
-      console.warn("verification pass skipped", e instanceof Error ? e.message : e);
+    // model can confirm at the exact coordinates it gave. Video skips this —
+    // it runs through Gemini's native API (see above), not the OpenAI-compat
+    // shape verifyFindings sends.
+    if (!analysisVideoUrl) {
+      try {
+        await verifyFindings(analysis, {
+          key,
+          model,
+          content: { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
+        });
+      } catch (e) {
+        console.warn("verification pass skipped", e instanceof Error ? e.message : e);
+      }
     }
 
     // Models sometimes answer on a 0-10 scale. Normalise to 0-100 and keep the

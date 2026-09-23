@@ -17,6 +17,14 @@ const MAX_WIDTH = 1600;
  * `data:` URIs work. Camera snapshots and signed Supabase Storage URLs are
  * both plain https, so every image must be fetched and inlined here first.
  */
+/** Splits a `data:<mime>;base64,<...>` URI into its parts for Gemini's native
+ *  inlineData part shape (used for video, which has no OpenAI-compat form). */
+export function splitDataUrl(dataUrl: string): { mimeType: string; data: string } {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+  if (!match) throw new Error("Expected a base64 data: URI");
+  return { mimeType: match[1], data: match[2] };
+}
+
 export async function ensureDataUrl(url: string | undefined): Promise<string | undefined> {
   if (!url || url.startsWith("data:")) return url;
   const res = await fetch(url);

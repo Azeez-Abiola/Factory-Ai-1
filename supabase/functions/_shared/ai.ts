@@ -21,3 +21,22 @@ export function geminiHeaders(key: string) {
     Authorization: `Bearer ${key}`,
   };
 }
+
+/**
+ * Video is not supported by the OpenAI-compatible endpoint above — it
+ * rejects any "video_url" content part outright ("Invalid content part
+ * type: video_url"), OpenAI's chat completions spec having no concept of
+ * video at all. Gemini's own native generateContent endpoint does support
+ * inline video (as an inlineData part), but takes a different auth header
+ * and an entirely different request/response shape.
+ */
+export function geminiNativeUrl(model: string): string {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${toGeminiModel(model)}:generateContent`;
+}
+
+export function geminiNativeHeaders(key: string) {
+  return {
+    "Content-Type": "application/json",
+    "x-goog-api-key": key,
+  };
+}
