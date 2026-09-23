@@ -4,7 +4,7 @@ import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
 import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
 import { normaliseDetections, detectionsForViolation } from "../_shared/bbox.ts";
-import { upscaleDataUrl } from "../_shared/upscale.ts";
+import { upscaleDataUrl, ensureDataUrl } from "../_shared/upscale.ts";
 
 interface Body {
   imageUrl?: string;      // https URL or data:image/...;base64,...
@@ -432,10 +432,17 @@ Deno.serve(async (req) => {
           .createSignedUrl(ref.path, 600);
         if (signed?.signedUrl) {
           const kind = ref.kind === "violation" ? "NON-COMPLIANT example" : "COMPLIANT example";
-          exemplars.push({
-            url: signed.signedUrl,
-            caption: `${kind}: ${ref.label ?? "site PPE reference"}${ref.note ? ` — ${ref.note}` : ""}`,
-          });
+          try {
+            const inlined = await ensureDataUrl(signed.signedUrl);
+            if (inlined) {
+              exemplars.push({
+                url: inlined,
+                caption: `${kind}: ${ref.label ?? "site PPE reference"}${ref.note ? ` — ${ref.note}` : ""}`,
+              });
+            }
+          } catch (e) {
+            console.warn("failed to inline reference image", ref.path, (e as Error).message);
+          }
         }
       }
     }
@@ -498,7 +505,7 @@ Deno.serve(async (req) => {
 
     // Small recorder snapshots get upscaled first — the model localises much
     // better on a larger frame, and normalised boxes are unaffected.
-    const analysisImageUrl = body.videoUrl ? undefined : await upscaleDataUrl(body.imageUrl);
+    const analysisImageUrl = body.videoUrl ? undefined : await upscaleDataUrl(await ensureDataUrl(body.imageUrl));
 
     const gwRes = await fetch(GEMINI_CHAT_URL, {
       method: "POST",
