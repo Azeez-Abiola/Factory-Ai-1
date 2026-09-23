@@ -305,6 +305,12 @@ const AIConfig = () => {
     setVideoLabel(file.name);
   };
 
+  const onImageFile = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image is too large — use a file under 10 MB"); return; }
+    const dataUrl = await toDataUrl(URL.createObjectURL(file));
+    setTestImage(dataUrl);
+  };
+
   const runTest = async () => {
     if (testMode === "video" && !testVideo) { toast.error("Provide a test clip"); return; }
     if (testMode === "image" && !testImage) { toast.error("Provide a test image URL"); return; }
@@ -701,9 +707,25 @@ const AIConfig = () => {
 
             {testMode === "image" ? (
               <>
-                <Label>Frame URL</Label>
-                <div className="flex gap-2">
-                  <Input value={testImage} onChange={(e) => setTestImage(e.target.value)} className="font-mono text-xs" />
+                <Label>Frame</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={testImage}
+                    onChange={(e) => setTestImage(e.target.value)}
+                    placeholder="Paste an image URL…"
+                    className="font-mono text-xs flex-1 min-w-[200px]"
+                  />
+                  <Button type="button" variant="outline" asChild>
+                    <label className="cursor-pointer">
+                      Upload image
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) onImageFile(f); }}
+                      />
+                    </label>
+                  </Button>
                   <Button onClick={runTest} disabled={testing} className="gap-2 shrink-0">
                     {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Run
                   </Button>
