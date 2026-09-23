@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: geminiHeaders(key),
       body: JSON.stringify({
-        model: toGeminiModel("google/gemini-2.5-pro"),
+        model: toGeminiModel("google/gemini-3.6-flash"),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText },

@@ -989,7 +989,7 @@ const RulesPolicy = () => {
               </div>
               <Separator />
               <div className="text-xs text-muted-foreground">
-                Model in use: <code className="font-mono">google/gemini-2.5-pro</code> via the FactoryAI Gateway. Vision analysis and policy compilation share the same gateway; usage is metered against workspace credits.
+                Model in use: <code className="font-mono">google/gemini-3.6-flash</code> via direct Gemini API access. Vision analysis and policy compilation share the same key; usage is metered against the site's AI budget.
               </div>
             </CardContent>
           </Card>

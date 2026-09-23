@@ -8,7 +8,7 @@ import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from '../
  * of the tenant) or by cron with the service role for every active tenant.
  */
 
-const MODEL = 'google/gemini-3.7-flash';
+const MODEL = 'google/gemini-3.6-flash';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

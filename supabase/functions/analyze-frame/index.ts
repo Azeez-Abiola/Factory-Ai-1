@@ -203,7 +203,7 @@ Return ONLY the JSON object — no markdown, no prose.`;
 
 
 const SITE_PPE_MODEL_ID = "site/ppe-reference";
-const SITE_PPE_BASE_MODEL = "google/gemini-2.5-pro";
+const SITE_PPE_BASE_MODEL = "google/gemini-3.6-flash";
 
 const BBOX_CONTRACT = `Every detection MUST include "category" (one of ppe, intrusion, downtime, ergonomics, quality, housekeeping, forklift, security, other), "severity", "confidence" (0-1) and "box_2d": [ymin, xmin, ymax, xmax] as integers on a 0-1000 grid measured against the FULL frame (top-left = 0,0, bottom-right = 1000,1000). The box must tightly enclose the subject — verify it before answering, and use "box_2d": null with a written location in "bbox_hint" when you cannot place the subject confidently. Never output a box over empty floor, sky or wall, and never reuse one box for two subjects.`;
 
@@ -340,7 +340,7 @@ Deno.serve(async (req) => {
 
     // Load tenant-specific configuration if a tenantId was provided.
     let systemPrompt = DEFAULT_SYSTEM_PROMPT;
-    let model = "google/gemini-2.5-pro";
+    let model = "google/gemini-3.6-flash";
     let categories = DEFAULT_CATEGORIES;
     let referenceImages: { path: string; label?: string; kind?: string; note?: string }[] = [];
     let siteModel = false;

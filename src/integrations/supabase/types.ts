@@ -1924,6 +1924,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      platform_users: {
+        Args: never
+        Returns: {
+          approval_status: string
+          created_at: string
+          display_name: string
+          email: string
+          last_sign_in_at: string
+          user_id: string
+        }[]
+      }
       tenant_member_emails: {
         Args: { _tenant_id: string }
         Returns: {

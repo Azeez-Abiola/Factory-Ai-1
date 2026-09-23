@@ -13,6 +13,11 @@ type Client = {
 
 /** Rough per-call cost in USD by model family. Video clips cost ~4x a frame. */
 const MODEL_COST: Record<string, number> = {
+  "google/gemini-3.1-pro-preview": 0.012,
+  "google/gemini-3-pro-image": 0.012,
+  "google/gemini-3.6-flash": 0.0025,
+  "google/gemini-3.5-flash": 0.0025,
+  // Retained for historical usage_events recorded before the 3.x switch.
   "google/gemini-2.5-pro": 0.012,
   "google/gemini-2.5-flash": 0.0025,
   "google/gemini-2.5-flash-lite": 0.0009,

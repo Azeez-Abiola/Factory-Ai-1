@@ -77,11 +77,9 @@ const SITE_PPE_MODEL_ID = "site/ppe-reference";
 
 const MODELS = [
   { id: SITE_PPE_MODEL_ID, label: "Site PPE Model (your factory's photos + Gemini)" },
-  { id: "google/gemini-2.5-pro",   label: "Gemini 2.5 Pro (best vision, default)" },
-  { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (faster, cheaper)" },
-  { id: "google/gemini-3-pro-image", label: "Gemini 3 Pro (next-gen vision)" },
-  { id: "openai/gpt-5.5",          label: "GPT-5.5 (reasoning-heavy)" },
-  { id: "openai/gpt-6-astra",      label: "GPT-6 Astra (most capable)" },
+  { id: "google/gemini-3.6-flash", label: "Gemini 3.6 Flash (fast, default)" },
+  { id: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (best vision, requires billing)" },
+  { id: "google/gemini-3-pro-image", label: "Gemini 3 Pro Image (next-gen vision, requires billing)" },
 ];
 
 
@@ -96,7 +94,7 @@ const AIConfig = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
-  const [model, setModel] = useState("google/gemini-2.5-pro");
+  const [model, setModel] = useState("google/gemini-3.6-flash");
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [defectTypes, setDefectTypes] = useState<DefectType[]>(DEFAULT_DEFECT_TYPES);
   const [newDefectLabel, setNewDefectLabel] = useState("");
@@ -134,7 +132,7 @@ const AIConfig = () => {
         .maybeSingle();
       if (data) {
         setSystemPrompt(data.system_prompt || DEFAULT_PROMPT);
-        setModel(data.model || "google/gemini-2.5-pro");
+        setModel(data.model || "google/gemini-3.6-flash");
         setCategories(mergeWithDefaults(data.categories));
         const defects = Array.isArray((data as any).defect_types) ? ((data as any).defect_types as DefectType[]) : [];
         setDefectTypes(defects);
@@ -145,7 +143,7 @@ const AIConfig = () => {
         void signPreviews(refs);
       } else {
         setSystemPrompt(DEFAULT_PROMPT);
-        setModel("google/gemini-2.5-pro");
+        setModel("google/gemini-3.6-flash");
         setCategories(DEFAULT_CATEGORIES);
         setDefectTypes(DEFAULT_DEFECT_TYPES);
         setCustomModels([]);
@@ -228,7 +226,7 @@ const AIConfig = () => {
   const addCustomModel = () => {
     const id = newModelId.trim();
     if (!id) { toast.error("Enter the model identifier"); return; }
-    if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) { toast.error("Use the vendor/model format, e.g. google/gemini-3.7-flash"); return; }
+    if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) { toast.error("Use the vendor/model format, e.g. google/gemini-3.6-flash"); return; }
     if (allModels.some((m) => m.id === id)) { toast.error("That model is already in the list"); return; }
     setCustomModels((m) => [...m, { id, label: newModelLabel.trim() || id, notes: newModelNotes.trim() || undefined }]);
     setNewModelId(""); setNewModelLabel(""); setNewModelNotes("");
@@ -237,12 +235,12 @@ const AIConfig = () => {
 
   const removeCustomModel = (id: string) => {
     setCustomModels((m) => m.filter((x) => x.id !== id));
-    if (model === id) setModel("google/gemini-2.5-pro");
+    if (model === id) setModel("google/gemini-3.6-flash");
   };
 
   const resetDefaults = () => {
     setSystemPrompt(DEFAULT_PROMPT);
-    setModel("google/gemini-2.5-pro");
+    setModel("google/gemini-3.6-flash");
     setCategories(DEFAULT_CATEGORIES);
 
     toast.info("Reset to platform defaults — click Save to apply");
@@ -610,7 +608,7 @@ const AIConfig = () => {
               <div>
                 <h4 className="font-semibold text-foreground text-sm">Additional vision models</h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Register another model for this site and it appears in the selector above. Use the vendor/model identifier, e.g. <code className="text-xs bg-muted/40 px-1 rounded">google/gemini-3.7-flash</code>.
+                  Register another model for this site and it appears in the selector above. Vision calls only reach Gemini directly, so this must be a real Gemini model id, e.g. <code className="text-xs bg-muted/40 px-1 rounded">google/gemini-3.6-flash</code>.
                 </p>
               </div>
 
