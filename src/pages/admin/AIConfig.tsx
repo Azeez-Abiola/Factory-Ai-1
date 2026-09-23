@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Sparkles, Save, Plus, Trash2, RotateCcw, ImageIcon, Loader2, Info, Eye, Copy, ShieldCheck, AlertTriangle, Zap } from "lucide-react";
 import PageHeader from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -93,8 +94,13 @@ const TEST_SEVERITY_COLOR: Record<string, string> = {
 
 const SAMPLE_IMAGE = "https://images.unsplash.com/photo-1565043666747-69f6646db940?w=1200";
 
+const VALID_TABS = ["prompt", "categories", "model", "help"] as const;
+
 const AIConfig = () => {
   const { tenants, activeTenantId } = useTenants();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = VALID_TABS.includes(searchParams.get("tab") as any) ? searchParams.get("tab")! : "prompt";
+  const setActiveTab = (v: string) => setSearchParams((prev) => { prev.set("tab", v); return prev; }, { replace: true });
   const activeTenant = useMemo(() => tenants.find((t) => t.id === activeTenantId), [tenants, activeTenantId]);
 
   const [loading, setLoading] = useState(true);
@@ -342,7 +348,7 @@ const AIConfig = () => {
         }
       />
 
-      <Tabs defaultValue="prompt" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="prompt">System Prompt</TabsTrigger>
           <TabsTrigger value="categories">Detection Categories{loading ? "" : ` (${categories.length})`}</TabsTrigger>
