@@ -299,7 +299,7 @@ const AIConfig = () => {
   };
 
   const onVideoFile = async (file: File) => {
-    if (file.size > 20 * 1024 * 1024) { toast.error("Clip is too large — use a clip under 20 MB"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Clip is too large — use a clip under 10 MB"); return; }
     const dataUrl = await toDataUrl(URL.createObjectURL(file));
     setTestVideo(dataUrl);
     setVideoLabel(file.name);
@@ -769,7 +769,7 @@ const AIConfig = () => {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  The clip is analysed end-to-end, so movement over time (a worker walking without a hard hat, a stalled line, a forklift near pedestrians) is judged the same way it will be on a live feed. Keep clips short — under 10 seconds and 20 MB.
+                  The clip is analysed end-to-end, so movement over time (a worker walking without a hard hat, a stalled line, a forklift near pedestrians) is judged the same way it will be on a live feed. Keep clips short — under 10 seconds and 10 MB. Larger clips can take minutes to process or time out entirely.
                 </p>
               </>
             )}
