@@ -1,0 +1,14 @@
+[Unit]
+Description=FactoryAI camera heartbeat agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/factoryai-heartbeat
+ExecStart=/usr/bin/python3 /opt/factoryai-heartbeat/heartbeat_agent.py --config /opt/factoryai-heartbeat/cameras.json
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

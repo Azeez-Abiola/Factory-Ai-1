@@ -30,3 +30,6 @@ supabase/.temp
 *.njsproj
 *.sln
 *.sw?
+
+# Real camera heartbeat tokens — never commit
+tools/camera-heartbeat-agent/cameras.json

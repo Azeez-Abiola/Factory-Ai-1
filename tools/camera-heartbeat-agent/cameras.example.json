@@ -1,0 +1,20 @@
+{
+  "heartbeat_url": "https://YOUR-PROJECT-REF.supabase.co/functions/v1/camera-heartbeat",
+  "interval_seconds": 60,
+  "timeout_seconds": 10,
+  "report_offline": true,
+  "cameras": [
+    {
+      "id": "PASTE_CAMERA_UUID",
+      "token": "PASTE_INGEST_TOKEN",
+      "name": "Loading Bay 4",
+      "probe": { "type": "hls", "url": "http://172.21.10.47:8888/ufl-loading-bay-4/index.m3u8" }
+    },
+    {
+      "id": "PASTE_CAMERA_UUID",
+      "token": "PASTE_INGEST_TOKEN",
+      "name": "Recorder-only camera (no HLS)",
+      "probe": { "type": "tcp", "url": "172.21.11.213:554" }
+    }
+  ]
+}
