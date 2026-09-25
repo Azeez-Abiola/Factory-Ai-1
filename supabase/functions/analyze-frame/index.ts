@@ -524,8 +524,8 @@ Deno.serve(async (req) => {
     // a different auth header and request/response shape entirely.
     const analysisVideoUrl = body.videoUrl ? await ensureDataUrl(body.videoUrl) : undefined;
 
-    const gwRes = analysisVideoUrl
-      ? await (() => {
+    const sendRequest = (): Promise<Response> => analysisVideoUrl
+      ? (() => {
           const video = splitDataUrl(analysisVideoUrl);
           return fetch(geminiNativeUrl(model), {
             method: "POST",
@@ -554,7 +554,7 @@ Deno.serve(async (req) => {
             }),
           });
         })()
-      : await fetch(target.url, {
+      : fetch(target.url, {
           method: "POST",
           headers: target.headers,
           body: JSON.stringify({
@@ -575,6 +575,16 @@ Deno.serve(async (req) => {
             ],
           }),
         });
+
+    // Providers shed load with brief 503 "high demand" spikes; retry a couple
+    // of times with backoff before surfacing the error.
+    let gwRes = await sendRequest();
+    for (const wait of [1500, 3500]) {
+      if (gwRes.status !== 503) break;
+      await gwRes.text();
+      await new Promise((r) => setTimeout(r, wait));
+      gwRes = await sendRequest();
+    }
 
     if (!gwRes.ok) {
       const errText = await gwRes.text();
@@ -599,7 +609,9 @@ Deno.serve(async (req) => {
         message = "Too many AI requests right now. Analysis will resume shortly — try again in a minute.";
       } else if (gwRes.status >= 500) {
         code = "ai_upstream_error";
-        message = "The AI service is temporarily unavailable. Please try again shortly.";
+        let hint = "";
+        try { hint = String(JSON.parse(errText)?.error?.message ?? JSON.parse(errText)?.[0]?.error?.message ?? "").slice(0, 160); } catch { hint = errText.slice(0, 160); }
+        message = `The AI service (${target.provider}, HTTP ${gwRes.status}) is temporarily unavailable. Please try again shortly.${hint ? ` Provider said: ${hint}` : ""}`;
       }
 
       return new Response(JSON.stringify({
