@@ -1037,6 +1037,86 @@ export type Database = {
         }
         Relationships: []
       }
+      report_schedules: {
+        Row: {
+          camera_ids: string[]
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          frequency: string
+          id: string
+          last_error: string | null
+          last_report_id: string | null
+          last_run_at: string | null
+          last_status: string | null
+          month_day: number
+          name: string
+          next_run_at: string
+          recipients: string[]
+          run_hour: number
+          tenant_id: string
+          timezone: string
+          type: string
+          updated_at: string
+          weekday: number
+          zones: string[]
+        }
+        Insert: {
+          camera_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_error?: string | null
+          last_report_id?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          month_day?: number
+          name: string
+          next_run_at: string
+          recipients?: string[]
+          run_hour?: number
+          tenant_id: string
+          timezone?: string
+          type?: string
+          updated_at?: string
+          weekday?: number
+          zones?: string[]
+        }
+        Update: {
+          camera_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_error?: string | null
+          last_report_id?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          month_day?: number
+          name?: string
+          next_run_at?: string
+          recipients?: string[]
+          run_hour?: number
+          tenant_id?: string
+          timezone?: string
+          type?: string
+          updated_at?: string
+          weekday?: number
+          zones?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
