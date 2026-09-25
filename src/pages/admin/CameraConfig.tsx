@@ -342,11 +342,9 @@ const CameraConfig = () => {
     await Promise.all([worker(), worker(), worker()]);
     setTestingAll(false);
     const failed = rows.length - passed;
-    toast({
-      title: `Live test finished: ${passed} of ${rows.length} responding`,
-      description: failed ? `${failed} camera(s) not responding — see the red notes on their tiles.` : "Every camera answered.",
-      variant: failed ? "destructive" : undefined,
-    });
+    const title = `Live test finished: ${passed} of ${rows.length} responding`;
+    if (failed) toast.error(title, { description: `${failed} camera(s) not responding — see the red notes on their tiles.` });
+    else toast.success(title, { description: "Every camera answered." });
   };
 
   const save = async () => {
