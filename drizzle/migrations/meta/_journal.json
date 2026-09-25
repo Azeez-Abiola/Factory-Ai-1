@@ -15,6 +15,13 @@
       "when": 1790063728220,
       "tag": "0001_fix_categories_and_invitation_preview",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790327490131,
+      "tag": "0002_report_schedules",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import CreateReportDialog from "@/components/reports/CreateReportDialog";
+import ScheduledReportsDialog from "@/components/reports/ScheduledReportsDialog";
+import { CalendarClock } from "lucide-react";
 import { downloadCSV } from "@/lib/exporters";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
@@ -39,6 +41,7 @@ const Reports = () => {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [createOpen, setCreateOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -155,6 +158,9 @@ const Reports = () => {
           <>
             <Button onClick={() => setCreateOpen(true)} disabled={!activeTenantId}>
               <Plus className="w-4 h-4 mr-2" /> Generate Report
+            </Button>
+            <Button variant="outline" className="border-border" onClick={() => setScheduleOpen(true)} disabled={!activeTenantId}>
+              <CalendarClock className="w-4 h-4 mr-2" /> Schedules
             </Button>
             <Button variant="outline" className="border-border" onClick={load}>
               <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} /> Refresh
@@ -288,6 +294,7 @@ const Reports = () => {
         })}
       </div>
 
+      <ScheduledReportsDialog open={scheduleOpen} onOpenChange={setScheduleOpen} tenantId={activeTenantId} onRan={load} />
       <CreateReportDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
