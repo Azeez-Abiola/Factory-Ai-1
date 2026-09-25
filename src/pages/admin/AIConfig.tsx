@@ -81,6 +81,10 @@ const MODELS = [
   { id: "google/gemini-3.6-flash", label: "Gemini 3.6 Flash (fast, default)" },
   { id: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (best vision, requires billing)" },
   { id: "google/gemini-3-pro-image", label: "Gemini 3 Pro Image (next-gen vision, requires billing)" },
+  { id: "openai/gpt-5.4-mini", label: "GPT-5.4 mini (OpenAI, fast, low cost)" },
+  { id: "openai/gpt-5.4", label: "GPT-5.4 (OpenAI, balanced)" },
+  { id: "openai/gpt-5.5", label: "GPT-5.5 (OpenAI, reasoning-heavy)" },
+  { id: "openai/gpt-6-astra", label: "GPT-6 Astra (OpenAI, most capable)" },
 ];
 
 
@@ -239,7 +243,7 @@ const AIConfig = () => {
   const addCustomModel = () => {
     const id = newModelId.trim();
     if (!id) { toast.error("Enter the model identifier"); return; }
-    if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) { toast.error("Use the vendor/model format, e.g. google/gemini-3.6-flash"); return; }
+    if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) { toast.error("Use the vendor/model format, e.g. google/gemini-3.6-flash or openai/gpt-5.4"); return; }
     if (allModels.some((m) => m.id === id)) { toast.error("That model is already in the list"); return; }
     setCustomModels((m) => [...m, { id, label: newModelLabel.trim() || id, notes: newModelNotes.trim() || undefined }]);
     setNewModelId(""); setNewModelLabel(""); setNewModelNotes("");
@@ -550,7 +554,7 @@ const AIConfig = () => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
-                All calls route through the FactoryAI Gateway. Gemini 2.5 Pro is the default for best vision accuracy; switch to Flash to reduce cost when running high-cadence inference.
+                Applies to this site's image analysis, policy compiler and insights. Gemini 3.6 Flash is the default; OpenAI models are billed to the OpenAI account. Video clips always run on Gemini, whichever model is chosen here.
               </p>
             </div>
 
@@ -627,7 +631,7 @@ const AIConfig = () => {
               <div>
                 <h4 className="font-semibold text-foreground text-sm">Additional vision models</h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Register another model for this site and it appears in the selector above. Vision calls only reach Gemini directly, so this must be a real Gemini model id, e.g. <code className="text-xs bg-muted/40 px-1 rounded">google/gemini-3.6-flash</code>.
+                  Register another model for this site and it appears in the selector above. Use a real model id from Google or OpenAI, e.g. <code className="text-xs bg-muted/40 px-1 rounded">google/gemini-3.6-flash</code> or <code className="text-xs bg-muted/40 px-1 rounded">openai/gpt-5.4</code>.
                 </p>
               </div>
 

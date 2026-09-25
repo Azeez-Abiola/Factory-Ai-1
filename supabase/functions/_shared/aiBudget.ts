@@ -17,6 +17,12 @@ const MODEL_COST: Record<string, number> = {
   "google/gemini-3-pro-image": 0.012,
   "google/gemini-3.6-flash": 0.0025,
   "google/gemini-3.5-flash": 0.0025,
+  // OpenAI: rough per-frame estimates by tier, not published prices — check
+  // OpenAI's pricing page and tune these if budget reporting needs to be exact.
+  "openai/gpt-5.4-mini": 0.003,
+  "openai/gpt-5.4": 0.01,
+  "openai/gpt-5.5": 0.02,
+  "openai/gpt-6-astra": 0.03,
   // Retained for historical usage_events recorded before the 3.x switch.
   "google/gemini-2.5-pro": 0.012,
   "google/gemini-2.5-flash": 0.0025,

@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { POLICY_TEMPLATES, STARTER_PACKS, packForIndustry, type PolicyTemplate } from "@/data/policyTemplates";
 import { provisionTenantCompliance } from "@/lib/provisionCompliance";
 import { useTenants } from "@/hooks/useTenants";
+import { describeEdgeFunctionError } from "@/lib/edgeFunctionError";
 import { auditLog } from "@/lib/audit";
 
 import PageHeader from "@/components/app/PageHeader";
@@ -152,6 +153,7 @@ function PolicyDialog({
           name: form.name,
           category: form.category,
           severity: form.severity,
+          tenantId,
         },
       });
       if (error) throw error;
@@ -159,7 +161,7 @@ function PolicyDialog({
       setCompiled(data.compiled);
       toast.success("Policy compiled with AI.");
     } catch (e: any) {
-      toast.error(e?.message ?? "AI compilation failed.");
+      toast.error(await describeEdgeFunctionError(e));
     } finally {
       setCompiling(false);
     }
@@ -989,7 +991,7 @@ const RulesPolicy = () => {
               </div>
               <Separator />
               <div className="text-xs text-muted-foreground">
-                Model in use: <code className="font-mono">google/gemini-3.6-flash</code> via direct Gemini API access. Vision analysis and policy compilation share the same key; usage is metered against the site's AI budget.
+                Vision analysis, policy compilation and insights use the AI model set for this site in AI Model & Categories (Gemini or OpenAI); usage is metered against the site's AI budget.
               </div>
             </CardContent>
           </Card>

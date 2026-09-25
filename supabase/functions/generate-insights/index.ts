@@ -1,6 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from '../_shared/ai.ts';
+import { chatTarget } from '../_shared/ai.ts';
 
 /**
  * generate-insights: turns real alert/incident/camera history into AI Insights
@@ -8,7 +8,7 @@ import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from '../
  * of the tenant) or by cron with the service role for every active tenant.
  */
 
-const MODEL = 'google/gemini-3.6-flash';
+const DEFAULT_MODEL = 'google/gemini-3.6-flash';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -75,9 +75,6 @@ async function summarise(supabase: any, tenantId: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const geminiKey = getGeminiKey();
-  if (!geminiKey) return json({ error: 'GEMINI_API_KEY is not configured' }, 500);
-
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
   let tenantIds: string[] = [];
@@ -113,11 +110,21 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const res = await fetch(GEMINI_CHAT_URL, {
+    // Use the site's own configured model (Gemini or OpenAI); the PPE-reference
+    // pseudo-model is a vision-only setting, so it falls back to the default.
+    const { data: aiCfg } = await admin.from('ai_analysis_config').select('model').eq('tenant_id', tenantId).maybeSingle();
+    const configured = aiCfg?.model && !String(aiCfg.model).startsWith('site/') ? String(aiCfg.model) : DEFAULT_MODEL;
+    const target = chatTarget(configured);
+    if (!target.hasKey) {
+      out.push({ tenant_id: tenantId, error: `${target.keyName} is not configured` });
+      continue;
+    }
+
+    const res = await fetch(target.url, {
       method: 'POST',
-      headers: geminiHeaders(geminiKey),
+      headers: target.headers,
       body: JSON.stringify({
-        model: toGeminiModel(MODEL),
+        model: target.model,
         messages: [
           { role: 'system', content: SYSTEM },
           { role: 'user', content: `Tenant operational data (last 30 days):\n${JSON.stringify(stats, null, 2)}` },
@@ -127,7 +134,7 @@ Deno.serve(async (req) => {
 
     if (!res.ok) {
       const detail = await res.text();
-      console.error(`Gemini error [${res.status}]: ${detail}`);
+      console.error(`AI error [${target.provider} ${res.status}]: ${detail}`);
       out.push({ tenant_id: tenantId, error: `ai_error_${res.status}`, detail: detail.slice(0, 300) });
       continue;
     }

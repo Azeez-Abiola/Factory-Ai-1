@@ -2,7 +2,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
-import { GEMINI_CHAT_URL, geminiHeaders, geminiNativeUrl, geminiNativeHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
+import { chatTarget, geminiNativeUrl, geminiNativeHeaders, getGeminiKey, providerOf, VIDEO_FALLBACK_MODEL, type ChatTarget } from "../_shared/ai.ts";
 import { normaliseDetections, detectionsForViolation } from "../_shared/bbox.ts";
 import { upscaleDataUrl, ensureDataUrl, splitDataUrl } from "../_shared/upscale.ts";
 
@@ -224,7 +224,7 @@ function buildSystemPrompt(base: string, categories: { id: string; label: string
  */
 async function verifyFindings(
   analysis: any,
-  opts: { key: string; model: string; content: Record<string, unknown> },
+  opts: { target: ChatTarget; content: Record<string, unknown> },
 ): Promise<void> {
   if (!analysis || typeof analysis !== "object") return;
   const detections: any[] = Array.isArray(analysis.detections) ? analysis.detections : [];
@@ -249,11 +249,11 @@ Return ONLY strict JSON:
 {"findings": [ { "index": number, "box_2d": [ymin, xmin, ymax, xmax] } ], "reason": "one short sentence"}
 List only the claims you confirm; omit the rest. An empty "findings" list is a perfectly good answer.`;
 
-  const res = await fetch(GEMINI_CHAT_URL, {
+  const res = await fetch(opts.target.url, {
     method: "POST",
-    headers: geminiHeaders(opts.key),
+    headers: opts.target.headers,
     body: JSON.stringify({
-      model: toGeminiModel(opts.model),
+      model: opts.target.model,
       messages: [
         { role: "system", content: "You verify industrial vision findings against the image. You reject anything you cannot see with certainty. Answer with JSON only." },
         { role: "user", content: [{ type: "text", text: verifyPrompt }, opts.content] },
@@ -324,13 +324,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const key = getGeminiKey();
-    if (!key) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const body = (await req.json()) as Body;
     if (!body.imageUrl && !body.videoUrl) {
       return new Response(JSON.stringify({ error: "imageUrl or videoUrl is required (https URL or data URL)" }), {
@@ -415,6 +408,22 @@ Deno.serve(async (req) => {
     if (model === SITE_PPE_MODEL_ID) {
       siteModel = true;
       model = SITE_PPE_BASE_MODEL;
+    }
+
+    // Video clips only work through Gemini's native API (neither chat
+    // completions endpoint accepts video), so a site set to a non-Gemini
+    // model still has its clips analysed — by Gemini.
+    let videoModelFallback = false;
+    if (body.videoUrl && providerOf(model) !== "google") {
+      model = VIDEO_FALLBACK_MODEL;
+      videoModelFallback = true;
+    }
+
+    const target = chatTarget(model);
+    if (!target.hasKey) {
+      return new Response(JSON.stringify({ error: `${target.keyName} not configured` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Category filter from request (subset of active ids)
@@ -520,7 +529,7 @@ Deno.serve(async (req) => {
           const video = splitDataUrl(analysisVideoUrl);
           return fetch(geminiNativeUrl(model), {
             method: "POST",
-            headers: geminiNativeHeaders(key),
+            headers: geminiNativeHeaders(getGeminiKey()!),
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: finalSystemPrompt }] },
               contents: [
@@ -545,11 +554,11 @@ Deno.serve(async (req) => {
             }),
           });
         })()
-      : await fetch(GEMINI_CHAT_URL, {
+      : await fetch(target.url, {
           method: "POST",
-          headers: geminiHeaders(key),
+          headers: target.headers,
           body: JSON.stringify({
-            model: toGeminiModel(model),
+            model: target.model,
             messages: [
               { role: "system", content: finalSystemPrompt },
               ...exemplars.map((ex) => ({
@@ -573,12 +582,18 @@ Deno.serve(async (req) => {
 
       let message = "AI analysis could not be completed.";
       let code = "ai_gateway_error";
-      if (gwRes.status === 402) {
+      // OpenAI reports an empty account as a 429 (insufficient_quota) — that is
+      // not a rate limit and retrying in a minute will not help.
+      const outOfCredit = target.provider === "openai" && gwRes.status === 429 &&
+        /insufficient_quota|exceeded your current quota/i.test(errText);
+      if (gwRes.status === 402 || outOfCredit) {
         code = "ai_credits_exhausted";
-        message = "AI credits have run out for this workspace. Contact your platform administrator to restore analysis capacity.";
+        message = outOfCredit
+          ? "The OpenAI account has no credit left. Add credit in the OpenAI billing settings, or switch this site to a Gemini model."
+          : "AI credits have run out for this workspace. Contact your platform administrator to restore analysis capacity.";
       } else if (gwRes.status === 403 || gwRes.status === 401) {
         code = "ai_blocked";
-        message = "AI analysis was rejected — check that GEMINI_API_KEY is valid and has access to this model.";
+        message = `AI analysis was rejected — check that ${target.keyName} is valid and has access to this model.`;
       } else if (gwRes.status === 429) {
         code = "ai_rate_limited";
         message = "Too many AI requests right now. Analysis will resume shortly — try again in a minute.";
@@ -591,7 +606,7 @@ Deno.serve(async (req) => {
         error: code,
         message,
         status: gwRes.status,
-        retryable: gwRes.status === 429 || gwRes.status >= 500,
+        retryable: !outOfCredit && (gwRes.status === 429 || gwRes.status >= 500),
         details: errText,
       }), {
         status: gwRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -623,8 +638,7 @@ Deno.serve(async (req) => {
     if (!analysisVideoUrl) {
       try {
         await verifyFindings(analysis, {
-          key,
-          model,
+          target,
           content: { type: "image_url", image_url: { url: analysisImageUrl ?? body.imageUrl } },
         });
       } catch (e) {
@@ -677,7 +691,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ analysis, raw, model, media, site_model: siteModel, reference_images_used: exemplars.length, alerts_created: alertsCreated, categories: categories.map((c) => c.id) }), {
+    return new Response(JSON.stringify({ analysis, raw, model, media, video_model_fallback: videoModelFallback, site_model: siteModel, reference_images_used: exemplars.length, alerts_created: alertsCreated, categories: categories.map((c) => c.id) }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

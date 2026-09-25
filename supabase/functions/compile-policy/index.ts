@@ -1,8 +1,11 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { GEMINI_CHAT_URL, geminiHeaders, getGeminiKey, toGeminiModel } from "../_shared/ai.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { chatTarget } from "../_shared/ai.ts";
 
 interface Body {
   natural_language: string;
+  /** Optional: compile with this site's configured model instead of the default. */
+  tenantId?: string;
   name?: string;
   category?: string;
   severity?: string;
@@ -32,13 +35,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const key = getGeminiKey();
-    if (!key) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const body = (await req.json()) as Body;
     if (!body.natural_language || body.natural_language.trim().length < 5) {
       return new Response(JSON.stringify({ error: "natural_language is required (min 5 chars)" }), {
@@ -54,11 +50,25 @@ Deno.serve(async (req) => {
       "\nReturn the JSON per schema.",
     ].filter(Boolean).join("\n");
 
-    const gwRes = await fetch(GEMINI_CHAT_URL, {
+    let configured = "google/gemini-3.6-flash";
+    if (body.tenantId) {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: cfg } = await admin.from("ai_analysis_config").select("model").eq("tenant_id", body.tenantId).maybeSingle();
+      // "site/..." is a vision-only pseudo-model (PPE reference photos).
+      if (cfg?.model && !String(cfg.model).startsWith("site/")) configured = String(cfg.model);
+    }
+    const target = chatTarget(configured);
+    if (!target.hasKey) {
+      return new Response(JSON.stringify({ error: `${target.keyName} not configured` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const gwRes = await fetch(target.url, {
       method: "POST",
-      headers: geminiHeaders(key),
+      headers: target.headers,
       body: JSON.stringify({
-        model: toGeminiModel("google/gemini-3.6-flash"),
+        model: target.model,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText },
@@ -68,7 +78,7 @@ Deno.serve(async (req) => {
 
     if (!gwRes.ok) {
       const errText = await gwRes.text();
-      console.error("Gemini error", gwRes.status, errText);
+      console.error("AI error", target.provider, gwRes.status, errText);
       if (gwRes.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit hit — retry shortly." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
