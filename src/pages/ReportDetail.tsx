@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { downloadTablePDF } from "@/lib/exporters";
 import { supabase } from "@/integrations/supabase/client";
-import { buildReport, emptyReportData, REPORT_TYPE_LABELS, type ReportRow } from "@/lib/reportBuilder";
+import { buildReport, emptyReportData, reportTypeLabel, type ReportRow } from "@/lib/reportBuilder";
 import {
   BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis,
@@ -66,7 +66,7 @@ const ReportDetail = () => {
       const start = report.period_start ? new Date(report.period_start) : new Date(Date.now() - 7 * 864e5);
       const end = report.period_end ? new Date(report.period_end) : new Date();
       const scope = (report.data as unknown as { scope?: { cameraIds?: string[]; zones?: string[] } })?.scope;
-      const built = await buildReport(report.tenant_id, report.type, start, end, scope);
+      const built = await buildReport(report.tenant_id, report.type, start, end, scope, report.data?.focus ?? undefined);
       const { error } = await supabase
         .from("reports")
         .update({
@@ -108,7 +108,7 @@ const ReportDetail = () => {
   const findings = data.findings ?? [];
   const config = statusConfig[report.status] ?? statusConfig.pending;
   const StatusIcon = config.icon;
-  const typeLabel = REPORT_TYPE_LABELS[report.type] ?? report.type;
+  const typeLabel = reportTypeLabel(report);
   const scoreColor = report.score >= 90 ? "text-success" : report.score >= 75 ? "text-warning" : "text-destructive";
   const created = report.created_at.slice(0, 10);
   const periodLabel =

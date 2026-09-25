@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import FieldLabel from "@/components/forms/FieldLabel";
 import MultiSelect from "@/components/admin/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
-import { REPORT_TYPE_LABELS, REPORT_TYPES, type ReportType } from "@/lib/reportBuilder";
+import { REPORT_TYPE_LABELS } from "@/lib/reportBuilder";
+import { useFocusAreas } from "@/hooks/useFocusAreas";
 import {
   computeNextRun, describeSchedule, WEEKDAYS, type ScheduleFrequency,
 } from "../../../supabase/functions/_shared/reportSchedule";
@@ -38,7 +39,10 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
   const [cameras, setCameras] = useState<{ id: string; name: string; zone: string | null }[]>([]);
 
   const [name, setName] = useState("");
-  const [type, setType] = useState<ReportType>("safety");
+  const [type, setType] = useState<string>("audit");
+  const { areas } = useFocusAreas(open ? tenantId : null);
+  const focus = areas.find((a) => a.value === type) ?? areas[areas.length - 1];
+  const labelOf = (t: string) => areas.find((a) => a.value === t)?.label ?? REPORT_TYPE_LABELS[t] ?? t.replace(/^cat:/, "");
   const [frequency, setFrequency] = useState<ScheduleFrequency>("weekly");
   const [hour, setHour] = useState(7);
   const [weekday, setWeekday] = useState(1);
@@ -78,8 +82,8 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
     const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase.from("report_schedules").insert({
       tenant_id: tenantId,
-      name: name.trim() || `${REPORT_TYPE_LABELS[type]} ${frequency} report`,
-      type, frequency, run_hour: hour, weekday, month_day: monthDay, timezone: browserTz,
+      name: name.trim() || `${focus.label} ${frequency} report`,
+      type: focus.value, frequency, run_hour: hour, weekday, month_day: monthDay, timezone: browserTz,
       camera_ids: cameraIds, zones, recipients: emails,
       next_run_at: computeNextRun(timing).toISOString(),
       created_by: u?.user?.id ?? null,
@@ -135,9 +139,9 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
             </div>
             <div className="space-y-1.5">
               <FieldLabel>Focus area</FieldLabel>
-              <Select value={type} onValueChange={(v) => setType(v as ReportType)}>
+              <Select value={focus.value} onValueChange={setType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{REPORT_TYPES.map((t) => <SelectItem key={t} value={t}>{REPORT_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
+                <SelectContent>{areas.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
@@ -208,7 +212,7 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                  <Badge variant="outline" className="text-xs">{REPORT_TYPE_LABELS[s.type as ReportType] ?? s.type}</Badge>
+                  <Badge variant="outline" className="text-xs">{labelOf(s.type)}</Badge>
                   {s.last_status === "failed" && <Badge variant="outline" className="text-xs bg-destructive/10 border-destructive/30">Last run failed</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground">

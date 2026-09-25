@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { buildReportWith, type ReportType } from "../../supabase/functions/_shared/reportCore";
+import { buildReportWith, type FocusArea, type ReportType } from "../../supabase/functions/_shared/reportCore";
 
 export * from "../../supabase/functions/_shared/reportCore";
 
@@ -10,4 +10,5 @@ export const buildReport = (
   periodStart: Date,
   periodEnd: Date,
   scope?: { cameraIds?: string[]; zones?: string[] },
-) => buildReportWith(supabase, tenantId, type, periodStart, periodEnd, scope);
+  focus?: FocusArea,
+) => buildReportWith(supabase, tenantId, type, periodStart, periodEnd, scope, focus);

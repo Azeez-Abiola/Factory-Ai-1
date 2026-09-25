@@ -3,7 +3,36 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = any;
 
-export type ReportType = "safety" | "quality" | "audit" | "productivity" | "security" | "hygiene" | "maintenance";
+export type BuiltinReportType = "safety" | "quality" | "audit" | "productivity" | "security" | "hygiene" | "maintenance";
+/** Built-in type, or "cat:<detection category id>" for a focus area linked to a site's detection category. */
+export type ReportType = string;
+
+/** A focus area: which alerts a report covers. */
+export interface FocusArea {
+  value: string; // report type stored on the report
+  label: string;
+  keywords: string[]; // empty = every alert
+  description?: string;
+}
+
+const STOP = new Set(["and", "the", "for", "with", "from", "into", "zone", "area", "control", "compliance", "risk", "entry", "other"]);
+
+/** Turn a detection category from AI Model & Categories into a report focus area. */
+export const focusFromCategory = (c: { id: string; label?: string; description?: string }): FocusArea => {
+  const words = [
+    c.id.toLowerCase(),
+    c.id.replace(/[_-]+/g, " ").toLowerCase(),
+    ...`${c.id} ${c.label ?? ""}`.toLowerCase().split(/[^a-z0-9]+/),
+  ].filter((w) => w.length >= 3 && !STOP.has(w));
+  return {
+    value: `cat:${c.id}`,
+    label: (c.label || c.id).trim(),
+    keywords: [...new Set(words)],
+    description: c.description || undefined,
+  };
+};
+
+export const AUDIT_FOCUS: FocusArea = { value: "audit", label: "Audit (all focus areas)", keywords: [], description: "Every alert, whatever the category." };
 export type ReportStatus = "passed" | "failed" | "pending";
 
 export interface ReportFinding {
@@ -20,6 +49,7 @@ export interface ReportFinding {
 }
 
 export interface ReportData {
+  focus?: FocusArea | null;
   findings: ReportFinding[];
   byCategory: { category: string; count: number }[];
   bySeverity: { name: string; value: number }[];
@@ -54,7 +84,7 @@ export interface ReportRow {
 
 const SEVERITY_WEIGHT: Record<string, number> = { critical: 8, high: 5, medium: 3, low: 1 };
 
-const TYPE_KEYWORDS: Record<ReportType, string[]> = {
+const TYPE_KEYWORDS: Record<BuiltinReportType, string[]> = {
   safety: ["ppe", "safety", "hazard", "helmet", "vest", "restricted", "forklift", "fall", "fire", "ergonom"],
   quality: ["quality", "defect", "label", "package", "contaminat", "misalign", "surface"],
   productivity: ["downtime", "idle", "throughput", "productivity", "stoppage", "bottleneck"],
@@ -64,7 +94,7 @@ const TYPE_KEYWORDS: Record<ReportType, string[]> = {
   audit: [],
 };
 
-export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
+export const REPORT_TYPE_LABELS: Record<string, string> = {
   safety: "Safety",
   quality: "Quality",
   audit: "Audit (all focus areas)",
@@ -74,7 +104,7 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   maintenance: "Equipment & maintenance",
 };
 
-export const REPORT_TYPES: ReportType[] = [
+export const REPORT_TYPES: BuiltinReportType[] = [
   "safety",
   "quality",
   "security",
@@ -97,8 +127,8 @@ interface AlertLike {
   metadata: Record<string, unknown> | null;
 }
 
-const matchesType = (a: AlertLike, type: ReportType) => {
-  const keys = TYPE_KEYWORDS[type];
+const matchesType = (a: AlertLike, type: ReportType, focus?: FocusArea) => {
+  const keys = focus ? focus.keywords : (TYPE_KEYWORDS[type as BuiltinReportType] ?? []);
   if (!keys.length) return true;
   const hay = `${a.type ?? ""} ${a.title ?? ""} ${a.description ?? ""}`.toLowerCase();
   return keys.some((k) => hay.includes(k));
@@ -128,6 +158,7 @@ export const buildReportWith = async (
   periodStart: Date,
   periodEnd: Date,
   scope?: { cameraIds?: string[]; zones?: string[] },
+  focus?: FocusArea,
 ): Promise<{ score: number; status: ReportStatus; findings_count: number; summary: string; data: ReportData }> => {
   const [alertsRes, camerasRes, incidentsRes, historyRes] = await Promise.all([
     supabase
@@ -161,7 +192,7 @@ export const buildReportWith = async (
   const cameraFilter = scope?.cameraIds?.length ? new Set(scope.cameraIds) : null;
   const zoneFilter = scope?.zones?.length ? new Set(scope.zones.map((z) => z.toLowerCase())) : null;
   const scoped = all.filter((a) => {
-    if (!matchesType(a, type)) return false;
+    if (!matchesType(a, type, focus)) return false;
     if (cameraFilter && !(a.camera_id && cameraFilter.has(a.camera_id))) return false;
     if (zoneFilter) {
       const zone = (a.zone ?? cameraMap.get(a.camera_id ?? "")?.zone ?? "").toLowerCase();
@@ -233,7 +264,7 @@ export const buildReportWith = async (
     start.setMonth(start.getMonth() - 1);
     const bucket = history.filter((h) => {
       const d = new Date(h.detected_at);
-      return d >= start && d < end && matchesType(h as AlertLike, type);
+      return d >= start && d < end && matchesType(h as AlertLike, type, focus);
     });
     const p = bucket.reduce((s, h) => s + (SEVERITY_WEIGHT[(h.severity ?? "low").toLowerCase()] ?? 1), 0);
     trend.push({
@@ -249,6 +280,7 @@ export const buildReportWith = async (
 
   const resolved = scoped.filter((a) => (a.status ?? "").toLowerCase() === "resolved").length;
   const data: ReportData = {
+    focus: focus ?? null,
     findings,
     byCategory,
     bySeverity,
@@ -263,11 +295,12 @@ export const buildReportWith = async (
     },
   };
 
+  const focusLabel = focus?.label ?? REPORT_TYPE_LABELS[type] ?? type;
   const status: ReportStatus = score >= 75 ? "passed" : "failed";
   const summary =
     scoped.length === 0
-      ? `No ${REPORT_TYPE_LABELS[type].toLowerCase()} events were detected across ${cameraMap.size} camera${cameraMap.size === 1 ? "" : "s"} during this period.`
-      : `${scoped.length} ${REPORT_TYPE_LABELS[type].toLowerCase()} event${scoped.length === 1 ? "" : "s"} across ${cameraMap.size} camera${cameraMap.size === 1 ? "" : "s"}, grouped into ${findings.length} finding${findings.length === 1 ? "" : "s"}. ${resolved} of ${scoped.length} were closed out, leaving ${scoped.length - resolved} open.`;
+      ? `No ${focusLabel.toLowerCase()} events were detected across ${cameraMap.size} camera${cameraMap.size === 1 ? "" : "s"} during this period.`
+      : `${scoped.length} ${focusLabel.toLowerCase()} event${scoped.length === 1 ? "" : "s"} across ${cameraMap.size} camera${cameraMap.size === 1 ? "" : "s"}, grouped into ${findings.length} finding${findings.length === 1 ? "" : "s"}. ${resolved} of ${scoped.length} were closed out, leaving ${scoped.length - resolved} open.`;
 
   return { score, status, findings_count: findings.length, summary, data };
 };
@@ -280,3 +313,20 @@ export const emptyReportData = (): ReportData => ({
   byArea: [],
   totals: { alerts: 0, resolved: 0, open: 0, cameras: 0, incidents: 0 },
 });
+
+/** Display name of a report's focus area. */
+export const reportTypeLabel = (r: { type: string; data?: { focus?: FocusArea | null } | null }) =>
+  r.data?.focus?.label ?? REPORT_TYPE_LABELS[r.type] ?? r.type.replace(/^cat:/, "");
+
+/** Focus areas for a site: its enabled detection categories, plus Audit. */
+export const focusAreasFromCategories = (cats: unknown): FocusArea[] => {
+  const list = Array.isArray(cats) ? cats : [];
+  const seen = new Set<string>();
+  const out: FocusArea[] = [];
+  for (const c of list as { id?: string; label?: string; description?: string; enabled?: boolean }[]) {
+    if (!c || typeof c !== "object" || !c.id || c.enabled === false || seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(focusFromCategory({ id: c.id, label: c.label, description: c.description }));
+  }
+  return [...out, AUDIT_FOCUS];
+};
