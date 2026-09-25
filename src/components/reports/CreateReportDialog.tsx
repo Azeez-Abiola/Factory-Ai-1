@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import FieldLabel from "@/components/forms/FieldLabel";
 import MultiSelect from "@/components/admin/MultiSelect";
 import { supabase } from "@/integrations/supabase/client";
-import { buildReport, REPORT_TYPE_LABELS, REPORT_TYPES, type ReportType } from "@/lib/reportBuilder";
+import { buildReport } from "@/lib/reportBuilder";
+import { useFocusAreas } from "@/hooks/useFocusAreas";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +46,9 @@ const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
 
 const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCount, onCreated }: CreateReportDialogProps) => {
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<ReportType>("safety");
+  const [type, setType] = useState<string>("audit");
+  const { areas } = useFocusAreas(tenantId);
+  const focus = areas.find((a) => a.value === type) ?? areas[areas.length - 1];
   const [days, setDays] = useState("7");
   const [from, setFrom] = useState(toDateInput(new Date(Date.now() - 7 * 864e5)));
   const [to, setTo] = useState(toDateInput(new Date()));
@@ -71,7 +74,7 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
 
   const reset = () => {
     setTitle("");
-    setType("safety");
+    setType("audit");
     setDays("7");
     setCameraIds([]);
     setZones([]);
@@ -102,7 +105,7 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
     if (!period) return;
     setSaving(true);
     try {
-      const built = await buildReport(tenantId, type, period.start, period.end, { cameraIds, zones });
+      const built = await buildReport(tenantId, focus.value, period.start, period.end, { cameraIds, zones }, focus);
 
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes?.user ?? null;
@@ -132,8 +135,8 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
       const { error } = await supabase.from("reports").insert({
         tenant_id: tenantId,
         reference: `RPT-${String(highest + 1).padStart(4, "0")}`,
-        title: title.trim() || `${REPORT_TYPE_LABELS[type]} report — ${tenantName ?? "site"} (${period.label})`,
-        type,
+        title: title.trim() || `${focus.label} report — ${tenantName ?? "site"} (${period.label})`,
+        type: focus.value,
         status: built.status,
         score: built.score,
         findings_count: built.findings_count,
@@ -185,14 +188,17 @@ const CreateReportDialog = ({ open, onOpenChange, tenantId, tenantName, reportCo
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel required>Focus area</FieldLabel>
-              <Select value={type} onValueChange={(v) => setType(v as ReportType)}>
+              <Select value={focus.value} onValueChange={setType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {REPORT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>{REPORT_TYPE_LABELS[t]}</SelectItem>
+                  {areas.map((a) => (
+                    <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Focus areas are this site's detection categories. Add or rename them in Admin → AI Model &amp; Categories.
+              </p>
             </div>
 
             <div className="space-y-2">

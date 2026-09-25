@@ -2,7 +2,7 @@
 // Bounded batch, claims each schedule by advancing next_run_at before building (no double runs).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { buildReportWith, REPORT_TYPE_LABELS, type ReportType } from "../_shared/reportCore.ts";
+import { buildReportWith, focusAreasFromCategories, REPORT_TYPE_LABELS, type ReportType } from "../_shared/reportCore.ts";
 import { computeNextRun, describeSchedule, lookbackDays, type ScheduleFrequency } from "../_shared/reportSchedule.ts";
 
 const BATCH = 20;
@@ -57,7 +57,11 @@ Deno.serve(async (req) => {
       const end = now;
       const start = new Date(end.getTime() - lookbackDays(timing.frequency) * 864e5);
       const type = s.type as ReportType;
-      const built = await buildReportWith(supabase, s.tenant_id, type, start, end, { cameraIds: s.camera_ids, zones: s.zones });
+      const { data: cfg } = await supabase.from("ai_analysis_config").select("categories").eq("tenant_id", s.tenant_id).maybeSingle();
+      const areas = focusAreasFromCategories(cfg?.categories);
+      const focus = areas.find((a) => a.value === type);
+      if (!focus && type.startsWith("cat:")) throw new Error("This focus area's detection category was removed or switched off in AI Model & Categories");
+      const built = await buildReportWith(supabase, s.tenant_id, type, start, end, { cameraIds: s.camera_ids, zones: s.zones }, focus);
 
       const { data: last } = await supabase.from("reports").select("reference").eq("tenant_id", s.tenant_id).limit(1000);
       const highest = (last ?? []).reduce((m: number, r: { reference: string }) => {
@@ -80,7 +84,7 @@ Deno.serve(async (req) => {
         summary: `${built.summary} Automated: ${describeSchedule(timing).toLowerCase()}.`,
         data: { ...built.data, scope: { cameraIds: s.camera_ids, zones: s.zones }, schedule_id: s.id },
         generated_by: s.created_by,
-        generated_by_name: `Scheduled · ${REPORT_TYPE_LABELS[type] ?? type}`,
+        generated_by_name: `Scheduled · ${focus?.label ?? REPORT_TYPE_LABELS[type] ?? type}`,
       }).select("id").single();
       if (error) throw error;
 
