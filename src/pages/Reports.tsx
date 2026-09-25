@@ -190,7 +190,7 @@ const Reports = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All focus areas</SelectItem>
-            {[...new Map([
+            {[...new Map<string, string>([
               ...areas.map((a) => [a.value, a.label] as const),
               ...reports.map((r) => [r.type, reportTypeLabel(r)] as const),
             ]).entries()].map(([v, l]) => (
