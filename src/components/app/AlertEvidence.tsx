@@ -24,6 +24,7 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [failed, setFailed] = useState(false);
   const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,6 +44,7 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
     const resolve = async () => {
       setLoading(true);
       setUrl(null);
+      setFailed(false);
       setNatural(null);
       if (evidencePath) {
         const { data } = await supabase.storage.from("alert-evidence").createSignedUrl(evidencePath, 3600);
@@ -53,10 +55,14 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
         }
       }
       // Fall back to the camera's current still frame when no frame was stored.
+      // Recorder addresses are plain http + password protected, so an https
+      // site can't load them directly — go through the secure snapshot proxy.
       if (cameraId) {
-        const { data } = await supabase.from("cameras").select("snapshot_url").eq("id", cameraId).maybeSingle();
-        if (active && data?.snapshot_url) {
-          setUrl(data.snapshot_url);
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (active && token) {
+          const base = import.meta.env.VITE_SUPABASE_URL;
+          setUrl(`${base}/functions/v1/camera-snapshot?camera_id=${cameraId}&token=${encodeURIComponent(token)}&t=${Date.now()}`);
           setLoading(false);
           return;
         }
@@ -107,11 +113,11 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
     );
   }
 
-  if (!url) {
+  if (!url || failed) {
     return (
       <div className={cn("flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border bg-muted/20 text-muted-foreground", isThumb ? "h-16 w-24" : "aspect-video w-full", className)}>
         <ImageOff className={isThumb ? "h-4 w-4" : "h-5 w-5"} />
-        {!isThumb && <p className="text-xs">No frame captured for this alert</p>}
+        {!isThumb && <p className="text-xs px-4 text-center">{failed ? "The camera picture couldn't be loaded — the camera may be offline or unreachable right now." : "No frame captured for this alert"}</p>}
       </div>
     );
   }
@@ -128,6 +134,7 @@ export default function AlertEvidence({ metadata, cameraId, variant = "full", cl
             const img = e.currentTarget;
             if (img.naturalWidth && img.naturalHeight) setNatural({ w: img.naturalWidth, h: img.naturalHeight });
           }}
+          onError={() => setFailed(true)}
         />
         <div
           className="pointer-events-none absolute"
