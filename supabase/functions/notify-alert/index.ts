@@ -90,9 +90,15 @@ Deno.serve(async (req) => {
 
     const logs: Array<{ channel: string; recipient: string; status: string; reason?: string; metadata: Record<string, unknown> }> = [];
 
+    const { data: tenantRow } = await supabase.from('tenants').select('name').eq('id', tenant_id).maybeSingle();
+    const sender = {
+      name: prefs.sender_name || (tenantRow?.name ? `${tenantRow.name} Alerts` : null),
+      replyTo: prefs.reply_to_email || null,
+    };
+
     if (prefs.email_enabled) {
       for (const to of prefs.email_recipients ?? []) {
-        const r = await sendEmail(to, subject, html);
+        const r = await sendEmail(to, subject, html, sender);
         logs.push({
           channel: 'email',
           recipient: to,

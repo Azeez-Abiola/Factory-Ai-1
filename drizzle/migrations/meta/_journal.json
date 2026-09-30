@@ -22,6 +22,20 @@
       "when": 1790327490131,
       "tag": "0002_report_schedules",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790757401713,
+      "tag": "0003_tenant_alert_email_sender",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790757416894,
+      "tag": "0004_rules_manage_permission",
+      "breakpoints": true
     }
   ]
 }

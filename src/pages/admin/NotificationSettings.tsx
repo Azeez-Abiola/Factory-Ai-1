@@ -22,6 +22,8 @@ interface Prefs {
   sms_recipients: string[];
   min_severity: "low" | "medium" | "high" | "critical";
   notify_on_escalation: boolean;
+  sender_name: string | null;
+  reply_to_email: string | null;
 }
 
 const DEFAULTS = (tenantId: string): Prefs => ({
@@ -32,6 +34,8 @@ const DEFAULTS = (tenantId: string): Prefs => ({
   sms_recipients: [],
   min_severity: "medium",
   notify_on_escalation: true,
+  sender_name: null,
+  reply_to_email: null,
 });
 
 const emailValid = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -62,10 +66,14 @@ const NotificationSettings = () => {
 
   const save = async () => {
     if (!prefs || !activeTenantId) return;
+    const name = prefs.sender_name?.trim() || null;
+    const reply = prefs.reply_to_email?.trim() || null;
+    if (name && (name.length > 60 || /[<>"\r\n]/.test(name))) return toast.error("Sender name: up to 60 characters, no < > or quotes");
+    if (reply && !emailValid(reply)) return toast.error("Enter a valid reply-to email address");
     setSaving(true);
     const { error } = await supabase
       .from("tenant_notification_prefs")
-      .upsert(prefs, { onConflict: "tenant_id" });
+      .upsert({ ...prefs, sender_name: name, reply_to_email: reply }, { onConflict: "tenant_id" });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Notification preferences saved");
@@ -167,6 +175,40 @@ const NotificationSettings = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Sender identity */}
+          <div className="glass rounded-xl border border-border p-5 space-y-4 lg:col-span-2">
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold">Sender</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="sender-name">Sender name</Label>
+                <Input
+                  id="sender-name"
+                  maxLength={60}
+                  value={prefs.sender_name ?? ""}
+                  onChange={(e) => setPrefs({ ...prefs, sender_name: e.target.value })}
+                  placeholder={`${activeTenant?.name ?? "Your company"} Alerts`}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="reply-to">Replies go to</Label>
+                <Input
+                  id="reply-to"
+                  type="email"
+                  value={prefs.reply_to_email ?? ""}
+                  onChange={(e) => setPrefs({ ...prefs, reply_to_email: e.target.value })}
+                  placeholder="safety@yourcompany.com"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Recipients see: <span className="font-medium text-foreground">{(prefs.sender_name?.trim() || `${activeTenant?.name ?? "FactoryAI"} Alerts`)}</span>.
+              When someone presses Reply, it goes to {prefs.reply_to_email?.trim() || "no one (replies are not monitored)"}.
+            </p>
           </div>
 
           {/* Email panel */}

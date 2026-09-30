@@ -1665,6 +1665,8 @@ export type Database = {
           notify_on_escalation: boolean
           quiet_hours_end: string | null
           quiet_hours_start: string | null
+          reply_to_email: string | null
+          sender_name: string | null
           sms_enabled: boolean
           sms_recipients: string[]
           tenant_id: string
@@ -1677,6 +1679,8 @@ export type Database = {
           notify_on_escalation?: boolean
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          reply_to_email?: string | null
+          sender_name?: string | null
           sms_enabled?: boolean
           sms_recipients?: string[]
           tenant_id: string
@@ -1689,6 +1693,8 @@ export type Database = {
           notify_on_escalation?: boolean
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
+          reply_to_email?: string | null
+          sender_name?: string | null
           sms_enabled?: boolean
           sms_recipients?: string[]
           tenant_id?: string
