@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import {
   Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles, Search, Volume2, VolumeX,
   Maximize2, Minimize2, LayoutGrid, Grid2x2, Grid3x3, Square, Play, Pause,
@@ -60,6 +60,7 @@ const Cameras = () => {
   const [now, setNow] = useState(new Date());
   const wallRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const dialogCaptureRef = useRef<(() => string | null) | null>(null);
 
   // Live clock — one interval, drives all overlay timestamps.
   useEffect(() => {
@@ -326,7 +327,7 @@ const Cameras = () => {
 
               <div className="space-y-4">
                 <div className="relative h-80 bg-muted/30 rounded-lg overflow-hidden border border-border">
-                  <FeedInner cam={selected} now={now} large audioOn={audioOn} visionOn={visionOn} tenantId={activeTenantId} stagger={0} />
+                  <FeedInner cam={selected} now={now} large audioOn={audioOn} visionOn={visionOn} tenantId={activeTenantId} stagger={0} captureOut={dialogCaptureRef} />
                 </div>
 
                 {/* Telemetry */}
@@ -341,7 +342,7 @@ const Cameras = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   {selected.ptzEnabled && <PtzControls cameraId={selected.id} />}
                   <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={() => setAnalyzeOpen(true)} disabled={!selected.snapshotUrl} className="gap-1.5">
+                    <Button size="sm" onClick={() => setAnalyzeOpen(true)} disabled={!selected.snapshotUrl && !selected.playbackUrl && !selected.fallbackUrl} className="gap-1.5">
                       <Sparkles className="w-4 h-4" /> Analyze with AI
                     </Button>
                   </div>
@@ -359,6 +360,7 @@ const Cameras = () => {
           cameraName={selected.name}
           cameraId={selected.id}
           snapshotUrl={selected.snapshotUrl}
+          captureFrame={() => dialogCaptureRef.current?.() ?? null}
         />
       )}
     </div>
@@ -455,7 +457,7 @@ const DetectionBoxes = ({ boxes, large }: { boxes: VisionBox[]; large: boolean }
   </div>
 );
 
-const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false, visionOn = true, tenantId = null, stagger = 0 }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean; visionOn?: boolean; tenantId?: string | null; stagger?: number }) => {
+const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false, visionOn = true, tenantId = null, stagger = 0, captureOut }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean; visionOn?: boolean; tenantId?: string | null; stagger?: number; captureOut?: MutableRefObject<(() => string | null) | null> }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
   const playbackUrl = cam.playbackUrl ?? cam.streamUrl ?? cam.snapshotUrl ?? null;
@@ -463,6 +465,11 @@ const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false
   const showLive = !!playbackUrl;
   const captureRef = useRef<(() => string | null) | null>(null);
   const recordRef = useRef<((seconds: number) => Promise<string | null>) | null>(null);
+  useEffect(() => {
+    if (!captureOut) return;
+    captureOut.current = () => captureRef.current?.() ?? null;
+    return () => { captureOut.current = null; };
+  }, [captureOut]);
 
   const vision = useVisionOverlay({
     cameraId: cam.id,

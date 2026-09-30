@@ -122,9 +122,14 @@ Deno.serve(async (req) => {
   );
 
   let requestedCamera: string | null = null;
+  let providedFrame: string | null = null;
   try {
     const body = await req.json();
     requestedCamera = body?.camera_id ?? null;
+    // On-site consoles send the frame they are already playing, because the
+    // cloud cannot reach a recorder that only has a factory-network address.
+    const f = body?.image_data_url;
+    if (typeof f === 'string' && /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(f) && f.length < 8_000_000) providedFrame = f;
   } catch { /* cron invokes with no body */ }
 
   const authHeader = req.headers.get('Authorization') ?? '';
@@ -193,12 +198,19 @@ Deno.serve(async (req) => {
     };
 
     const url = snapshotCandidate(cam);
-    if (!url) {
+    let frame: Awaited<ReturnType<typeof fetchFrame>> | null = null;
+    if (providedFrame && requestedCamera) {
+      const [head, b64] = providedFrame.split(',');
+      const mime = head.slice(5).split(';')[0];
+      const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      frame = { ok: true as const, dataUrl: providedFrame, bytes: raw.length, raw, mime };
+    }
+    if (!frame && !url) {
       await finish('error', 'No snapshot image address configured for this camera. Add a still-frame URL so AI analysis can read the live feed.');
       continue;
     }
 
-    const frame = await fetchFrame(url, (cam.credentials ?? null) as Record<string, any> | null);
+    if (!frame) frame = await fetchFrame(url!, (cam.credentials ?? null) as Record<string, any> | null);
     if (!frame.ok) {
       await finish('error', frame.reason);
       continue;
