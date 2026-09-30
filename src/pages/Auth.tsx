@@ -76,7 +76,17 @@ const Auth = () => {
     setBusy(true);
     const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
     if (result.error) {
-      toast.error("Google sign-in failed. Please try again.");
+      console.error("Google sign-in error", result.error);
+      const msg = result.error.message || "";
+      toast.error(
+        /fetch|network/i.test(msg)
+          ? "Can't reach the sign-in service right now. Please try again in a minute."
+          : `Google sign-in failed: ${msg || "please try again."}`,
+      );
+      setBusy(false);
+      return;
+    }
+    if (!result.redirected) {
       setBusy(false);
     }
   };
