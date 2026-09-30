@@ -1,5 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { saveEvidence, imageToBytes } from "../_shared/evidence.ts";
 import { getBudgetState, recordUsage } from "../_shared/aiBudget.ts";
 import { loadGateRules, gateViolation, effectiveCooldown } from "../_shared/alertGating.ts";
 import { normaliseDetections, detectionsForViolation } from "../_shared/bbox.ts";
@@ -80,20 +81,8 @@ async function raiseAlerts(
   // Store the still frame that accompanies the clip as visual evidence.
   let evidencePath: string | null = null;
   const still = body.evidenceImage ?? (media === "image" ? body.imageUrl : undefined);
-  const match = still?.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
-  if (match) {
-    try {
-      const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
-      const ext = match[1] === "image/png" ? "png" : "jpg";
-      const path = `${cam.tenant_id}/${cam.id}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("alert-evidence")
-        .upload(path, bytes, { contentType: match[1], upsert: false });
-      if (!error) evidencePath = path;
-    } catch (_e) {
-      evidencePath = null;
-    }
-  }
+  const img = await imageToBytes(still);
+  if (img) evidencePath = await saveEvidence(supabase, cam.tenant_id, cam.id, img.bytes, img.mime);
 
   const rows = violations
     .filter((v: any) => decisions.get(v)!.pass)
