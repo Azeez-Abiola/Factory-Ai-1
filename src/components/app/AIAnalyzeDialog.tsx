@@ -14,6 +14,8 @@ interface Props {
   cameraName: string;
   cameraId: string;
   snapshotUrl?: string | null;
+  /** Grabs the frame currently playing in the console (works on-site where the cloud can't reach the recorder). */
+  captureFrame?: () => string | null;
 }
 
 interface Analysis {
@@ -76,16 +78,18 @@ const blockedFor = (code: string, message: string): Blocked | null => {
   }
 };
 
-const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl }: Props) => {
+const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl, captureFrame }: Props) => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [blocked, setBlocked] = useState<Blocked | null>(null);
 
   const analyze = async () => {
     setLoading(true); setAnalysis(null); setBlocked(null);
+    let localFrame: string | null = null;
+    try { localFrame = captureFrame?.() ?? null; } catch { localFrame = null; }
     try {
       const { data, error } = await supabase.functions.invoke("run-inference", {
-        body: { camera_id: cameraId },
+        body: { camera_id: cameraId, ...(localFrame ? { image_data_url: localFrame } : {}) },
       });
       if (error) throw error;
       const result = data?.results?.[0];
@@ -104,7 +108,20 @@ const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl
         return;
       }
 
-      if (result.status === "error") throw new Error(result.error ?? "Analysis failed");
+      if (result.status === "error") {
+        const err = String(result.error ?? "Analysis failed");
+        if (/^snapshot_(error|http)/.test(err)) {
+          setBlocked({
+            title: "Couldn't get a picture from the camera",
+            message: "FactoryAI's online analyser could not reach this camera's recorder in time, and the picture on screen could not be read either.",
+            hint: "On the plant network, open the camera so its live picture is playing and press Analyze again. If it still fails, ask IT to enable browser access (CORS) on the video converter, or save a publicly reachable snapshot address for this camera. No AI credit was used.",
+            retryable: true,
+          });
+          toast.error("Couldn't get a picture from the camera");
+          return;
+        }
+        throw new Error(err);
+      }
       setAnalysis(result.analysis ?? {
         summary: result.summary ?? "Live frame analyzed successfully.",
         risk_score: result.risk_score ?? 0,
@@ -138,11 +155,11 @@ const AIAnalyzeDialog = ({ open, onOpenChange, cameraName, cameraId, snapshotUrl
               <p className="text-sm font-medium">Analyze current live frame</p>
               <p className="text-xs text-muted-foreground">Uses {cameraName}'s configured AI snapshot and tenant policies.</p>
             </div>
-              <Button onClick={analyze} disabled={loading || !snapshotUrl} className="gap-2 shrink-0">
+              <Button onClick={analyze} disabled={loading || (!snapshotUrl && !captureFrame)} className="gap-2 shrink-0">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {loading ? "Analyzing…" : "Analyze"}
               </Button>
-            {!snapshotUrl && <p className="text-xs text-warning">No AI snapshot is configured for this camera.</p>}
+            {!snapshotUrl && !captureFrame && <p className="text-xs text-warning">No AI snapshot is configured for this camera.</p>}
           </div>
 
           {blocked && (
