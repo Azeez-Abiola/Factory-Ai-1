@@ -112,11 +112,12 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
 
   const runNow = async (s: Schedule) => {
     setBusy(s.id);
-    const { data, error } = await supabase.functions.invoke("run-report-schedules", { body: { schedule_id: s.id } });
+    const { data, error } = await supabase.functions.invoke("run-report-schedules", { body: { schedule_id: s.id, app_url: window.location.origin } });
     setBusy(null);
     const failed = error || data?.error || data?.results?.[0]?.error;
     if (failed) return toast.error(typeof failed === "string" ? failed : "The report could not be generated");
-    toast.success("Report generated — it's now in your Reports list");
+    const emailNote = data?.results?.[0]?.email as string | undefined;
+    toast.success(emailNote ?? (s.recipients.length ? "Report generated and emailed to its recipients" : "Report generated — it's now in your Reports list"));
     load(); onRan();
   };
 
@@ -193,7 +194,7 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
             <div className="space-y-1.5 sm:col-span-2">
               <FieldLabel htmlFor="sch-rcp">Email to (optional)</FieldLabel>
               <Input id="sch-rcp" value={recipients} onChange={(e) => setRecipients(e.target.value)} placeholder="manager@factory.com, hse@factory.com" />
-              <p className="text-xs text-muted-foreground">Emails start sending once your company's sender email address is set up. Reports are always saved to the list.</p>
+              <p className="text-xs text-muted-foreground">Each recipient gets a summary email with a link to the full report. Reports are always saved to the list either way.</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -222,7 +223,9 @@ const ScheduledReportsDialog = ({ open, onOpenChange, tenantId, onRan }: Props) 
                 {s.recipients.length > 0 && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" /> {s.recipients.join(", ")}</p>
                 )}
-                {s.last_status === "failed" && s.last_error && <p className="text-xs text-destructive">{s.last_error}</p>}
+                {s.last_error && (
+                  <p className={`text-xs ${s.last_status === "failed" ? "text-destructive" : "text-muted-foreground"}`}>{s.last_error}</p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Switch checked={s.enabled} onCheckedChange={() => toggle(s)} aria-label={s.enabled ? "Pause schedule" : "Resume schedule"} />
