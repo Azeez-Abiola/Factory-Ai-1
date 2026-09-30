@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { saveEvidence } from '../_shared/evidence.ts';
 import { fetchWithAuth } from '../_shared/digestFetch.ts';
 import { loadGateRules, gateViolation, effectiveCooldown } from '../_shared/alertGating.ts';
 import { normaliseDetections, detectionsForViolation } from '../_shared/bbox.ts';
