@@ -39,14 +39,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
+    // End the sign-in when the browser is closed. sessionStorage is wiped on
+    // browser close; other open tabs vouch for a still-running session.
+    const FLAG = "factoryai.browserSession";
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("factoryai-auth") : null;
+    if (channel) {
+      channel.onmessage = (e) => {
+        if (e.data === "ping" && sessionStorage.getItem(FLAG)) channel.postMessage("pong");
+      };
+    }
+    const isContinuingSession = (): Promise<boolean> => {
+      if (sessionStorage.getItem(FLAG)) return Promise.resolve(true);
+      if (!channel) return Promise.resolve(false);
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => { channel.removeEventListener("message", onMsg); resolve(false); }, 400);
+        const onMsg = (e: MessageEvent) => {
+          if (e.data === "pong") { clearTimeout(timer); channel.removeEventListener("message", onMsg); resolve(true); }
+        };
+        channel.addEventListener("message", onMsg);
+        channel.postMessage("ping");
+      });
+    };
+
     supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) await fetchRoles(data.session.user.id);
+      let current = data.session;
+      if (current && !(await isContinuingSession())) {
+        await supabase.auth.signOut({ scope: "local" });
+        current = null;
+      }
+      sessionStorage.setItem(FLAG, "1");
+      setSession(current);
+      setUser(current?.user ?? null);
+      if (current?.user) await fetchRoles(current.user.id);
       setLoading(false);
     });
 
-    return () => sub.subscription.unsubscribe();
+    return () => { sub.subscription.unsubscribe(); channel?.close(); };
   }, []);
 
   const signOut = async () => {
