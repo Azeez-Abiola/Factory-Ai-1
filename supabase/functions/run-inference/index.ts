@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { saveEvidence } from '../_shared/evidence.ts';
 import { fetchWithAuth } from '../_shared/digestFetch.ts';
 import { loadGateRules, gateViolation, effectiveCooldown } from '../_shared/alertGating.ts';
 import { normaliseDetections, detectionsForViolation } from '../_shared/bbox.ts';
@@ -387,17 +388,7 @@ Deno.serve(async (req) => {
     if (rows.length) {
       // Persist the exact frame that triggered the alert so operators can
       // review the visual evidence with detection boxes later.
-      let evidencePath: string | null = null;
-      try {
-        const ext = frame.mime === 'image/png' ? 'png' : 'jpg';
-        const path = `${cam.tenant_id}/${cam.id}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('alert-evidence')
-          .upload(path, frame.raw, { contentType: frame.mime, upsert: false });
-        if (!upErr) evidencePath = path;
-      } catch (_e) {
-        evidencePath = null;
-      }
+      const evidencePath = await saveEvidence(supabase, cam.tenant_id, cam.id, frame.raw, frame.mime);
       if (evidencePath) {
         for (const r of rows) {
           (r.metadata as Record<string, unknown>).evidence_path = evidencePath;

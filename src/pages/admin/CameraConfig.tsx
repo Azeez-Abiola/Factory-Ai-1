@@ -145,6 +145,8 @@ const CameraConfig = () => {
   const [editing, setEditing] = useState<Partial<CameraRow> | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState<string | null>(null);
+  const [testingAll, setTestingAll] = useState(false);
+  const [liveTests, setLiveTests] = useState<Record<string, { state: "running" | "ok" | "fail"; message?: string; ms?: number; at?: number }>>({});
   const [savingSettings, setSavingSettings] = useState(false);
   const [gatewayBase, setGatewayBase] = useState<string>("");
   const [gatewayVendor, setGatewayVendor] = useState<GatewayVendor>("mediamtx");
@@ -298,6 +300,52 @@ const CameraConfig = () => {
     });
     if (error) return { ok: false, reason: error.message };
     return data as { ok: boolean; reason?: string; detail?: string };
+  };
+
+  const liveTestOne = async (cam: CameraRow) => {
+    setLiveTests((p) => ({ ...p, [cam.id]: { state: "running" } }));
+    const started = performance.now();
+    let result: { ok: boolean; reason?: string; detail?: string };
+    if (!cam.stream_url && !cam.rtsp_url && !cam.snapshot_url) {
+      result = { ok: false, reason: "No stream or snapshot address saved for this camera." };
+    } else if (!cam.stream_url && !cam.rtsp_url && cam.snapshot_url) {
+      // Snapshot-only camera: test the snapshot address directly.
+      result = await runStreamTest({ stream_url: cam.snapshot_url, stream_type: "mjpeg", credentials: cam.credentials });
+    } else {
+      result = await runStreamTest({
+        stream_url: cam.stream_url, stream_type: cam.stream_type, rtsp_url: cam.rtsp_url,
+        snapshot_url: cam.snapshot_url, credentials: cam.credentials,
+      }).catch((e) => ({ ok: false, reason: (e as Error).message }));
+    }
+    setLiveTests((p) => ({
+      ...p,
+      [cam.id]: {
+        state: result.ok ? "ok" : "fail",
+        message: result.ok ? result.detail : result.reason,
+        ms: Math.round(performance.now() - started),
+        at: Date.now(),
+      },
+    }));
+    return result.ok;
+  };
+
+  const testAllCameras = async () => {
+    setTestingAll(true);
+    const queue = [...rows];
+    let passed = 0;
+    // Three at a time so the recorder isn't flooded.
+    const worker = async () => {
+      while (queue.length) {
+        const cam = queue.shift()!;
+        if (await liveTestOne(cam)) passed++;
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    setTestingAll(false);
+    const failed = rows.length - passed;
+    const title = `Live test finished: ${passed} of ${rows.length} responding`;
+    if (failed) toast.error(title, { description: `${failed} camera(s) not responding — see the red notes on their tiles.` });
+    else toast.success(title, { description: "Every camera answered." });
   };
 
   const save = async () => {
@@ -511,6 +559,10 @@ const CameraConfig = () => {
           <div className="flex gap-2">
             <Button variant="outline" onClick={load} className="gap-2">
               <RefreshCw className="w-4 h-4" /> Refresh
+            </Button>
+            <Button variant="outline" onClick={testAllCameras} disabled={testingAll || rows.length === 0} className="gap-2">
+              {testingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
+              {testingAll ? "Testing cameras…" : "Test all cameras"}
             </Button>
             <Button variant="outline" onClick={() => setNvrOpen(true)} className="gap-2">
               <Router className="w-4 h-4" /> Bulk NVR Import
@@ -732,6 +784,22 @@ const CameraConfig = () => {
                     <span className="font-medium">Last AI run failed:</span> {cam.last_inference_error}
                   </div>
                 )}
+
+                {liveTests[cam.id] && (() => {
+                  const t = liveTests[cam.id];
+                  const cls = t.state === "running" ? "border-border bg-muted/30 text-muted-foreground"
+                    : t.state === "ok" ? "border-success/40 bg-success/10 text-success"
+                    : "border-destructive/40 bg-destructive/10 text-destructive";
+                  return (
+                    <div role="status" className={`rounded-lg border p-2.5 text-xs ${cls}`}>
+                      <p className="font-medium">
+                        {t.state === "running" ? "Live test running…" : t.state === "ok" ? `Live test passed · ${t.ms} ms` : "Live test failed — channel not responding"}
+                        {t.at && <span className="font-normal opacity-80"> · {new Date(t.at).toLocaleTimeString()}</span>}
+                      </p>
+                      {t.message && <p className="mt-0.5 text-foreground/80 break-words">{t.message}</p>}
+                    </div>
+                  );
+                })()}
 
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   <Button size="sm" variant="outline" onClick={() => runInference(cam)} disabled={analysing === cam.id} className="gap-1.5">
