@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import {
   Camera as CameraIcon, Wifi, WifiOff, Wrench, Sparkles, Search, Volume2, VolumeX,
   Maximize2, Minimize2, LayoutGrid, Grid2x2, Grid3x3, Square, Play, Pause,
@@ -457,7 +457,7 @@ const DetectionBoxes = ({ boxes, large }: { boxes: VisionBox[]; large: boolean }
   </div>
 );
 
-const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false, visionOn = true, tenantId = null, stagger = 0, captureOut }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean; visionOn?: boolean; tenantId?: string | null; stagger?: number; captureOut?: React.MutableRefObject<(() => string | null) | null> }) => {
+const FeedInner = ({ cam, now, large = false, audioOn = false, tileFocus = false, visionOn = true, tenantId = null, stagger = 0, captureOut }: { cam: LiveCamera; now: Date; large?: boolean; audioOn?: boolean; tileFocus?: boolean; visionOn?: boolean; tenantId?: string | null; stagger?: number; captureOut?: MutableRefObject<(() => string | null) | null> }) => {
   const config = statusConfig[cam.status];
   const tel = telemetryFor(cam);
   const playbackUrl = cam.playbackUrl ?? cam.streamUrl ?? cam.snapshotUrl ?? null;
