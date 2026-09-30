@@ -27,7 +27,7 @@ export const ALL_PERMISSION_KEYS = ALL_PERMISSION_ENTRIES.map(([key]) => key) as
 const defaults: Record<TenantRole, PermissionKey[]> = {
   owner: ALL_PERMISSION_KEYS,
   admin: ALL_PERMISSION_KEYS,
-  manager: ["portal.view", "dashboard.view", "alerts.view", "investigations.view", "investigations.manage", "investigations.export", "cameras.view", "floor_plan.view", "quality.view", "insights.view", "reports.view", "reports.create", "reports.export", "maintenance.view", "maintenance.manage"],
+  manager: ["portal.view", "dashboard.view", "alerts.view", "investigations.view", "investigations.manage", "investigations.export", "cameras.view", "floor_plan.view", "quality.view", "insights.view", "reports.view", "reports.create", "reports.export", "maintenance.view", "maintenance.manage", "notifications.manage", "rules.manage"],
   operator: ["dashboard.view", "shift.view", "shift.manage", "alerts.view", "alerts.acknowledge", "alerts.resolve", "alerts.export", "investigations.view", "investigations.manage", "investigations.export", "cameras.view", "floor_plan.view", "quality.view", "insights.view", "reports.view", "reports.export", "maintenance.view", "maintenance.manage"],
   viewer: ["dashboard.view", "alerts.view", "investigations.view", "cameras.view", "floor_plan.view", "quality.view", "insights.view", "reports.view", "maintenance.view"],
 };
