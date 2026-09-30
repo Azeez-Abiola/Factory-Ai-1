@@ -33,7 +33,17 @@ export function fromAddress() {
   return Deno.env.get('ALERT_FROM_EMAIL') ?? 'FactoryAI <onboarding@resend.dev>';
 }
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<DeliveryResult> {
+export interface SenderIdentity { name?: string | null; replyTo?: string | null }
+
+function buildFrom(sender?: SenderIdentity) {
+  const base = fromAddress();
+  const name = sender?.name?.replace(/[<>"\r\n]/g, '').trim().slice(0, 60);
+  if (!name) return base;
+  const addr = base.match(/<([^>]+)>/)?.[1] ?? base;
+  return `${name} <${addr}>`;
+}
+
+export async function sendEmail(to: string, subject: string, html: string, sender?: SenderIdentity): Promise<DeliveryResult> {
   const key = resendKey();
   if (!key) return { ok: false, reason: 'no_provider' };
 
@@ -43,7 +53,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({ from: fromAddress(), to: [to], subject, html }),
+    body: JSON.stringify({ from: buildFrom(sender), to: [to], subject, html, ...(sender?.replyTo ? { reply_to: sender.replyTo } : {}) }),
   });
 
   const text = await res.text();
